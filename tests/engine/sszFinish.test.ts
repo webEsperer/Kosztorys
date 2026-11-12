@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { newProject, type ProjectInput } from '../../src/model/project'
 import { buildSSZ } from '../../src/engine/stages/ssz'
 import { computeItem, type ItemSpec } from '../../src/engine/items'
-import { computeCeiling } from '../../src/engine/ceiling'
+import { computeCeilingRooms, DEFAULT_CEILING_RULES, linesAcross, roomCeiling } from '../../src/engine/ceiling'
 
 // Przykład 12 × 9 m (A_wew = 108, P_wew = 42), ściana 0,24, EPS 0,20; dach 35°, okapy 0,60.
 function example(): ProjectInput {
@@ -25,16 +25,44 @@ const byId = (items: ItemSpec[], id: string): ItemSpec => {
   return it
 }
 
-describe('ceiling — sufit krzyżowy', () => {
-  const c = computeCeiling({ length: 12, width: 9, mainSpacing: 1, carrierSpacing: 0.5 })
-  it('CD główne 108 mb, nośne 216 mb; wieszaki ⌈120⌉ = 120; krzyżowe 216', () => {
-    expect(c.mainMb.value).toBe(108)
-    expect(c.carrierMb.value).toBe(216)
-    expect(c.hangers.value).toBe(120)
-    expect(c.crossConnectors.value).toBe(216)
+describe('ceiling — zasady rozmieszczenia (per pomieszczenie)', () => {
+  const R = DEFAULT_CEILING_RULES
+
+  it('linie: skrajne od ściany, między nimi co ≤ rozstaw', () => {
+    expect(linesAcross(9, 0.15, 1)).toBe(10) // ⌈8,7⌉ + 1
+    expect(linesAcross(12, 0.4, 0.9)).toBe(14) // ⌈12,44⌉ + 1
+    expect(linesAcross(12, 0.1, 0.4)).toBe(31) // ⌈29,5⌉ + 1
+    expect(linesAcross(0.25, 0.15, 1)).toBe(1)
   })
-  it('łączniki wzdłużne przy profilach 4 m: 9 × (3 − 1) + 24 × (3 − 1) = 66', () => {
-    expect(c.lengthConnectors(4).value).toBe(66)
+
+  it('cały parter 12 × 9: główne 10 linii × 14 wieszaków = 140; nośne 31 linii; krzyżowe 310; kołki UD ⌈42 / 0,6⌉ = 70; 8 rzędów płyt', () => {
+    const r = roomCeiling({ id: 'x', name: 'Parter', length: 12, width: 9 }, R)
+    expect([r.mainLines, r.hangersPerLine, r.hangers, r.carrierLines, r.cross, r.udAnchors, r.boardRows]).toEqual([10, 14, 140, 31, 310, 70, 8])
+    expect([r.mainLength, r.carrierLength]).toEqual([12, 9])
+  })
+
+  it('dwa pomieszczenia: salon 6 × 4,5 i pokój 3,5 × 2,8 → suma', () => {
+    const t = computeCeilingRooms(
+      [
+        { id: 's', name: 'Salon', length: 6, width: 4.5 },
+        { id: 'p', name: 'Pokój', length: 2.8, width: 3.5 },
+      ],
+      R,
+    )
+    // salon: główne ⌈4,2⌉ + 1 = 6, wieszaki 6 × (⌈5,78⌉ + 1 = 7) = 42, nośne ⌈14,5⌉ + 1 = 16, krzyżowe 96, kołki 35
+    // pokój: główne ⌈2,5⌉ + 1 = 4, wieszaki 4 × (⌈3⌉ + 1 = 4) = 16, nośne ⌈8,25⌉ + 1 = 10, krzyżowe 40, kołki 21
+    expect(t.hangers.value).toBe(58)
+    expect(t.cross.value).toBe(136)
+    expect(t.udAnchors.value).toBe(56)
+    expect(t.area.value).toBe(36.8)
+    expect(t.perimeter.value).toBe(33.6)
+    expect(t.cdSegments).toHaveLength(6 + 16 + 4 + 10)
+    expect(t.boardSegments).toHaveLength(4 + 3)
+  })
+
+  it('ciężkie płyty: wieszaki co 75 cm', () => {
+    const r = roomCeiling({ id: 'x', name: 'P', length: 12, width: 9 }, { ...R, hangerSpacing: 0.75 })
+    expect(r.hangersPerLine).toBe(16) // ⌈14,93⌉ + 1
   })
 })
 
@@ -42,18 +70,39 @@ describe('SSZ — sufit, elewacja, podłoga (przykład)', () => {
   const p = example()
   const items = buildSSZ(p).items
 
-  it('płyty GK: 108 × 1,1 / 3,12 → ⌈38,08⌉ = 39 płyt', () => {
-    expect(computeItem(byId(items, 'ssz-sufit-gk'), 4000).packs).toBe(39)
+  it('płyty GK 120 × 260: 8 rzędów × 12 m, resztki ≥ 40 cm na kolejne rzędy → 37 płyt (kontrolnie 108 / 3,12 = 34,6)', () => {
+    expect(byId(items, 'ssz-sufit-gk').quantity?.value).toBe(37)
   })
 
-  it('profile CD60: bez długości profilu → uzupełnij; przy 4 m główne ⌈108 / 4⌉ = 27', () => {
-    expect(byId(items, 'ssz-sufit-cd-glowne').missing).toContain('Długość profilu CD60')
-    const q = buildSSZ({ ...p, itemParams: { 'ssz-sufit-cd-glowne': { profileLength: 4 } } }).items
-    expect(byId(q, 'ssz-sufit-cd-glowne').quantity?.value).toBe(27)
+  it('wieszaki 140, łączniki krzyżowe 310, kołki UD 70 (bez listy pomieszczeń — oznaczone do uzupełnienia)', () => {
+    expect(byId(items, 'ssz-sufit-wieszaki').quantity?.value).toBe(140)
+    expect(byId(items, 'ssz-sufit-laczniki-krzyzowe').quantity?.value).toBe(310)
+    expect(byId(items, 'ssz-sufit-kolki-ud').quantity?.value).toBe(70)
+    expect(byId(items, 'ssz-sufit-wieszaki').missing[0]).toContain('lista pomieszczeń')
   })
 
-  it('UD30 = obwody pomieszczeń 42 + 2 × 30 = 102 mb', () => {
-    expect(byId(items, 'ssz-sufit-ud30').quantity?.value).toBe(102)
+  it('profile CD60: bez długości → uzupełnij; przy 3 m: 10 × 4 + 31 × 3 = 133 profile, łączniki wzdłużne 10 × 3 + 31 × 2 = 92', () => {
+    expect(byId(items, 'ssz-sufit-cd60').missing).toContain('Długość profilu CD60')
+    const q = buildSSZ({ ...p, itemParams: { 'ssz-sufit-cd60': { profileLength: 3 } } }).items
+    expect(byId(q, 'ssz-sufit-cd60').quantity?.value).toBe(133)
+    expect(byId(q, 'ssz-sufit-laczniki-wzdluzne').quantity?.value).toBe(92)
+  })
+
+  it('z listą pomieszczeń: obwody z pomieszczeń, brak oznaczenia „lista pomieszczeń”', () => {
+    const q = buildSSZ({
+      ...p,
+      rooms: [
+        { id: 's', name: 'Salon', length: 6, width: 4.5 },
+        { id: 'k', name: 'Pokój', length: 2.8, width: 3.5 },
+      ],
+    }).items
+    expect(byId(q, 'ssz-sufit-wieszaki').quantity?.value).toBe(58)
+    expect(byId(q, 'ssz-sufit-wieszaki').missing).toEqual([])
+    expect(byId(q, 'ssz-sufit-ud27').quantity?.value).toBe(33.6)
+  })
+
+  it('UD27 bez listy pomieszczeń = 42 + 2 × 30 = 102 mb', () => {
+    expect(byId(items, 'ssz-sufit-ud27').quantity?.value).toBe(102)
   })
 
   it('EPS: obwód 42 + 8 × 0,34 = 44,72; wys. 2,922 − (−0,26) = 3,182; brutto 142,29904 − otwory 11,1 = 131,19904 m²', () => {

@@ -37,6 +37,7 @@ export function upgradeProject(data: Partial<ProjectInput>): ProjectInput {
   merged.partitions = { ...base.partitions, ...(data.partitions ?? {}) }
   merged.choices = { ...base.choices, ...(data.choices ?? {}) }
   merged.concrete = { ...base.concrete, ...(data.concrete ?? {}) }
+  merged.ceilingRules = { ...base.ceilingRules, ...(data.ceilingRules ?? {}) }
   return merged
 }
 

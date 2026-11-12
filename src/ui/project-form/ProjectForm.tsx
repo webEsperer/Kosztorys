@@ -7,6 +7,7 @@ import { projectBase } from '../../engine/stages/common'
 import { roofOf } from '../../engine/stages/sszRoof'
 import { Check, NumField, Section, Select, TextField, fmtQty } from '../common/fields'
 import { OpeningsEditor } from './OpeningsEditor'
+import { RoomsEditor } from './RoomsEditor'
 
 export type Update = (fn: (p: ProjectInput) => void) => void
 
@@ -160,6 +161,21 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
         <h2>8. Otwory</h2>
         <OpeningsEditor openings={project.openings} update={update} />
       </section>
+
+      <section className="card wide">
+        <h2>9. Pomieszczenia</h2>
+        <RoomsEditor project={project} update={update} />
+      </section>
+
+      <Section title="10. Sufit — rozmieszczenie profili" note="Profile główne wzdłuż dłuższego boku pomieszczenia, nośne krzyżowo; płyty prostopadle do nośnych.">
+        <NumField label="Profile główne — rozstaw" {...CM} value={project.ceilingRules.mainSpacing} onChange={(v) => update((p) => { p.ceilingRules.mainSpacing = v ?? 1 })} />
+        <NumField label="Profile główne — skrajny od ściany" {...CM} value={project.ceilingRules.mainEdge} onChange={(v) => update((p) => { p.ceilingRules.mainEdge = v ?? 0.15 })} />
+        <NumField label="Wieszaki — rozstaw (ciężkie płyty 75)" {...CM} value={project.ceilingRules.hangerSpacing} onChange={(v) => update((p) => { p.ceilingRules.hangerSpacing = v ?? 0.9 })} />
+        <NumField label="Wieszaki — skrajny od ściany" {...CM} value={project.ceilingRules.hangerEdge} onChange={(v) => update((p) => { p.ceilingRules.hangerEdge = v ?? 0.4 })} />
+        <NumField label="Profile nośne — rozstaw" {...CM} value={project.ceilingRules.carrierSpacing} onChange={(v) => update((p) => { p.ceilingRules.carrierSpacing = v ?? 0.4 })} />
+        <NumField label="Profile nośne — skrajny od ściany" {...CM} value={project.ceilingRules.carrierEdge} onChange={(v) => update((p) => { p.ceilingRules.carrierEdge = v ?? 0.1 })} />
+        <NumField label="Kołki UD27 — rozstaw" {...CM} value={project.ceilingRules.udAnchorSpacing} onChange={(v) => update((p) => { p.ceilingRules.udAnchorSpacing = v ?? 0.6 })} />
+      </Section>
     </div>
   )
 }

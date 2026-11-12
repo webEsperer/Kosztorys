@@ -1,7 +1,8 @@
 // SSZ — sufit podwieszany GK z ociepleniem, elewacja (EPS, szczyty, podbitka), podłoga na gruncie i instalacje.
 
 import type { ProjectInput } from '../../model/project'
-import { computeCeiling } from '../ceiling'
+import { computeCeilingRooms } from '../ceiling'
+import { computeCutting, DEFAULT_MIN_PIECE } from '../cutting'
 import { computeFacade, gablesArea, soffitArea } from '../facade'
 import { type ItemKind, type ItemSpec, type PackUnit, type Unit, UNIT_LABEL, need } from '../items'
 import { type Computed, ceilSafe, clean, fmt } from '../trace'
@@ -64,43 +65,115 @@ export function finishItems(b: Builder, project: ProjectInput): ItemSpec[] {
   const L = project.footprint.length
   const B = project.footprint.width
   const partLen = project.partitions.length
+  const rules = project.ceilingRules
 
-  // Obwody pomieszczeń: P_wew + 2 × ściany działowe (obie strony)
-  const roomsPerimeter: Computed = partLen !== null
-    ? computed('Obwody pomieszczeń', 'P_wew + 2 × mb ścian działowych', `${fmt(pWew)} + 2 × ${fmt(partLen)}`, pWew + 2 * partLen, 'm')
-    : computed('Obwody pomieszczeń', 'P_wew (bez ścian działowych — nie podano)', fmt(pWew), pWew, 'm')
-  const roomsMissing = partLen === null ? ['długość ścian działowych (obwody pomieszczeń)'] : []
+  // Pomieszczenia: lista użytkownika albo cały parter (przybliżenie — oznaczone do uzupełnienia)
+  const rooms = project.rooms.length ? project.rooms : [{ id: 'parter', name: 'Cały parter', length: L, width: B }]
+  const noRooms = project.rooms.length === 0
+  const ceil = computeCeilingRooms(rooms, rules)
+  const roomsNote = noRooms ? ['lista pomieszczeń (sufit liczony dla całego parteru bez podziału)'] : []
 
-  // ── Sufit podwieszany GK + ocieplenie
+  // Obwody pomieszczeń: suma obwodów pomieszczeń; bez listy — P_wew + 2 × ściany działowe
+  const roomsPerimeter: Computed = !noRooms
+    ? ceil.perimeter
+    : partLen !== null
+      ? computed('Obwody pomieszczeń', 'P_wew + 2 × mb ścian działowych', `${fmt(pWew)} + 2 × ${fmt(partLen)}`, pWew + 2 * partLen, 'm')
+      : computed('Obwody pomieszczeń', 'P_wew (bez ścian działowych — nie podano)', fmt(pWew), pWew, 'm')
+  const roomsMissing = noRooms && partLen === null ? ['długość ścian działowych (obwody pomieszczeń)'] : []
+
+  // ── Sufit podwieszany GK + ocieplenie (per pomieszczenie, sumowane)
   const C1 = 'Sufit podwieszany GK + ocieplenie'
-  const ms = b.P('ssz-sufit-cd-glowne', 'spacing', 'Rozstaw profili głównych', 1.0, 'm')
-  const cs = b.P('ssz-sufit-cd-nosne', 'spacing', 'Rozstaw profili nośnych', 0.5, 'm')
-  const ceil = computeCeiling({ length: L, width: B, mainSpacing: ms.value ?? 1, carrierSpacing: cs.value ?? 0.5 })
-  const plParam = (id: string) => b.P(id, 'profileLength', 'Długość profilu CD60', null, 'm', '3 m lub 4 m')
-  for (const [id, name, mb, sp] of [
-    ['ssz-sufit-cd-glowne', 'Profile CD60 główne', ceil.mainMb, ms],
-    ['ssz-sufit-cd-nosne', 'Profile CD60 nośne', ceil.carrierMb, cs],
-  ] as const) {
-    const params = { spacing: sp, profileLength: plParam(id) }
-    const missing: string[] = []
-    const pl = need(params, 'profileLength', missing)
-    out.push(b.item({ id, category: C1, kind: 'material', name, unit: 'szt', params, missing, quantity: pl !== null ? { ...ceil.profiles(mb.value, pl, name), trace: [...ceil.area.trace, ...mb.trace, ...ceil.profiles(mb.value, pl, name).trace] } : null }))
-  }
-  out.push(consumptionItem(b, 'ssz-sufit-ud30', C1, 'Profile UD30 (obwody pomieszczeń)', roomsPerimeter, roomsMissing, { unit: 'mb' }))
-  out.push(b.item({ id: 'ssz-sufit-wieszaki', category: C1, kind: 'material', name: 'Wieszaki (noniusz/ES)', unit: 'szt', quantity: ceil.hangers }))
-  out.push(b.item({ id: 'ssz-sufit-laczniki-krzyzowe', category: C1, kind: 'material', name: 'Łączniki krzyżowe', unit: 'szt', quantity: ceil.crossConnectors }))
   {
-    const id = 'ssz-sufit-laczniki-wzdluzne'
-    const pl = b.P('ssz-sufit-cd-glowne', 'profileLength', 'Długość profilu CD60', null, 'm')
-    out.push(b.item({ id, category: C1, kind: 'material', name: 'Łączniki wzdłużne CD60', unit: 'szt', missing: pl.value === null ? [pl.label] : [], quantity: pl.value !== null ? ceil.lengthConnectors(pl.value) : null }))
+    const id = 'ssz-sufit-cd60'
+    const params = {
+      profileLength: b.P(id, 'profileLength', 'Długość profilu CD60', null, 'm', '2,6 / 3 / 4 m; blacha 0,6 mm'),
+      minPiece: b.P(id, 'minPiece', 'Min. kawałek z resztki', DEFAULT_MIN_PIECE, 'm'),
+    }
+    const missing = [...roomsNote]
+    const pl = need(params, 'profileLength', missing)
+    let quantity: Computed | null = null
+    let joints: Computed | null = null
+    if (pl !== null) {
+      const cut = computeCutting({
+        material: 'profil CD60',
+        sheetUnit: 'profili',
+        sheet: { width: 0.06, length: pl },
+        stripWidth: 0.06,
+        segments: ceil.cdSegments,
+        minPieceLength: params.minPiece.value ?? 0,
+        jointOverlap: 0,
+      })
+      const v = cut.A!
+      const mb = clean(ceil.cdSegments.reduce((a, s) => a + s.length, 0))
+      const base = [...ceil.rooms.flatMap((r) => r.trace), { label: 'Profile CD60 — długość linii', formula: 'Σ (główne × L + nośne × B)', values: `${ceil.cdSegments.length} linii`, result: mb, unit: 'm' }]
+      quantity = { value: v.sheets, unit: 'szt', trace: [...base, { label: 'Profile CD60', formula: 'cięcie z profili handlowych, resztki na kolejne linie', values: `${fmt(mb)} m z profili ${fmt(pl)} m`, result: v.sheets, unit: 'szt' }] }
+      joints = { value: v.joints, unit: 'szt', trace: [...base, { label: 'Łączniki wzdłużne', formula: 'łączenia kawałków w liniach', values: `profil ${fmt(pl)} m`, result: v.joints, unit: 'szt' }] }
+    }
+    out.push(b.item({ id, category: C1, kind: 'material', name: 'Profile CD60 (główne i nośne)', unit: 'szt', params, missing, quantity }))
+    out.push(b.item({ id: 'ssz-sufit-laczniki-wzdluzne', category: C1, kind: 'material', name: 'Łączniki wzdłużne CD60', unit: 'szt', missing: pl === null ? [params.profileLength.label] : [], quantity: joints }))
   }
-  out.push(b.item({ id: 'ssz-sufit-gk', category: C1, kind: 'material', name: 'Płyty GK 120 × 260 cm', unit: 'm2', quantity: ceil.area, wastePercent: 10, packaging: { packUnit: 'płyta', perPack: 3.12, packLabel: 'płyta = 3,12 m²' }, priceBasis: 'perPack' }))
-  out.push(consumptionItem(b, 'ssz-sufit-wkrety-gk', C1, 'Wkręty do GK', ceil.area, [], { unit: 'szt', rate: { label: 'Wkrętów na m²', unit: 'szt/m²', value: null } }))
-  out.push(consumptionItem(b, 'ssz-sufit-kolki-ud', C1, 'Kołki do UD30', roomsPerimeter, roomsMissing, { unit: 'szt', rate: { label: 'Kołków na mb UD30', unit: 'szt/mb', value: null } }))
-  out.push(consumptionItem(b, 'ssz-sufit-tasma', C1, 'Taśma do spoin GK', ceil.area, [], { unit: 'mb', rate: { label: 'Taśmy na m² sufitu', unit: 'mb/m²', value: null } }))
-  out.push(consumptionItem(b, 'ssz-sufit-masa', C1, 'Masa szpachlowa do spoin', ceil.area, [], { unit: 'kg', rate: { label: 'Zużycie masy', unit: 'kg/m²', value: null }, pack: { packUnit: 'worek', label: 'Masa w worku', value: null } }))
-  out.push(consumptionItem(b, 'ssz-sufit-welna', C1, 'Wełna mineralna na sufit', ceil.area, [], { unit: 'm2', rate: { label: 'Liczba warstw wełny', unit: 'szt', value: null, note: 'grubość warstwy wg produktu' }, pack: { packUnit: 'paczka', label: 'm² w paczce wełny', value: null } }))
-  out.push(consumptionItem(b, 'ssz-sufit-paroizolacja', C1, 'Paroizolacja (folia)', ceil.area, [], { unit: 'm2', waste: 10, pack: { packUnit: 'rolka', label: 'm² w rolce folii', value: null }, note: 'A × 1,1 (zakłady)' }))
+  {
+    const id = 'ssz-sufit-ud27'
+    const params = { profileLength: b.P(id, 'profileLength', 'Długość profilu UD27', null, 'm', '3 m lub 4 m; łączone na styk') }
+    const missing = [...roomsNote, ...roomsMissing]
+    const pl = need(params, 'profileLength', missing)
+    out.push(
+      b.item({
+        id,
+        category: C1,
+        kind: 'material',
+        name: 'Profile przyścienne UD27 (obrysówka)',
+        unit: 'mb',
+        params,
+        missing,
+        quantity: roomsPerimeter,
+        packaging: { packUnit: 'szt', perPack: pl, packLabel: pl === null ? 'profil' : `profil ${fmt(pl)} m` },
+        priceBasis: 'perPack',
+      }),
+    )
+  }
+  out.push(consumptionItem(b, 'ssz-sufit-tasma-akustyczna', C1, 'Taśma akustyczna pod UD27', roomsPerimeter, [...roomsNote, ...roomsMissing], { unit: 'mb', pack: { packUnit: 'rolka', label: 'mb taśmy w rolce', value: null } }))
+  out.push(b.item({ id: 'ssz-sufit-kolki-ud', category: C1, kind: 'material', name: 'Kołki szybkiego montażu do UD27 (co 60 cm)', unit: 'szt', missing: roomsNote, quantity: ceil.udAnchors }))
+  out.push(b.item({ id: 'ssz-sufit-wieszaki', category: C1, kind: 'material', name: `Wieszaki (co ${fmt(rules.hangerSpacing * 100)} cm)`, unit: 'szt', missing: roomsNote, quantity: ceil.hangers }))
+  out.push(b.item({ id: 'ssz-sufit-mocowanie-wieszakow', category: C1, kind: 'material', name: 'Mocowanie wieszaków (dyble stalowe do betonu / wkręty do drewna)', unit: 'szt', missing: roomsNote, quantity: ceil.hangers, note: 'do betonu tylko stalowe dyble — nigdy plastikowe kołki' }))
+  out.push(b.item({ id: 'ssz-sufit-laczniki-krzyzowe', category: C1, kind: 'material', name: 'Łączniki krzyżowe', unit: 'szt', missing: roomsNote, quantity: ceil.cross }))
+  {
+    const id = 'ssz-sufit-gk'
+    const params = {
+      boardLength: b.P(id, 'boardLength', 'Długość płyty GK', 2.6, 'm', '2,0 / 2,6 / 3,0 m; szer. 120 cm, gr. 12,5 mm'),
+      minPiece: b.P(id, 'minPiece', 'Min. kawałek z resztki (mijanka spoin)', 0.4, 'm'),
+    }
+    const missing = [...roomsNote]
+    const bl = need(params, 'boardLength', missing)
+    let quantity: Computed | null = null
+    if (bl !== null) {
+      const cut = computeCutting({
+        material: 'płytę GK',
+        sheetUnit: 'płyt',
+        sheet: { width: rules.boardWidth, length: bl },
+        stripWidth: rules.boardWidth,
+        segments: ceil.boardSegments,
+        minPieceLength: params.minPiece.value ?? 0,
+        jointOverlap: 0,
+      })
+      const v = cut.A!
+      quantity = {
+        value: v.sheets,
+        unit: 'szt',
+        trace: [
+          ...ceil.rooms.flatMap((r) => r.trace.filter((t) => t.label.includes('rzędy płyt') || t.label.includes('wymiary'))),
+          { label: 'Płyty GK', formula: 'rzędy × dł. pomieszczenia z płyt handlowych; resztki ≥ min. kawałka na kolejne rzędy', values: `${ceil.boardSegments.length} rzędów, płyta ${fmt(rules.boardWidth)} × ${fmt(bl)} m`, result: v.sheets, unit: 'szt' },
+          { label: 'Kontrolnie z powierzchni', formula: 'A / pole płyty', values: `${fmt(ceil.area.value)} / ${fmt(rules.boardWidth * bl)}`, result: clean(ceil.area.value / (rules.boardWidth * bl)), unit: 'szt', note: 'ostatni rząd w pomieszczeniu docinany wzdłuż — reszta pasa to odpad' },
+        ],
+      }
+    }
+    out.push(b.item({ id, category: C1, kind: 'material', name: 'Płyty GK 12,5 mm', unit: 'szt', params, missing, quantity, note: 'przykręcane tylko do profili nośnych CD60 — nigdy do UD27 (dylatacja na obwodzie)' }))
+  }
+  out.push(consumptionItem(b, 'ssz-sufit-wkrety-gk', C1, 'Wkręty do GK', ceil.area, roomsNote, { unit: 'szt', rate: { label: 'Wkrętów na m²', unit: 'szt/m²', value: null } }))
+  out.push(consumptionItem(b, 'ssz-sufit-tasma', C1, 'Taśma do spoin GK', ceil.area, roomsNote, { unit: 'mb', rate: { label: 'Taśmy na m² sufitu', unit: 'mb/m²', value: null } }))
+  out.push(consumptionItem(b, 'ssz-sufit-masa', C1, 'Masa szpachlowa do spoin', ceil.area, roomsNote, { unit: 'kg', rate: { label: 'Zużycie masy', unit: 'kg/m²', value: null }, pack: { packUnit: 'worek', label: 'Masa w worku', value: null } }))
+  out.push(consumptionItem(b, 'ssz-sufit-welna', C1, 'Wełna mineralna na sufit', ceil.area, roomsNote, { unit: 'm2', rate: { label: 'Liczba warstw wełny', unit: 'szt', value: null, note: 'grubość warstwy wg produktu' }, pack: { packUnit: 'paczka', label: 'm² w paczce wełny', value: null } }))
+  out.push(consumptionItem(b, 'ssz-sufit-paroizolacja', C1, 'Paroizolacja (folia)', ceil.area, roomsNote, { unit: 'm2', waste: 10, pack: { packUnit: 'rolka', label: 'm² w rolce folii', value: null }, note: 'A × 1,1 (zakłady)' }))
   out.push(consumptionItem(b, 'ssz-sufit-paroizolacja-tasma', C1, 'Taśma do paroizolacji', roomsPerimeter, roomsMissing, { unit: 'mb', pack: { packUnit: 'rolka', label: 'mb taśmy w rolce', value: null } }))
 
   // ── Elewacja

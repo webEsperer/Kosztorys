@@ -9,6 +9,8 @@ import { DEFAULT_CEILING_BUILD_UP } from '../engine/levels'
 import type { DoorLeafMap, LintelSize, Opening } from '../engine/openings'
 import { DEFAULT_DOOR_MAP, DEFAULT_LINTEL_TABLE } from '../engine/openings'
 import type { Dormer } from '../engine/roof'
+import type { CeilingRules, Room } from '../engine/ceiling'
+import { DEFAULT_CEILING_RULES } from '../engine/ceiling'
 
 export interface FoundationInput {
   /** Bloczek fundamentowy — wymiary podaje użytkownik (null = uzupełnij). */
@@ -93,6 +95,10 @@ export interface ProjectInput {
     trussCount: number | null
     dormers: Dormer[]
   }
+  /** Pomieszczenia (prostokąty, wymiary wewnętrzne) — sufit, obwody, taśmy liczone per pomieszczenie. */
+  rooms: Room[]
+  /** Zasady rozmieszczenia profili i wieszaków sufitu. */
+  ceilingRules: CeilingRules
   /** Ściany działowe: suma mb; wysokość null = od chudziaka do sufitu (z poziomów). */
   partitions: { length: number | null; height: number | null }
   /** Wybory użytkownika (np. wariant cięcia OSB). */
@@ -148,6 +154,8 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
     lintels: { exterior: DEFAULT_LINTEL_TABLE, partition: DEFAULT_LINTEL_TABLE },
     doorMap: DEFAULT_DOOR_MAP,
     roof: { pitchDeg: null, eaveOverhang: null, gableOverhang: null, ridgeAlongLonger: true, trussSpacing: 0.9, trussCount: null, dormers: [] },
+    rooms: [],
+    ceilingRules: DEFAULT_CEILING_RULES,
     partitions: { length: null, height: null },
     choices: { foundationRingBeamOsbVariant: null, wallRingBeamOsbVariant: null },
     itemParams: {},

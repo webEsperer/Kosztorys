@@ -507,17 +507,28 @@ wyłączenie AO); model ładowany dopiero po wejściu w zakładkę 3D (lazy load
 **Spójność z kosztorysem:** kliknięcie elementu w 3D (połać, okno, ściana) pokazuje odpowiadające pozycje
 kosztorysu i ich trace — tak jak w widoku dachu SVG.
 
-### Sufit podwieszany krzyżowy GK + ocieplenie (ceiling.ts)
-- Pow. sufitu = `A_wew` (lub suma pomieszczeń).
-- Profile CD60 główne [licz]: mb = `A / rozstaw_główne` (domyślnie 1,0 m) → szt. (dł. profilu 3 m lub 4 m).
-- Profile CD60 nośne [licz]: mb = `A / rozstaw_nośne` (domyślnie 0,5 m).
-- Profile UD30 [licz]: obwody pomieszczeń.
-- Wieszaki (noniusz/ES) [licz]: `A / (rozstaw_główne × 0,9)`.
-- Łączniki krzyżowe [licz]: `A / (rozstaw_główne × rozstaw_nośne)`; łączniki wzdłużne [licz].
-- Płyty GK 120 × 260 cm = 3,12 m² [licz]: `A × (1 + 10%) / 3,12`.
-- Wkręty do GK, kołki do UD30, taśma, masa szpachlowa — zużycia `null` (uzupełnij).
+### Sufit podwieszany krzyżowy GK + ocieplenie (ceiling.ts) — zasady użytkownika
+Liczony **per pomieszczenie** (lista pomieszczeń: nazwa, dł., szer.; bez listy — cały parter jako przybliżenie
+oznaczone „uzupełnij”), potem sumowany. Wymiary pomieszczeń można odczytać z rzutu PDF przesłanego w czacie.
+Układ: profile główne wzdłuż dłuższego boku pomieszczenia, nośne krzyżowo (wzdłuż krótszego).
+`linie = ceil((rozpiętość − 2 × skrajny) / rozstaw) + 1`.
+- Obrysówka **UD27** [licz]: obwody pomieszczeń; profile 3 m lub 4 m (`null` = uzupełnij), łączone na styk →
+  `ceil(Σ obwodów / dł. profilu)`; **taśma akustyczna** pod UD = obwody; **kołki szybkiego montażu co 60 cm**.
+- Profile **główne (górne) CD60**: co 100 cm, skrajne max 15 cm od ściany; wiszą na wieszakach.
+- **Wieszaki**: co 90 cm wzdłuż profilu głównego (ciężkie płyty — 75 cm), skrajne max 40 cm od ściany;
+  `wieszaki = linie główne × wieszaki na linii`; mocowanie: do betonu tylko stalowe dyble (nigdy plastikowe).
+- Profile **nośne (dolne) CD60**: co 40 cm, skrajne ok. 10 cm od ściany.
+- **Łączniki krzyżowe** = główne × nośne (każde skrzyżowanie).
+- Profile CD60 2,6 / 3 / 4 m (`null` = uzupełnij; blacha 0,6 mm): linie cięte z profili handlowych modułem cięcia
+  (resztki na kolejne linie) → liczba profili; **łączniki wzdłużne** = łączenia kawałków w liniach.
+- **Płyty GK** 120 cm × 2,0 / 2,6 / 3,0 m (domyślnie 2,6), gr. 12,5 mm: dłuższym bokiem prostopadle do profili
+  nośnych; rzędy = `ceil(krótszy bok / 1,2)`, każdy rząd długości dłuższego boku cięty z płyt; resztki ≥ 40 cm
+  (mijanka spoin) na kolejne rzędy. Płyty tylko do profili nośnych — nigdy do UD27 (dylatacja).
+- Wkręty do GK, taśma, masa szpachlowa — zużycia `null` (uzupełnij).
 - Wełna mineralna na sufit [licz]: m², grubość/warstwy (parametr), m² w paczce.
 - Paroizolacja [licz]: `A × 1,1` m² + taśma mb.
+- Przykład 12 × 9 m (bez podziału): 10 linii głównych × 14 = 140 wieszaków, 31 nośnych, 310 łączników
+  krzyżowych, 70 kołków; CD60 3 m → 133 profile, 92 łączniki wzdłużne; GK 2,6 m → 37 płyt.
 
 ### Elewacja (facade.ts)
 - EPS 20 cm [licz]: od góry XPS (−26 cm) do linii podbitki (parametr: wysokość nad górą wieńca, domyślnie 0);
