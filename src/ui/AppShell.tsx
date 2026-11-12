@@ -227,7 +227,7 @@ export function AppShell() {
             }}
           />
         ) : tab === 'podsumowanie' ? (
-          <Summary estimate={estimate} onOpen={(st) => setTab(st)} />
+          <Summary estimate={estimate} onOpen={(st) => setTab(st)} vatPercent={project.vatPercent} />
         ) : tab === 'braki' ? (
           <TodoList
             estimate={estimate}

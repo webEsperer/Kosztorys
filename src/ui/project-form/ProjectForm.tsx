@@ -2,13 +2,13 @@
 
 import type { ProjectInput } from '../../model/project'
 import type { ConcretePourParams } from '../../engine/concrete'
-import { levelList } from '../../engine/levels'
 import { projectBase } from '../../engine/stages/common'
 import { roofOf } from '../../engine/stages/sszRoof'
 import { Check, NumField, Section, Select, TextField, fmtQty } from '../common/fields'
 import { OpeningsEditor } from './OpeningsEditor'
 import { RoomsEditor } from './RoomsEditor'
 import { DormersEditor } from './DormersEditor'
+import { LevelsDiagram } from './LevelsDiagram'
 
 export type Update = (fn: (p: ProjectInput) => void) => void
 
@@ -59,6 +59,16 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
       <Section title="Projekt">
         <TextField label="Nazwa projektu" value={project.name} onChange={(v) => update((p) => { p.name = v })} />
         <NumField label="Rezerwa na nieprzewidziane" unit="%" value={project.reservePercent} onChange={(v) => update((p) => { p.reservePercent = v ?? 0 })} />
+        <Select
+          label="VAT — podgląd netto (ceny wpisujesz brutto)"
+          value={String(project.vatPercent ?? '')}
+          options={[
+            { value: '', label: 'bez podglądu' },
+            { value: '8', label: '8%' },
+            { value: '23', label: '23%' },
+          ]}
+          onChange={(v) => update((p) => { p.vatPercent = v === '' ? null : Number(v) })}
+        />
       </Section>
 
       <Section title="1. Geometria (wymiary wewnętrzne)">
@@ -123,18 +133,12 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
         <NumField label="Spoina" {...CM} required value={f.jointThickness} onChange={(v) => update((p) => { p.foundation.jointThickness = v })} />
         <NumField label="Liczba warstw bloczków" unit="szt" required value={f.layers} onChange={(v) => update((p) => { p.foundation.layers = v === null ? null : Math.round(v) })} />
         <NumField label="Wieniec fund. — wysokość" {...CM} value={f.ringBeamHeight} onChange={(v) => update((p) => { p.foundation.ringBeamHeight = v ?? 0.25 })} />
-        {base.levels ? (
-          <ul className="calc level-list">
-            {levelList(base.levels, base.ringTop.value).map((l) => (
-              <li key={l.label}>
-                <b>{l.text}</b> {l.label}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="calc todo-inline">Schemat poziomów — uzupełnij: {base.levelsMissing.join(', ')}</p>
-        )}
       </Section>
+
+      <section className="card span2">
+        <h2>Schemat poziomów (kontrola danych)</h2>
+        <LevelsDiagram project={project} />
+      </section>
 
       <section className="card wide">
         <h2>6. Dach</h2>

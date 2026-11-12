@@ -9,6 +9,7 @@ import type { ProjectInput } from '../../model/project'
 import { NumField, fmtQty } from '../common/fields'
 import type { Update } from '../project-form/ProjectForm'
 import { ItemPanel } from './ItemPanel'
+import { newCustomItem } from '../../engine/stages/custom'
 import type { RoofElementKind } from '../roof-view/links'
 
 function qtyText(r: ItemResult): string {
@@ -105,6 +106,20 @@ export function StageView({
             </section>
           )
         })}
+        <div className="row-actions">
+          <button
+            className="btn"
+            onClick={() => {
+              const id = `wl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+              update((p) => {
+                p.customItems.push(newCustomItem(stage, id))
+              })
+              onSelect(id)
+            }}
+          >
+            + Własna pozycja
+          </button>
+        </div>
       </div>
       {sel && (
         <div ref={panelRef} className="stage-panel">

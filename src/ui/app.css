@@ -785,3 +785,36 @@
   color: var(--warn-text);
   font-size: 0.86rem;
 }
+
+/* ── Schemat poziomów ─────────────────────────── */
+.levels-diagram {
+  margin: 8px 0 0;
+}
+.levels-diagram svg {
+  display: block;
+  background: #fff;
+  border-radius: 6px;
+}
+.ld-concrete { fill: #c4c8cc; stroke: #5f5e5a; stroke-width: 0.6; }
+.ld-block { fill: #b9a98f; stroke: #5f5e5a; stroke-width: 0.5; }
+.ld-hh { fill: #ece7dc; stroke: #9a8f7d; stroke-width: 0.5; }
+.ld-hh-cut { fill: #f6d58e; stroke: #9a8f7d; stroke-width: 0.5; }
+.ld-xps { fill: #f2a7c3; stroke: none; }
+.ld-eps { fill: #f4f4f0; stroke: #adb5bd; stroke-width: 0.5; }
+.ld-sand { fill: #e8cf8f; stroke: none; opacity: 0.7; }
+.ld-screed { fill: #c7c9cc; stroke: none; }
+.ld-finish { fill: #a77b4f; stroke: none; }
+.ld-gk { fill: #e9ecef; stroke: #868e96; stroke-width: 0.5; }
+.ld-grid { fill: none; stroke: #868e96; stroke-dasharray: 2 2; }
+.ld-ground { stroke: #8a6f4d; stroke-width: 1.2; stroke-dasharray: 6 3; }
+.ld-roof { fill: none; stroke: #D85A30; stroke-width: 2; }
+.ld-mark line { stroke: #868e96; stroke-width: 0.6; }
+.ld-mark text { font: 11px system-ui, sans-serif; fill: #1d1d1f; }
+.ld-z { font-weight: 700; }
+.ld-note { font: 10px system-ui, sans-serif; fill: #5f5e5a; }
+
+@media (min-width: 760px) {
+  .form-grid .card.span2 {
+    grid-column: span 2;
+  }
+}

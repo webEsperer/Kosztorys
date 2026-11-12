@@ -2,10 +2,10 @@
 
 import { KIND_LABEL, STAGE_LABEL, type Estimate } from '../../engine/estimate'
 import type { ItemKind, Stage } from '../../engine/items'
-import { formatPLN } from '../../engine/money'
+import { formatPLN, netFromGross } from '../../engine/money'
 import { fmtQty } from '../common/fields'
 
-export function Summary({ estimate, onOpen }: { estimate: Estimate; onOpen: (stage: Stage) => void }) {
+export function Summary({ estimate, onOpen, vatPercent }: { estimate: Estimate; onOpen: (stage: Stage) => void; vatPercent: number | null }) {
   return (
     <div className="summary">
       <section className="card">
@@ -51,6 +51,15 @@ export function Summary({ estimate, onOpen }: { estimate: Estimate; onOpen: (sta
                 )}
               </td>
             </tr>
+            {vatPercent !== null && (
+              <tr>
+                <th>Netto (VAT {vatPercent}%) — podgląd</th>
+                <td>{formatPLN(netFromGross(estimate.totalGrosze, vatPercent))}</td>
+                <td colSpan={2} className="muted small">
+                  VAT: {formatPLN(estimate.totalGrosze - netFromGross(estimate.totalGrosze, vatPercent))}
+                </td>
+              </tr>
+            )}
           </tfoot>
         </table>
         {!estimate.complete && <p className="warn-text">Kosztorys niepełny — {estimate.todo.length} pozycji bez ceny lub danych (poniżej).</p>}

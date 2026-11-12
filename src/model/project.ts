@@ -4,6 +4,7 @@ import type { ConcretePourParams } from '../engine/concrete'
 import { defaultPourParams } from '../engine/concrete'
 import type { Grosze } from '../engine/money'
 import type { Stage } from '../engine/items'
+import type { CustomItem } from '../engine/stages/custom'
 import type { CeilingBuildUp } from '../engine/levels'
 import { DEFAULT_CEILING_BUILD_UP } from '../engine/levels'
 import type { DoorLeafMap, LintelSize, Opening } from '../engine/openings'
@@ -120,6 +121,10 @@ export interface ProjectInput {
   stageOverride: Record<string, Stage>
   /** Rezerwa na nieprzewidziane wydatki: % od sumy etapów (domyślnie 10). */
   reservePercent: number
+  /** Własne pozycje użytkownika. */
+  customItems: CustomItem[]
+  /** VAT do podglądu netto (ceny wpisywane są brutto); null — bez podglądu. */
+  vatPercent: number | null
 }
 
 export function newProject(name = 'Nowy projekt'): ProjectInput {
@@ -166,5 +171,7 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
     enabled: {},
     stageOverride: {},
     reservePercent: 10,
+    customItems: [],
+    vatPercent: null,
   }
 }

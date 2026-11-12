@@ -8,6 +8,7 @@ import { Check, NumField, fmtQty } from '../common/fields'
 import type { Update } from '../project-form/ProjectForm'
 import type { ProjectInput } from '../../model/project'
 import { kindForItem, type RoofElementKind } from '../roof-view/links'
+import { CustomItemFields } from './CustomItemFields'
 
 const PRICE_UNIT: Record<ItemResult['spec']['priceBasis'], (r: ItemResult) => string> = {
   perUnit: (r) => `zł/${r.chargedUnit}`,
@@ -58,6 +59,11 @@ export function ItemPanel({
         </p>
       )}
 
+      {s.isCustom && (() => {
+        const ci = project.customItems.find((c) => c.id === s.id)
+        return ci ? <CustomItemFields item={ci} update={update} onDeleted={onClose} /> : null
+      })()}
+
       <div className="fields">
         <NumField
           label="Cena"
@@ -100,7 +106,17 @@ export function ItemPanel({
       )}
 
       <div className="ip-row">
-        <Check label="Pozycja włączona" checked={s.enabled} onChange={(v) => update((p) => { p.enabled[s.id] = v })} />
+        <Check
+          label="Pozycja włączona"
+          checked={s.enabled}
+          onChange={(v) =>
+            update((p) => {
+              const ci = p.customItems.find((c) => c.id === s.id)
+              if (ci) ci.enabled = v
+              else p.enabled[s.id] = v
+            })
+          }
+        />
         <label className="nf">
           <span className="nf-label">Etap</span>
           <span className="nf-box">

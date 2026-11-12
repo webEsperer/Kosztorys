@@ -8,6 +8,7 @@ import { buildGeneral } from './stages/general'
 import { buildSD } from './stages/sd'
 import { buildSSO } from './stages/sso'
 import { buildSSZ } from './stages/ssz'
+import { buildCustom } from './stages/custom'
 import { projectBase } from './stages/common'
 
 export const STAGES: Stage[] = ['SSO', 'SSZ', 'SD', 'OGOLNE']
@@ -60,7 +61,7 @@ export interface Estimate {
 
 /** Wszystkie pozycje (przed cenami) z przeniesieniami między etapami. */
 export function buildAllItems(project: ProjectInput): ItemSpec[] {
-  const all = [...buildSSO(project).items, ...buildSSZ(project).items, ...buildSD(project).items, ...buildGeneral(project).items]
+  const all = [...buildSSO(project).items, ...buildSSZ(project).items, ...buildSD(project).items, ...buildGeneral(project).items, ...buildCustom(project.customItems)]
   return all.map((i) => (project.stageOverride[i.id] ? { ...i, stage: project.stageOverride[i.id] } : i))
 }
 
