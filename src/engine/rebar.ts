@@ -52,7 +52,8 @@ const COMMON = {
   longitudinalDiameter: 12,
   stirrupDiameter: 6,
   stirrupHook: 0.08,
-  barLength: 12,
+  // Pręty kupowane na składzie w długości 6 m (wszystkie średnice) — decyzja użytkownika.
+  barLength: 6,
   lapLength: 0.6,
   corners: 4,
   cornerBarsPerCorner: 4,
@@ -75,6 +76,8 @@ export interface RebarByDiameter {
   diameter: number
   /** Liczba prętów handlowych do zakupu. */
   bars: number
+  /** mb wbudowane (zużycie: linie z zakładami, pręty narożne, strzemiona). */
+  netMeters: number
   /** mb do zakupu (pręty × długość handlowa). */
   meters: number
   /** Masa do zakupu [kg]. */
@@ -143,10 +146,20 @@ export function computeRebarElement(name: string, lineLength: number, p: RebarEl
     result: longitudinalBars,
     unit: 'szt',
   })
+  // Linia zamknięta (obwód): liczba zakładów = liczba odcinków.
+  const longitudinalNet = clean(p.longitudinalCount * (lineLength + segmentsPerLine * p.lapLength))
+  trace.push({
+    label: `Długość prętów podłużnych Ø${D} (wbudowana, z zakładami)`,
+    formula: 'liczba linii × (L + n × zakład)',
+    values: `${p.longitudinalCount} × (${fmt(lineLength)} + ${segmentsPerLine} × ${fmt(p.lapLength)})`,
+    result: longitudinalNet,
+    unit: 'm',
+  })
 
   // 2. Pręty narożne „L”
   const cornerPieces = p.corners * p.cornerBarsPerCorner
   let cornerBars = 0
+  const cornerNet = clean(cornerPieces * p.cornerBarLength)
   if (cornerPieces > 0) {
     assertPositive('Długość pręta narożnego', p.cornerBarLength)
     const perBar = floorSafe(p.barLength / p.cornerBarLength)
@@ -202,13 +215,25 @@ export function computeRebarElement(name: string, lineLength: number, p: RebarEl
   })
 
   // 4. Zestawienie wg średnic + masa
-  const counts = new Map<number, number>()
-  counts.set(D, longitudinalBars + cornerBars)
-  counts.set(d, (counts.get(d) ?? 0) + stirrupBars)
+  const counts = new Map<number, { bars: number; net: number }>()
+  const add = (dia: number, bars: number, net: number) => {
+    const cur = counts.get(dia) ?? { bars: 0, net: 0 }
+    counts.set(dia, { bars: cur.bars + bars, net: clean(cur.net + net) })
+  }
+  add(D, longitudinalBars + cornerBars, longitudinalNet + cornerNet)
+  add(d, stirrupBars, stirrupNetMeters)
   const byDiameter: RebarByDiameter[] = [...counts.entries()]
     .sort((a, b) => b[0] - a[0])
-    .map(([diameter, bars]) => {
+    .map(([diameter, { bars, net: netMeters }]) => {
       const meters = clean(bars * p.barLength)
+      trace.push({
+        label: `Ø${diameter} — metry wbudowane / do kupienia`,
+        formula: 'zużycie; zakup = pręty × l_pręta',
+        values: `${fmt(netMeters)} m; ${bars} × ${fmt(p.barLength)} m`,
+        result: meters,
+        unit: 'm',
+        note: `odpad z cięcia ${fmt(clean(meters - netMeters))} m`,
+      })
       const kgPerM = massOf(p, diameter)
       const massKg = clean(meters * kgPerM)
       trace.push({
@@ -218,7 +243,7 @@ export function computeRebarElement(name: string, lineLength: number, p: RebarEl
         result: massKg,
         unit: 'kg',
       })
-      return { diameter, bars, meters, massKg }
+      return { diameter, bars, netMeters, meters, massKg }
     })
   const totalMassKg = clean(byDiameter.reduce((s, x) => s + x.massKg, 0))
   trace.push({
@@ -244,6 +269,46 @@ export function computeRebarElement(name: string, lineLength: number, p: RebarEl
     totalMassKg,
     trace,
   }
+}
+
+// ─── Zestawienie zbiorcze (cała budowa) ─────────────────────────────────────
+
+export interface RebarSummary {
+  byDiameter: RebarByDiameter[]
+  totalMassKg: number
+  trace: TraceStep[]
+}
+
+/** Suma metrów wbudowanych, prętów, metrów do kupienia i masy wg średnic ze wszystkich elementów. */
+export function summarizeRebar(elements: RebarElementResult[]): RebarSummary {
+  const acc = new Map<number, RebarByDiameter>()
+  for (const el of elements) {
+    for (const x of el.byDiameter) {
+      const cur = acc.get(x.diameter) ?? { diameter: x.diameter, bars: 0, netMeters: 0, meters: 0, massKg: 0 }
+      acc.set(x.diameter, {
+        diameter: x.diameter,
+        bars: cur.bars + x.bars,
+        netMeters: clean(cur.netMeters + x.netMeters),
+        meters: clean(cur.meters + x.meters),
+        massKg: clean(cur.massKg + x.massKg),
+      })
+    }
+  }
+  const byDiameter = [...acc.values()].sort((a, b) => b.diameter - a.diameter)
+  const trace: TraceStep[] = byDiameter.map((x) => {
+    const parts = elements
+      .map((el) => el.byDiameter.find((y) => y.diameter === x.diameter))
+      .filter((y): y is RebarByDiameter => y !== undefined)
+    return {
+      label: `Ø${x.diameter} — razem`,
+      formula: 'Σ wbudowane; Σ pręty',
+      values: `${parts.map((y) => fmt(y.netMeters)).join(' + ')} m; ${parts.map((y) => y.bars).join(' + ')} prętów`,
+      result: `${fmt(x.netMeters)} m wbudowane, ${x.bars} prętów = ${fmt(x.meters)} m do kupienia, ${fmt(x.massKg)} kg`,
+      unit: '',
+    }
+  })
+  const totalMassKg = clean(byDiameter.reduce((s, x) => s + x.massKg, 0))
+  return { byDiameter, totalMassKg, trace }
 }
 
 // ─── Koszt ──────────────────────────────────────────────────────────────────

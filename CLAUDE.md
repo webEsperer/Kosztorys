@@ -203,12 +203,15 @@ Chudziak: beton z włóknami zbrojącymi (cena m³ z włóknami od dostawcy; opc
 | Wieniec fundamentowy | 4 × Ø12 | Ø6 co 25 cm | 3 cm |
 | Wieniec ścian nośnych | 4 × Ø12 | Ø6 co 25 cm | 3 cm |
 
-- Długość linii = obwód w osi elementu. Pręty handlowe 12 m (parametr). Zakład 60 cm (50Ø) — parametr.
-  Liczba odcinków na linię = `ceil(L / (12 − zakład))`.
+- Długość linii = obwód w osi elementu. Pręty handlowe **6 m dla wszystkich średnic** (parametr; tak sprzedaje
+  skład — decyzja użytkownika). Zakład 60 cm (50Ø) — parametr.
+  Liczba odcinków na linię = `ceil(L / (6 − zakład))`.
 - Naroża: dodatkowe pręty narożne „L” — domyślnie 4 szt × 1,2 m na naroże (parametr).
 - Strzemię: `2·(b − 2c) + 2·(h − 2c) + 2 × 8 cm` (haki); liczba = `ceil(L / rozstaw) + 1`.
 - Masa: Ø6 = 0,222 kg/m, Ø8 = 0,395, Ø10 = 0,617, Ø12 = 0,888 kg/m.
-- Wynik osobno dla każdego elementu: liczba prętów 12 m Ø12, mb i liczba strzemion Ø6 (sztuk i mb), masa kg;
+- Wynik osobno dla każdego elementu: liczba prętów 6 m Ø12, mb i liczba strzemion Ø6 (sztuk i mb), masa kg;
+  dla każdej średnicy **metry wbudowane** (z zakładami) i **metry do kupienia** (pręty × 6 m);
+  zestawienie zbiorcze całej budowy: ile metrów Ø6 i ile Ø12;
   cena za kg, za tonę lub za pręt (wybór). Drut wiązałkowy: % masy stali (parametr, `null` = uzupełnij).
 
 ## Cięcie pasów z arkuszy i rolek (cutting.ts)
