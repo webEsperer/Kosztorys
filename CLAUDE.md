@@ -421,6 +421,7 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
 - Rynny `2 × R` mb, haki co 60 cm, rury spustowe (liczba × wysokość), narożniki/lejki/zaślepki [licz/ręcznie].
 - Obróbki blacharskie [ręcznie: liczba × cena za obróbkę], w tym obróbki kominów.
 - Ławy kominiarskie (podesty) i stopnie kominiarskie [ręcznie: liczba szt × cena].
+- Opcjonalnie (wyłączone): wkręty/klamry do dachówek, okna dachowe.
 
 ### Dach — dobudowane daszki dwuspadowe połączone koszowo (roof.ts, opcja)
 
