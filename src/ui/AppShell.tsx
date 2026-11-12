@@ -112,8 +112,8 @@ export function AppShell() {
     }
   }, [project])
 
-  const open = async (pid: string) => {
-    const sp = projects.find((p) => p.id === pid)
+  const open = async (pid: string, list: StoredProject[] = projects) => {
+    const sp = list.find((p) => p.id === pid)
     if (!sp) return
     setId(pid)
     setProject(upgradeProject(sp.data))
@@ -164,7 +164,7 @@ export function AppShell() {
               await deleteProject(id)
               const list = await listProjects()
               setProjects(list)
-              if (list.length) await open(list[0].id)
+              if (list.length) await open(list[0].id, list)
               else await create(newProject('Mój dom'))
             }}
           >
