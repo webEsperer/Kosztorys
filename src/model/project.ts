@@ -95,6 +95,8 @@ export interface ProjectInput {
     trussCount: number | null
     dormers: Dormer[]
   }
+  /** Edytor rzutu: minimalny filar przy narożniku i między otworami [m]. */
+  planRules: { minPier: number }
   /** Pomieszczenia (prostokąty, wymiary wewnętrzne) — sufit, obwody, taśmy liczone per pomieszczenie. */
   rooms: Room[]
   /** Zasady rozmieszczenia profili i wieszaków sufitu. */
@@ -154,6 +156,7 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
     lintels: { exterior: DEFAULT_LINTEL_TABLE, partition: DEFAULT_LINTEL_TABLE },
     doorMap: DEFAULT_DOOR_MAP,
     roof: { pitchDeg: null, eaveOverhang: null, gableOverhang: null, ridgeAlongLonger: true, trussSpacing: 0.9, trussCount: null, dormers: [] },
+    planRules: { minPier: 0.25 },
     rooms: [],
     ceilingRules: DEFAULT_CEILING_RULES,
     partitions: { length: null, height: null },

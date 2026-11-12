@@ -38,6 +38,7 @@ export function upgradeProject(data: Partial<ProjectInput>): ProjectInput {
   merged.choices = { ...base.choices, ...(data.choices ?? {}) }
   merged.concrete = { ...base.concrete, ...(data.concrete ?? {}) }
   merged.ceilingRules = { ...base.ceilingRules, ...(data.ceilingRules ?? {}) }
+  merged.planRules = { ...base.planRules, ...(data.planRules ?? {}) }
   return merged
 }
 

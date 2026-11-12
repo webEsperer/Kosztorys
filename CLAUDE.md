@@ -124,6 +124,9 @@ Otwory bez położenia liczą się w kosztorysie normalnie, a wizualizacja pokaz
 **Edytor rzutu (ui/plan-editor/):** rzut ścian z góry; kliknięcie ściany → „dodaj okno/drzwi”; przeciąganie otworu
 wzdłuż ściany; wymiary od narożnika i między otworami pokazywane na bieżąco; wpisanie dokładnej wartości w cm;
 kontrola kolizji (otwór na otworze, za blisko narożnika — minimalny filar parametrem, domyślnie 25 cm).
+Zrobione (zakładka „Rzut”): ściany zewnętrzne S1–S4; okna w szczytach i drzwi w ścianach działowych trafiają
+na listę „do rozmieszczenia” (ściany działowe nie mają jeszcze geometrii — kolejna wersja). Domyślny parapet okna 90 cm
+(do zmiany), drzwi 0.
 
 **Import z CAD (etap późniejszy):**
 - Obsługujemy **DXF** (format tekstowy, biblioteka `dxf-parser`). **DWG nie czytamy w przeglądarce** — użytkownik

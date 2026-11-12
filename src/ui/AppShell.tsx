@@ -11,15 +11,17 @@ import { Summary, TodoList } from './estimate/Summary'
 import { ProjectForm } from './project-form/ProjectForm'
 import { ExportView } from './export/ExportView'
 import { RoofView } from './roof-view/RoofView'
+import { PlanEditor } from './plan-editor/PlanEditor'
 import type { RoofElementKind } from './roof-view/links'
 import './app.css'
 
 const FoundationViewer = lazy(() => import('./foundation-view/FoundationViewer').then((m) => ({ default: m.FoundationViewer })))
 
-type Tab = 'dane' | Stage | 'podsumowanie' | 'braki' | 'dach' | 'eksport' | 'fundament'
+type Tab = 'dane' | 'rzut' | Stage | 'podsumowanie' | 'braki' | 'dach' | 'eksport' | 'fundament'
 
 const TAB_LABEL: Record<Tab, string> = {
   dane: 'Dane projektu',
+  rzut: 'Rzut',
   SSO: 'SSO',
   SSZ: 'SSZ',
   SD: 'SD',
@@ -192,7 +194,7 @@ export function AppShell() {
       )}
 
       <nav className="tabs" role="tablist">
-        {(['dane', ...STAGES, 'podsumowanie', 'braki', 'dach', 'eksport', 'fundament'] as Tab[]).map((t) => (
+        {(['dane', 'rzut', ...STAGES, 'podsumowanie', 'braki', 'dach', 'eksport', 'fundament'] as Tab[]).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => { setTab(t); setSelected(null); setRoofHighlight(null) }}>
             {TAB_LABEL[t]}
             {!(estimate instanceof Error) && STAGES.includes(t as Stage) && (
@@ -234,6 +236,8 @@ export function AppShell() {
               setSelected(iid)
             }}
           />
+        ) : tab === 'rzut' ? (
+          <PlanEditor project={project} update={update} />
         ) : tab === 'dach' ? (
           <RoofView
             project={project}

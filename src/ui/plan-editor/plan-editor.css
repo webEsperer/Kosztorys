@@ -1,0 +1,152 @@
+.plan-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 14px;
+  align-items: start;
+}
+
+@media (max-width: 1000px) {
+  .plan-editor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.pe-main {
+  margin: 0;
+}
+
+.pe-side .card {
+  margin: 0;
+}
+
+.pe-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.pe-canvas {
+  position: relative;
+}
+
+.pe-svg {
+  display: block;
+  background: #fff;
+  border-radius: 6px;
+  touch-action: none;
+  user-select: none;
+}
+
+.pe-eps {
+  fill: #f1f3f5;
+  stroke: #adb5bd;
+  stroke-dasharray: 4 3;
+}
+
+.pe-wall {
+  fill: #c9c2b4;
+  stroke: #5f5e5a;
+}
+
+.pe-inside {
+  fill: #fff;
+  stroke: #5f5e5a;
+}
+
+.pe-wallhit {
+  fill: transparent;
+  cursor: copy;
+}
+
+.pe-wallhit:hover {
+  fill: rgba(31, 111, 235, 0.18);
+}
+
+.pe-walllabel {
+  font: 11px system-ui, sans-serif;
+  fill: #6b6b72;
+  pointer-events: none;
+}
+
+.pe-op {
+  cursor: grab;
+}
+
+.pe-op .pe-gap {
+  fill: #fff;
+  stroke: #1d1d1f;
+  stroke-width: 1;
+}
+
+.pe-op line,
+.pe-op path {
+  stroke: #1d1d1f;
+  stroke-width: 1.2;
+  fill: none;
+}
+
+.pe-op .pe-swing {
+  stroke-dasharray: 3 2;
+}
+
+.pe-op.sel .pe-gap {
+  fill: #d0e2ff;
+  stroke: #1f6feb;
+  stroke-width: 2;
+}
+
+.pe-op.bad .pe-gap {
+  fill: #ffe3e3;
+  stroke: #e03131;
+  stroke-width: 2;
+}
+
+.pe-mark {
+  font: 600 10px system-ui, sans-serif;
+  fill: #1d1d1f;
+  pointer-events: none;
+}
+
+.pe-dim line {
+  stroke: #868e96;
+  stroke-width: 0.8;
+}
+
+.pe-dim text {
+  font: 10px system-ui, sans-serif;
+  fill: #495057;
+}
+
+.pe-dim.opening text {
+  fill: #1f6feb;
+  font-weight: 600;
+}
+
+.pe-menu {
+  position: absolute;
+  z-index: 5;
+  display: grid;
+  gap: 4px;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  transform: translate(-50%, 8px);
+}
+
+.pe-menu .btn {
+  text-align: left;
+}
+
+.pe-unplaced {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+}
