@@ -621,7 +621,10 @@ Układ: profile główne wzdłuż dłuższego boku pomieszczenia, nośne krzyżo
 8. Wiele projektów, duplikowanie (warianty), import/eksport JSON, eksport CSV/PDF, zestawienie otworów dla producenta.
 9. **Ustawienia domyślne nowych projektów** (`model/template.ts`, zapis w IndexedDB): przycisk „Ustaw jako domyślne”
    zapamiętuje z bieżącego projektu bloczek fundamentowy, warstwy podłogi, sufit, kąt dachu i okapy; „Nowy” je wpisuje.
-   Wbudowany bloczek fundamentowy **38 × 24 × 12 cm** (wg użytkownika). Wartości w projekcie zawsze edytowalne.
+   Szablon wbudowany = **dom użytkownika** (`builtInTemplate`): bloczek fund. 38 × 24 × 12, nośny 59 × 24 (ściana 24),
+   działowy 59 × 24 (ściana 12), ściany nośne 2,80 m od gotowej posadzki, działowe 47 mb, dach 30°, okapy 60 cm
+   (poziomo od lica elewacji), otwory: 9 okien, 3 drzwi zewn., 7 drzwi wewn. (`USER_OPENINGS`).
+   „Wczytaj domyślne” wpisuje szablon do bieżącego projektu. Wartości w projekcie zawsze edytowalne.
 
 ## Testy
 

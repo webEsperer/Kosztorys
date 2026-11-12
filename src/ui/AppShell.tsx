@@ -151,7 +151,7 @@ export function AppShell() {
           </button>
           <button
             className="btn"
-            title="Zapamiętaj bloczek fundamentowy, warstwy podłogi, sufit, kąt dachu i okapy z tego projektu dla nowych projektów"
+            title="Zapamiętaj z tego projektu bloczki, wysokości ścian, ściany działowe, podłogę, sufit, dach i otwory dla nowych projektów"
             onClick={async () => {
               const t = templateFrom(project)
               if (!confirm(`Zapamiętać jako domyślne dla nowych projektów?\n\n• ${describeTemplate(t).join('\n• ')}\n\nIstniejące projekty się nie zmienią. W każdym projekcie wartości można dalej zmieniać.`)) return
@@ -163,6 +163,21 @@ export function AppShell() {
             }}
           >
             Ustaw jako domyślne
+          </button>
+          <button
+            className="btn"
+            title="Wpisz ustawienia domyślne (bloczki, wysokości, ściany działowe, podłoga, sufit, dach, otwory) do tego projektu"
+            onClick={async () => {
+              try {
+                const t = await loadTemplate()
+                if (!confirm(`Wpisać ustawienia domyślne do projektu „${project.name}”?\n\n• ${describeTemplate(t).join('\n• ')}\n\nUWAGA: lista otworów tego projektu zostanie zastąpiona. Wymiary domu, fundament (warstwy, ława) i ceny zostają.`)) return
+                update((p) => Object.assign(p, applyTemplate(p, t)))
+              } catch (err) {
+                setError(err instanceof Error ? err.message : String(err))
+              }
+            }}
+          >
+            Wczytaj domyślne
           </button>
           <button className="btn" onClick={() => create({ ...structuredClone(project), name: `${project.name} (wariant)` })}>
             Duplikuj

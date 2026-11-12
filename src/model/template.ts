@@ -2,23 +2,68 @@
 // Wartości w projekcie zawsze można zmienić — szablon tylko wypełnia pola na starcie.
 
 import type { CeilingBuildUp } from '../engine/levels'
-import type { FloorLayersInput, ProjectInput } from './project'
+import type { Opening } from '../engine/openings'
+import type { FloorLayersInput, ProjectInput, WallBlockInput } from './project'
 
 export interface ProjectTemplate {
   /** Bloczek fundamentowy [m] (null = uzupełnij). */
   foundationBlock: { blockLength: number | null; blockWidth: number | null; blockHeight: number | null; jointThickness: number | null }
+  /** Bloczek ścian nośnych i działowych [m]. */
+  wallBlock: WallBlockInput
+  partitionBlock: WallBlockInput
+  /** Wysokość ścian nośnych: gotowa posadzka → góra wieńca [m]. */
+  wallHeight: number | null
+  /** Ściany działowe: mb i wysokość murowania od gotowej posadzki [m]. */
+  partitions: { length: number | null; heightAboveFloor: number }
   floorLayers: FloorLayersInput
   ceiling: CeilingBuildUp
   roof: { pitchDeg: number | null; eaveOverhang: number | null; gableOverhang: number | null }
+  /** Otwory (okna, drzwi zewnętrzne, drzwi wewnętrzne). */
+  openings: Opening[]
 }
 
-/** Szablon wbudowany: bloczek fundamentowy 38 × 24 × 12 cm (wg użytkownika); reszta z wartości domyślnych projektu. */
+const ext = (id: string, mark: string, type: Opening['type'], width: number, height: number, room: string): Opening => ({ id, mark, type, width, height, count: 1, wall: 'zewnętrzna', room })
+const int = (id: string, mark: string, width: number, room: string): Opening => ({ id, mark, type: 'drzwi wewnętrzne', width, height: 2.0, count: 1, wall: 'działowa', room })
+
+/** Otwory domu użytkownika (zestawienie z 2026-11-12). */
+export const USER_OPENINGS: Opening[] = [
+  ext('t-o1', 'O1', 'okno', 1.5, 1.5, 'Sypialnia 1'),
+  ext('t-o2', 'O2', 'okno', 1.5, 1.5, 'Sypialnia 2'),
+  ext('t-o3', 'O3', 'okno', 1.5, 1.5, 'Sypialnia 3 (ściana boczna)'),
+  ext('t-o4', 'O4', 'okno', 1.2, 1.5, 'Gabinet'),
+  ext('t-o5', 'O5', 'okno', 2.3, 1.4, 'Salon (FIX + uchylne)'),
+  ext('t-o6', 'O6', 'okno', 1.8, 1.2, 'Kuchnia (ściana boczna)'),
+  ext('t-o7', 'O7', 'okno', 1.5, 1.2, 'Kuchnia (ściana z wejściem)'),
+  ext('t-o8', 'O8', 'okno', 1.5, 1.2, 'Kotłownia'),
+  ext('t-o9', 'O9', 'okno', 1.2, 0.6, 'Łazienka'),
+  ext('t-d1', 'D1', 'drzwi zewnętrzne', 1.0, 2.3, 'Wejście (wiatrołap)'),
+  ext('t-d2', 'D2', 'drzwi zewnętrzne', 1.8, 2.3, 'Drzwi tarasowe (jadalnia)'),
+  ext('t-d3', 'D3', 'drzwi zewnętrzne', 1.0, 2.3, 'Kotłownia'),
+  int('t-d4', 'D4', 0.8, 'Sypialnia 1'),
+  int('t-d5', 'D5', 0.8, 'Sypialnia 2'),
+  int('t-d6', 'D6', 0.8, 'Sypialnia 3'),
+  int('t-d7', 'D7', 0.8, 'Łazienka'),
+  int('t-d8', 'D8', 0.8, 'Gabinet'),
+  int('t-d9', 'D9', 0.8, 'Wiatrołap → korytarz'),
+  int('t-d10', 'D10', 0.6, 'Schowek'),
+]
+
+/**
+ * Szablon wbudowany — dane domu użytkownika: bloczek fund. 38 × 24 × 12, nośny 59 × 24 (ściana 24),
+ * działowy 59 × 24 (ściana 12), ściany nośne 2,80 m od posadzki, działowe 47 mb, dach 30°, okapy 60 cm, otwory.
+ * Pozostałe pola (warstwy podłogi, spoina fund.) — z wartości domyślnych projektu (null = uzupełnij).
+ */
 export function builtInTemplate(base: ProjectInput): ProjectTemplate {
   return {
     foundationBlock: { blockLength: 0.38, blockWidth: 0.24, blockHeight: 0.12, jointThickness: base.foundation.jointThickness },
+    wallBlock: { blockLength: 0.59, blockHeight: 0.24, jointThickness: base.wall.jointThickness },
+    partitionBlock: { blockLength: 0.59, blockHeight: 0.24, jointThickness: base.partitionBlock.jointThickness },
+    wallHeight: 2.8,
+    partitions: { length: 47, heightAboveFloor: base.partitions.heightAboveFloor },
     floorLayers: { ...base.floorLayers },
     ceiling: { ...base.ceiling },
-    roof: { pitchDeg: base.roof.pitchDeg, eaveOverhang: base.roof.eaveOverhang, gableOverhang: base.roof.gableOverhang },
+    roof: { pitchDeg: 30, eaveOverhang: 0.6, gableOverhang: 0.6 },
+    openings: structuredClone(USER_OPENINGS),
   }
 }
 
@@ -27,9 +72,35 @@ export function templateFrom(p: ProjectInput): ProjectTemplate {
   const f = p.foundation
   return {
     foundationBlock: { blockLength: f.blockLength, blockWidth: f.blockWidth, blockHeight: f.blockHeight, jointThickness: f.jointThickness },
+    wallBlock: { blockLength: p.wall.blockLength, blockHeight: p.wall.blockHeight, jointThickness: p.wall.jointThickness },
+    partitionBlock: { ...p.partitionBlock },
+    wallHeight: p.wallHeight,
+    partitions: { length: p.partitions.length, heightAboveFloor: p.partitions.heightAboveFloor },
     floorLayers: { ...p.floorLayers },
     ceiling: { ...p.ceiling },
     roof: { pitchDeg: p.roof.pitchDeg, eaveOverhang: p.roof.eaveOverhang, gableOverhang: p.roof.gableOverhang },
+    openings: structuredClone(p.openings),
+  }
+}
+
+/** Łączy zapisany szablon z wbudowanym: puste (null) pola zapisanego nie kasują wartości wbudowanych. */
+export function mergeTemplate(builtIn: ProjectTemplate, saved: Partial<ProjectTemplate> | undefined): ProjectTemplate {
+  if (!saved) return builtIn
+  const m = <T extends object>(a: T, b: Partial<T> | undefined): T => {
+    const out = { ...a }
+    for (const [k, v] of Object.entries(b ?? {})) if (v !== null && v !== undefined) (out as Record<string, unknown>)[k] = v
+    return out
+  }
+  return {
+    foundationBlock: m(builtIn.foundationBlock, saved.foundationBlock),
+    wallBlock: m(builtIn.wallBlock, saved.wallBlock),
+    partitionBlock: m(builtIn.partitionBlock, saved.partitionBlock),
+    wallHeight: saved.wallHeight ?? builtIn.wallHeight,
+    partitions: m(builtIn.partitions, saved.partitions),
+    floorLayers: m(builtIn.floorLayers, saved.floorLayers),
+    ceiling: m(builtIn.ceiling, saved.ceiling),
+    roof: m(builtIn.roof, saved.roof),
+    openings: saved.openings ?? builtIn.openings,
   }
 }
 
@@ -37,9 +108,14 @@ export function templateFrom(p: ProjectInput): ProjectTemplate {
 export function applyTemplate(p: ProjectInput, t: ProjectTemplate): ProjectInput {
   const next = structuredClone(p)
   next.foundation = { ...next.foundation, ...t.foundationBlock }
+  next.wall = { ...next.wall, ...t.wallBlock }
+  next.partitionBlock = { ...t.partitionBlock }
+  next.wallHeight = t.wallHeight
+  next.partitions = { ...next.partitions, ...t.partitions }
   next.floorLayers = { ...t.floorLayers }
   next.ceiling = { ...t.ceiling }
   next.roof = { ...next.roof, ...t.roof }
+  next.openings = structuredClone(t.openings)
   return next
 }
 
@@ -49,10 +125,15 @@ export function describeTemplate(t: ProjectTemplate): string[] {
   const b = t.foundationBlock
   const fl = t.floorLayers
   const c = t.ceiling
+  const nExt = t.openings.filter((o) => o.wall !== 'działowa').reduce((s, o) => s + o.count, 0)
+  const nInt = t.openings.filter((o) => o.wall === 'działowa').reduce((s, o) => s + o.count, 0)
   return [
     `bloczek fundamentowy ${cm(b.blockLength)} × ${cm(b.blockWidth)} × ${cm(b.blockHeight)} cm, spoina ${cm(b.jointThickness)} cm`,
+    `bloczek nośny dł. ${cm(t.wallBlock.blockLength)} × wys. ${cm(t.wallBlock.blockHeight)} cm, działowy dł. ${cm(t.partitionBlock.blockLength)} × wys. ${cm(t.partitionBlock.blockHeight)} cm`,
+    `ściany nośne ${cm(t.wallHeight)} cm od posadzki; działowe ${t.partitions.length === null ? '—' : String(t.partitions.length).replace('.', ',')} mb do ${cm(t.partitions.heightAboveFloor)} cm`,
     `warstwy podłogi: izolacja ${cm(fl.insulation)} + wylewka ${cm(fl.screed)} + wykończenie ${cm(fl.finish)} cm`,
     `sufit: GK ${cm(c.board)} + stelaż ${cm(c.grid)} + pustka ${cm(c.voidAbove)} cm`,
     `dach: kąt ${t.roof.pitchDeg === null ? '—' : String(t.roof.pitchDeg).replace('.', ',')}°, okap boczny ${cm(t.roof.eaveOverhang)} cm, okap szczytowy ${cm(t.roof.gableOverhang)} cm`,
+    `otwory: ${nExt} w ścianach zewnętrznych, ${nInt} drzwi wewnętrznych`,
   ]
 }

@@ -2,7 +2,7 @@
 
 import Dexie, { type Table } from 'dexie'
 import { newProject, type ProjectInput } from '../model/project'
-import { builtInTemplate, type ProjectTemplate } from '../model/template'
+import { builtInTemplate, mergeTemplate, type ProjectTemplate } from '../model/template'
 
 export interface StoredProject {
   id: string
@@ -29,21 +29,16 @@ class KosztorysDB extends Dexie {
 export const db = new KosztorysDB()
 
 /** Szablon nowego projektu zapisany przez użytkownika; brak → szablon wbudowany. */
+// Klucz v2: szablon wbudowany z danymi domu użytkownika (2026-11-12) ma pierwszeństwo przed zapisami sprzed tej zmiany.
+const TEMPLATE_KEY = 'template-v2'
+
 export async function loadTemplate(): Promise<ProjectTemplate> {
-  const s = await db.settings.get('template')
-  const builtIn = builtInTemplate(newProject())
-  if (!s) return builtIn
-  const t = s.value as Partial<ProjectTemplate>
-  return {
-    foundationBlock: { ...builtIn.foundationBlock, ...(t.foundationBlock ?? {}) },
-    floorLayers: { ...builtIn.floorLayers, ...(t.floorLayers ?? {}) },
-    ceiling: { ...builtIn.ceiling, ...(t.ceiling ?? {}) },
-    roof: { ...builtIn.roof, ...(t.roof ?? {}) },
-  }
+  const s = await db.settings.get(TEMPLATE_KEY)
+  return mergeTemplate(builtInTemplate(newProject()), s?.value as Partial<ProjectTemplate> | undefined)
 }
 
 export async function saveTemplate(t: ProjectTemplate): Promise<void> {
-  await db.settings.put({ key: 'template', value: t })
+  await db.settings.put({ key: TEMPLATE_KEY, value: t })
 }
 
 export function newId(): string {
