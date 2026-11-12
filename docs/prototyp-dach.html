@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototyp – dach dwuspadowy z daszkiem koszowym</title>
+<style>
+:root{--text-primary:#1f1e1d;--text-secondary:#5f5e5a;--text-warning:#854F0B;--surface-1:#f5f4ef;--border:#d3d1c7;--radius:8px;--font-mono:ui-monospace,Consolas,monospace}
+body{font-family:system-ui,sans-serif;max-width:720px;margin:20px auto;padding:0 12px;color:var(--text-primary)}
+.row{display:flex;align-items:center;gap:10px;margin:4px 0}
+.row label{font-size:13px;color:var(--text-secondary);min-width:190px}
+.row input{flex:1}
+.row span{font-size:13px;font-weight:500;min-width:58px;text-align:right}
+.mc{background:var(--surface-1);border-radius:var(--radius);padding:.7rem .9rem}
+.mc p{margin:0;font-size:13px;color:var(--text-secondary)}
+.mc b{font-size:20px;font-weight:500}
+.f{font-family:var(--font-mono);font-size:12px;color:var(--text-secondary);line-height:1.8;margin:0}
+.ts{font-size:11px;fill:#444441}
+</style>
+</head>
+<body>
+<!-- PROTOTYP REFERENCYJNY: logika rzutowania 3D (painter's algorithm + back-face culling) i wzory daszku.
+     W aplikacji geometria ma pochodzić z engine/roof.ts, a nie być liczona w komponencie. -->
+<div class="row"><label>Rzut dachu głównego – długość L (z okapami)</label><input type="range" id="L" min="8" max="20" step="0.1" value="13.6"><span id="Lo"></span></div>
+<div class="row"><label>Rzut dachu głównego – szerokość D (z okapami)</label><input type="range" id="D" min="7" max="14" step="0.1" value="11.6"><span id="Do"></span></div>
+<div class="row"><label>Kąt dachu głównego α</label><input type="range" id="a" min="15" max="50" step="1" value="35"><span id="ao"></span></div>
+<div class="row"><label>Szerokość daszku b</label><input type="range" id="b" min="1.5" max="8" step="0.1" value="4"><span id="bo"></span></div>
+<div class="row"><label>Wysięg daszku poza okap w</label><input type="range" id="w" min="0.5" max="5" step="0.1" value="2"><span id="wo"></span></div>
+<div class="row"><label>Kąt daszku β</label><input type="range" id="be" min="15" max="55" step="1" value="45"><span id="beo"></span></div>
+<div class="row"><label>Obrót widoku</label><input type="range" id="rot" min="-80" max="80" step="1" value="-35"><span id="roto"></span></div>
+<p id="warn" style="font-size:13px;color:var(--text-warning);min-height:18px"></p>
+<svg id="v3" viewBox="0 0 680 320" width="100%"></svg>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start">
+<svg id="pl" viewBox="0 0 320 280" width="100%"></svg>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+<div class="mc"><p>Połać główna</p><b id="m1"></b></div><div class="mc"><p>Daszek</p><b id="m2"></b></div>
+<div class="mc"><p>Dach razem</p><b id="m3"></b></div><div class="mc"><p>Przyrost</p><b id="m4"></b></div>
+<div class="mc"><p>Kosz (1 szt.)</p><b id="m5"></b></div><div class="mc"><p>Kalenica daszku</p><b id="m6"></b></div>
+<div class="mc"><p>Okapy daszku</p><b id="m7"></b></div><div class="mc"><p>Wiatrownice daszku</p><b id="m8"></b></div>
+</div></div>
+<div id="fx" style="margin-top:1rem"></div>
+<script>
+const $=i=>document.getElementById(i),R=Math.PI/180,F=(n,k=2)=>n.toLocaleString('pl-PL',{minimumFractionDigits:k,maximumFractionDigits:k});
+const PH=30*R,LT=(()=>{const v=[-0.45,-0.65,0.62],m=Math.hypot(...v);return v.map(x=>x/m)})();
+function shade(n){const m=Math.hypot(...n);return Math.max(0,(n[0]*LT[0]+n[1]*LT[1]+n[2]*LT[2])/m)}
+function upd(){
+const L=+$('L').value,D=+$('D').value,a=+$('a').value*R,be=+$('be').value*R,w=+$('w').value,t=+$('rot').value*R;
+const maxB=Math.min(L-1,D*Math.tan(a)/Math.tan(be));let b=+$('b').value;
+if(b>maxB){b=Math.floor(maxB*10)/10;$('b').value=b;$('warn').textContent='Szerokość daszku ograniczona do '+F(b,1)+' m – kalenica daszku wyszłaby ponad kalenicę główną.'}else $('warn').textContent='';
+$('Lo').textContent=F(L,1)+' m';$('Do').textContent=F(D,1)+' m';$('ao').textContent=Math.round(a/R)+'°';$('bo').textContent=F(b,1)+' m';$('wo').textContent=F(w,1)+' m';$('beo').textContent=Math.round(be/R)+'°';$('roto').textContent=Math.round(t/R)+'°';
+const H=D/2*Math.tan(a),hd=b/2*Math.tan(be),d=hd/Math.tan(a),T=b*d/2,xc=L/2,x1=xc-b/2,x2=xc+b/2;
+const Am=(L*D-T)/Math.cos(a),Ad=(b*w+T)/Math.cos(be),A0=L*D/Math.cos(a),tot=Am+Ad,inc=tot-A0;
+const kosz=Math.sqrt((b/2)**2+d*d+hd*hd),kal=w+d,ok=2*w,wi=2*(b/2)/Math.cos(be);
+$('m1').textContent=F(Am)+' m²';$('m2').textContent=F(Ad)+' m²';$('m3').textContent=F(tot)+' m²';$('m4').textContent='+'+F(inc)+' m²';
+$('m5').textContent=F(kosz)+' m';$('m6').textContent=F(kal)+' m';$('m7').textContent=F(ok)+' m';$('m8').textContent=F(wi)+' m';
+const sa=Math.sin(a),ca=Math.cos(a),sb=Math.sin(be),cb=Math.cos(be),RED='#E24B4A';
+const faces=[
+{p:[[0,0,0],[x1,0,0],[xc,d,hd],[x2,0,0],[L,0,0],[L,D/2,H],[0,D/2,H]],n:[0,-sa,ca],c:'#F0997B'},
+{p:[[0,D/2,H],[L,D/2,H],[L,D,0],[0,D,0]],n:[0,sa,ca],c:'#F0997B'},
+{p:[[0,0,0],[0,D/2,H],[0,D,0]],n:[-1,0,0],c:'#B4B2A9'},
+{p:[[L,0,0],[L,D,0],[L,D/2,H]],n:[1,0,0],c:'#B4B2A9'},
+{p:[[x1,-w,0],[x1,0,0],[xc,d,hd],[xc,-w,hd]],n:[-sb,0,cb],c:'#5DCAA5',ln:[[[x1,0,0],[xc,d,hd]]]},
+{p:[[x2,-w,0],[xc,-w,hd],[xc,d,hd],[x2,0,0]],n:[sb,0,cb],c:'#5DCAA5',ln:[[[x2,0,0],[xc,d,hd]]]},
+{p:[[x1,-w,0],[x2,-w,0],[xc,-w,hd]],n:[0,-1,0],c:'#B4B2A9'}];
+const ct=Math.cos(t),st=Math.sin(t),cx=L/2,cy=(D-w)/2,vd=[-Math.cos(PH)*st,-Math.cos(PH)*ct,Math.sin(PH)];
+const pr=([x,y,z])=>{const X=x-cx,Y=y-cy,Xr=X*ct-Y*st,Yr=X*st+Y*ct;return[Xr,-Yr*Math.sin(PH)-z*Math.cos(PH),Yr*Math.cos(PH)-z*Math.sin(PH)]};
+const hyp=Math.hypot(L,D+w),s=Math.min(620/hyp,280/(hyp*Math.sin(PH)+Math.max(H,hd)*Math.cos(PH)));
+let all=[];faces.forEach(f=>f.p.forEach(q=>all.push(pr(q))));
+const mnx=Math.min(...all.map(q=>q[0])),mxx=Math.max(...all.map(q=>q[0])),mny=Math.min(...all.map(q=>q[1])),mxy=Math.max(...all.map(q=>q[1]));
+const ox=340-s*(mnx+mxx)/2,oy=160-s*(mny+mxy)/2,P=q=>{const r=pr(q);return(ox+s*r[0]).toFixed(1)+','+(oy+s*r[1]).toFixed(1)};
+const vis=faces.filter(f=>f.n[0]*vd[0]+f.n[1]*vd[1]+f.n[2]*vd[2]>0.001).map(f=>({...f,dp:f.p.reduce((u,q)=>u+pr(q)[2],0)/f.p.length})).sort((u,v)=>v.dp-u.dp);
+let g='';vis.forEach(f=>{const pts=f.p.map(P).join(' ');const sh=shade(f.n);
+g+=`<polygon points="${pts}" fill="${f.c}" stroke="#444441" stroke-width="0.8" stroke-linejoin="round"/><polygon points="${pts}" fill="#000" opacity="${((1-sh)*0.35).toFixed(2)}"/>`;
+(f.ln||[]).forEach(l=>{g+=`<polyline points="${P(l[0])} ${P(l[1])}" stroke="${RED}" stroke-width="3" fill="none" stroke-linecap="round"/>`})});
+$('v3').innerHTML=g;
+const sp=Math.min(300/L,256/(D+w)),ox2=(320-L*sp)/2,X=x=>(ox2+x*sp).toFixed(1),Y=y=>(12+(D-y)*sp).toFixed(1);
+let p=`<rect x="${X(0)}" y="${Y(D)}" width="${(L*sp).toFixed(1)}" height="${(D*sp).toFixed(1)}" fill="#FAECE7" stroke="#D85A30"/>`;
+p+=`<line x1="${X(0)}" y1="${Y(D/2)}" x2="${X(L)}" y2="${Y(D/2)}" stroke="#993C1D" stroke-dasharray="5 4"/>`;
+p+=`<polygon points="${X(x1)},${Y(0)} ${X(xc)},${Y(d)} ${X(x2)},${Y(0)}" fill="#9FE1CB" stroke="#0F6E56" stroke-width="0.8"/>`;
+p+=`<rect x="${X(x1)}" y="${Y(0)}" width="${(b*sp).toFixed(1)}" height="${(w*sp).toFixed(1)}" fill="#9FE1CB" stroke="#0F6E56"/>`;
+p+=`<line x1="${X(xc)}" y1="${Y(-w)}" x2="${X(xc)}" y2="${Y(d)}" stroke="#085041" stroke-dasharray="5 4"/>`;
+p+=`<line x1="${X(x1)}" y1="${Y(0)}" x2="${X(xc)}" y2="${Y(d)}" stroke="${RED}" stroke-width="2.5"/><line x1="${X(x2)}" y1="${Y(0)}" x2="${X(xc)}" y2="${Y(d)}" stroke="${RED}" stroke-width="2.5"/>`;
+p+=`<text class="ts" x="${X(xc)}" y="${(+Y(-w)+14).toFixed(1)}" text-anchor="middle">b = ${F(b,1)} m</text>`;
+p+=`<text class="ts" x="${(+X(x2)+4).toFixed(1)}" y="${((+Y(0)+ +Y(-w))/2+4).toFixed(1)}">w</text>`;
+p+=`<text class="ts" x="${(+X(xc)+4).toFixed(1)}" y="${((+Y(0)+ +Y(d))/2+8).toFixed(1)}">T</text>`;
+p+=`<text class="ts" x="${(+X(xc)+6).toFixed(1)}" y="${(+Y(d)-4).toFixed(1)}">d = ${F(d)} m</text>`;
+$('pl').innerHTML=p;
+const A=Math.round(a/R),B=Math.round(be/R);
+$('fx').innerHTML=`<p class="f">d = (b/2)·tan β / tan α = ${F(d)} m</p><p class="f">T = b·d/2 = ${F(T)} m²</p>
+<p class="f">Połać główna = (L·D − T)/cos α = ${F(Am)} m²</p><p class="f">Daszek = (b·w + T)/cos β = ${F(Ad)} m²</p>
+<p class="f">Kosz = √((b/2)² + d² + ((b/2)·tan β)²) = ${F(kosz)} m</p>`;
+}
+['L','D','a','b','w','be','rot'].forEach(i=>$(i).addEventListener('input',upd));upd();
+</script>
+</body>
+</html>

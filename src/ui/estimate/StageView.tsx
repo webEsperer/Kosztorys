@@ -9,6 +9,7 @@ import type { ProjectInput } from '../../model/project'
 import { NumField, fmtQty } from '../common/fields'
 import type { Update } from '../project-form/ProjectForm'
 import { ItemPanel } from './ItemPanel'
+import type { RoofElementKind } from '../roof-view/links'
 
 function qtyText(r: ItemResult): string {
   const s = r.spec
@@ -31,6 +32,7 @@ export function StageView({
   update,
   selected,
   onSelect,
+  onShowRoof,
 }: {
   stage: Stage
   estimate: Estimate
@@ -38,6 +40,7 @@ export function StageView({
   update: Update
   selected: string | null
   onSelect: (id: string | null) => void
+  onShowRoof?: (kind: RoofElementKind) => void
 }) {
   const rows = estimate.items.filter((r) => r.spec.stage === stage)
   const summary = estimate.stages.find((s) => s.stage === stage)!
@@ -105,7 +108,7 @@ export function StageView({
       </div>
       {sel && (
         <div ref={panelRef} className="stage-panel">
-          <ItemPanel r={sel} project={project} update={update} onClose={() => onSelect(null)} />
+          <ItemPanel r={sel} project={project} update={update} onClose={() => onSelect(null)} onShowRoof={onShowRoof} />
         </div>
       )}
     </div>

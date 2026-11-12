@@ -7,6 +7,7 @@ import { fmt } from '../../engine/trace'
 import { Check, NumField, fmtQty } from '../common/fields'
 import type { Update } from '../project-form/ProjectForm'
 import type { ProjectInput } from '../../model/project'
+import { kindForItem, type RoofElementKind } from '../roof-view/links'
 
 const PRICE_UNIT: Record<ItemResult['spec']['priceBasis'], (r: ItemResult) => string> = {
   perUnit: (r) => `zł/${r.chargedUnit}`,
@@ -20,8 +21,21 @@ const OSB_CHOICE: Record<string, keyof ProjectInput['choices']> = {
   'ssz-ws-osb': 'wallRingBeamOsbVariant',
 }
 
-export function ItemPanel({ r, project, update, onClose }: { r: ItemResult; project: ProjectInput; update: Update; onClose: () => void }) {
+export function ItemPanel({
+  r,
+  project,
+  update,
+  onClose,
+  onShowRoof,
+}: {
+  r: ItemResult
+  project: ProjectInput
+  update: Update
+  onClose: () => void
+  onShowRoof?: (kind: RoofElementKind) => void
+}) {
   const s = r.spec
+  const roofKind = kindForItem(s.id)
   const choiceKey = OSB_CHOICE[s.id]
   return (
     <aside className="item-panel" aria-label="Szczegóły pozycji">
@@ -36,6 +50,13 @@ export function ItemPanel({ r, project, update, onClose }: { r: ItemResult; proj
       </div>
 
       {s.note && <p className="ip-note">{s.note}</p>}
+      {roofKind && onShowRoof && (
+        <p>
+          <button className="btn" onClick={() => onShowRoof(roofKind)}>
+            Pokaż na rysunku dachu
+          </button>
+        </p>
+      )}
 
       <div className="fields">
         <NumField

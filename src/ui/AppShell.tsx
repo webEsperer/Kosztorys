@@ -10,11 +10,13 @@ import { StageView } from './estimate/StageView'
 import { Summary, TodoList } from './estimate/Summary'
 import { ProjectForm } from './project-form/ProjectForm'
 import { ExportView } from './export/ExportView'
+import { RoofView } from './roof-view/RoofView'
+import type { RoofElementKind } from './roof-view/links'
 import './app.css'
 
 const FoundationViewer = lazy(() => import('./foundation-view/FoundationViewer').then((m) => ({ default: m.FoundationViewer })))
 
-type Tab = 'dane' | Stage | 'podsumowanie' | 'braki' | 'eksport' | 'fundament'
+type Tab = 'dane' | Stage | 'podsumowanie' | 'braki' | 'dach' | 'eksport' | 'fundament'
 
 const TAB_LABEL: Record<Tab, string> = {
   dane: 'Dane projektu',
@@ -24,6 +26,7 @@ const TAB_LABEL: Record<Tab, string> = {
   OGOLNE: 'Ogólne',
   podsumowanie: 'Podsumowanie',
   braki: 'Do uzupełnienia',
+  dach: 'Dach',
   eksport: 'Eksport',
   fundament: 'Fundament 3D',
 }
@@ -42,6 +45,7 @@ export function AppShell() {
   const [project, setProject] = useState<ProjectInput | null>(null)
   const [tab, setTab] = useState<Tab>('dane')
   const [selected, setSelected] = useState<string | null>(null)
+  const [roofHighlight, setRoofHighlight] = useState<RoofElementKind | null>(null)
   const [saved, setSaved] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -188,8 +192,8 @@ export function AppShell() {
       )}
 
       <nav className="tabs" role="tablist">
-        {(['dane', ...STAGES, 'podsumowanie', 'braki', 'eksport', 'fundament'] as Tab[]).map((t) => (
-          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => { setTab(t); setSelected(null) }}>
+        {(['dane', ...STAGES, 'podsumowanie', 'braki', 'dach', 'eksport', 'fundament'] as Tab[]).map((t) => (
+          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => { setTab(t); setSelected(null); setRoofHighlight(null) }}>
             {TAB_LABEL[t]}
             {!(estimate instanceof Error) && STAGES.includes(t as Stage) && (
               <span className="tab-sum">{formatPLN(estimate.stages.find((s) => s.stage === t)!.totalGrosze)}</span>
@@ -208,12 +212,33 @@ export function AppShell() {
         ) : tab === 'dane' ? (
           <ProjectForm project={project} update={update} />
         ) : STAGES.includes(tab as Stage) ? (
-          <StageView stage={tab as Stage} estimate={estimate} project={project} update={update} selected={selected} onSelect={setSelected} />
+          <StageView
+            stage={tab as Stage}
+            estimate={estimate}
+            project={project}
+            update={update}
+            selected={selected}
+            onSelect={setSelected}
+            onShowRoof={(k) => {
+              setRoofHighlight(k)
+              setTab('dach')
+            }}
+          />
         ) : tab === 'podsumowanie' ? (
           <Summary estimate={estimate} onOpen={(st) => setTab(st)} />
         ) : tab === 'braki' ? (
           <TodoList
             estimate={estimate}
+            onOpenItem={(st, iid) => {
+              setTab(st)
+              setSelected(iid)
+            }}
+          />
+        ) : tab === 'dach' ? (
+          <RoofView
+            project={project}
+            estimate={estimate}
+            highlight={roofHighlight}
             onOpenItem={(st, iid) => {
               setTab(st)
               setSelected(iid)

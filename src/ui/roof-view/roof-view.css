@@ -1,0 +1,90 @@
+.roof-view {
+  display: grid;
+  gap: 12px;
+}
+
+.rv-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.rv-toolbar input[type='range'] {
+  width: 160px;
+}
+
+.rv-sep {
+  flex: 1;
+}
+
+.rv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 600px) {
+  .rv-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.rv-grid .card {
+  margin: 0;
+}
+
+.rv-svg {
+  display: block;
+  background: #fff;
+  border-radius: 6px;
+  touch-action: none;
+  user-select: none;
+}
+
+.rv-hit {
+  cursor: pointer;
+}
+
+.rv-label {
+  font: 600 11px system-ui, sans-serif;
+  fill: #1f1e1d;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px;
+  pointer-events: none;
+}
+
+.rv-label-edge {
+  fill: #a32624;
+}
+
+.rv-dim line {
+  stroke: #5f5e5a;
+  stroke-width: 0.8;
+}
+
+.rv-dim text {
+  font: 10px system-ui, sans-serif;
+  fill: #444441;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px;
+}
+
+.rv-table {
+  margin-top: 10px;
+}
+
+.rv-items {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+.rv-panel {
+  margin: 0;
+}
