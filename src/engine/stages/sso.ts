@@ -2,230 +2,14 @@
 // Każda pozycja: ilość z trace albo lista braków („uzupełnij”). Ceny — osobno (project.prices).
 
 import type { ProjectInput } from '../../model/project'
-import { type ConcretePourParams, computeConcretePour, linearElementVolume, slabVolume } from '../concrete'
+import { linearElementVolume, slabVolume } from '../concrete'
 import { computeCutting, DEFAULT_MIN_PIECE, DEFAULT_FELT_OVERLAP, formworkSegmentsRect } from '../cutting'
-import { computeGeometry, footingFacePerimeters, GEOMETRY_REFS } from '../geometry'
-import { type ItemKind, type ItemSpec, type Packaging, type Param, type PriceBasis, type Unit, manualQuantity, need, param } from '../items'
-import { computeLevels, DEFAULT_LEVELS, type LevelsResult } from '../levels'
-import { computeRebarElement, defaultFootingRebar, defaultRingBeamRebar, REBAR_WARNING, type RebarElementResult } from '../rebar'
-import { rectSides } from '../rebarLayout'
+import { footingFacePerimeters, GEOMETRY_REFS } from '../geometry'
+import { type ItemSpec, need } from '../items'
+import type { LevelsResult } from '../levels'
+import { computeRebarElement, defaultFootingRebar, defaultRingBeamRebar } from '../rebar'
 import { type Computed, ceilSafe, clean, fmt } from '../trace'
-
-// ─── pomocnicze ─────────────────────────────────────────────────────────────
-
-interface ItemInit {
-  id: string
-  category: string
-  kind: ItemKind
-  name: string
-  unit: Unit
-  quantity: Computed | null
-  params?: Record<string, Param>
-  missing?: string[]
-  packaging?: Packaging
-  wastePercent?: number
-  priceBasis?: PriceBasis
-  chargeFullPacks?: boolean
-  enabled?: boolean
-  note?: string
-}
-
-function makeBuilder(project: ProjectInput) {
-  /** Parametr z wartością domyślną, nadpisany przez użytkownika (project.itemParams). */
-  const P = (itemId: string, key: string, label: string, def: number | null, unit: string, note?: string): Param => {
-    const o = project.itemParams[itemId]
-    const v = o && key in o ? o[key] : def
-    return param(label, v, unit, note)
-  }
-  const item = (i: ItemInit): ItemSpec => ({
-    id: i.id,
-    stage: 'SSO',
-    category: i.category,
-    kind: i.kind,
-    name: i.name,
-    unit: i.unit,
-    quantity: i.quantity,
-    ...(i.packaging ? { packaging: i.packaging } : {}),
-    wastePercent: i.wastePercent ?? 0,
-    priceBasis: i.priceBasis ?? 'perUnit',
-    ...(i.chargeFullPacks ? { chargeFullPacks: true } : {}),
-    params: i.params ?? {},
-    missing: i.missing ?? [],
-    isCustom: false,
-    enabled: project.enabled[i.id] ?? i.enabled ?? true,
-    ...(i.note ? { note: i.note } : {}),
-  })
-  return { P, item }
-}
-
-function computed(label: string, formula: string, values: string, value: number, unit: string, ref?: string): Computed {
-  const v = clean(value)
-  return { value: v, unit, trace: [{ label, formula, values, result: v, unit, ...(ref ? { ref } : {}) }] }
-}
-
-/** Pozycja ręczna: ilość × cena (np. godziny pracy koparki). */
-function manualItem(b: ReturnType<typeof makeBuilder>, id: string, category: string, kind: ItemKind, name: string, unit: Unit, qtyLabel: string, enabled = true): ItemSpec {
-  const params = { qty: b.P(id, 'qty', qtyLabel, null, unit) }
-  const missing: string[] = []
-  const v = need(params, 'qty', missing)
-  return b.item({ id, category, kind, name, unit, params, missing, quantity: manualQuantity(qtyLabel, v, unit), enabled })
-}
-
-/** Pozycja ryczałtowa: kwota wpisana ręcznie. */
-function lumpItem(b: ReturnType<typeof makeBuilder>, id: string, category: string, name: string, enabled = true, note?: string): ItemSpec {
-  return b.item({ id, category, kind: 'lumpSum', name, unit: 'ryczałt', quantity: null, priceBasis: 'lumpSum', enabled, ...(note ? { note } : {}) })
-}
-
-/** Betonowanie → pozycje: beton, transport, pompa, (włókna). */
-function pourItems(
-  b: ReturnType<typeof makeBuilder>,
-  prefix: string,
-  category: string,
-  name: string,
-  volume: Computed | null,
-  volumeMissing: string[],
-  pp: ConcretePourParams,
-): ItemSpec[] {
-  const pour = volume ? computeConcretePour(name, volume, pp) : null
-  const out: ItemSpec[] = []
-  out.push(
-    b.item({
-      id: `${prefix}-beton`,
-      category,
-      kind: 'material',
-      name: `Beton ${pp.concreteClass} — ${name}`,
-      unit: 'm3',
-      quantity: pour ? pour.orderedVolume : null,
-      missing: [...volumeMissing],
-      note: `naddatek ${fmt(pp.extraPercent)}% wliczony w objętość do zamówienia`,
-    }),
-  )
-  if (pp.transport.mode === 'perTrip') {
-    out.push(
-      b.item({
-        id: `${prefix}-transport`,
-        category,
-        kind: 'service',
-        name: `Transport betonu — ${name} (gruszka ${fmt(pp.transport.truckCapacityM3)} m³)`,
-        unit: 'kurs',
-        quantity: pour?.trips ? { value: pour.trips.value, unit: 'kurs', trace: [...pour.orderedVolume.trace, ...pour.trips.trace] } : null,
-        missing: [...volumeMissing],
-      }),
-    )
-  } else if (pp.transport.mode === 'perM3') {
-    out.push(
-      b.item({
-        id: `${prefix}-transport`,
-        category,
-        kind: 'service',
-        name: `Transport betonu — ${name}`,
-        unit: 'm3',
-        quantity: pour ? pour.orderedVolume : null,
-        missing: [...volumeMissing],
-      }),
-    )
-  }
-  out.push(
-    b.item({
-      id: `${prefix}-pompa`,
-      category,
-      kind: 'equipment',
-      name: `Pompa do betonu (wynajem) — ${name}`,
-      unit: 'ryczałt',
-      quantity: null,
-      priceBasis: 'lumpSum',
-      enabled: pp.pump.enabled,
-    }),
-  )
-  if (pp.fibers?.enabled) {
-    const id = `${prefix}-wlokna`
-    const params = { kgPerM3: b.P(id, 'kgPerM3', 'Dozowanie włókien', pp.fibers.kgPerM3, 'kg/m³', 'z karty producenta włókien') }
-    const missing = [...volumeMissing]
-    const dose = need(params, 'kgPerM3', missing)
-    out.push(
-      b.item({
-        id,
-        category,
-        kind: 'material',
-        name: `Włókna zbrojące — ${name}`,
-        unit: 'kg',
-        params,
-        missing,
-        quantity:
-          pour && dose !== null
-            ? computed('Włókna', 'V_z × dozowanie', `${fmt(pour.orderedVolume.value)} × ${fmt(dose)}`, pour.orderedVolume.value * dose, 'kg')
-            : null,
-      }),
-    )
-  }
-  return out
-}
-
-/** Zbrojenie elementu → pozycje stali (kg, ważone w pełnych prętach) i drut wiązałkowy. */
-function rebarItems(
-  b: ReturnType<typeof makeBuilder>,
-  prefix: string,
-  category: string,
-  res: RebarElementResult | null,
-  resMissing: string[],
-  massPerMeter: Record<number, number>,
-  barLength: number,
-): ItemSpec[] {
-  const out: ItemSpec[] = []
-  const diameters = res ? res.byDiameter.map((x) => x.diameter) : [12, 6]
-  for (const d of diameters) {
-    const x = res?.byDiameter.find((y) => y.diameter === d) ?? null
-    const k = massPerMeter[d]
-    out.push(
-      b.item({
-        id: `${prefix}-stal${d}`,
-        category,
-        kind: 'material',
-        name: `Stal Ø${d} — ${res?.name ?? category}`,
-        unit: 'kg',
-        quantity: x
-          ? {
-              value: clean(x.netMeters * k),
-              unit: 'kg',
-              trace: [
-                ...res!.trace.filter(
-                  (s) =>
-                    (s.label.includes(`Ø${d}`) || (d === 6 && s.label.toLowerCase().includes('strzemion'))) &&
-                    !s.label.startsWith('Masa') &&
-                    !s.label.includes('do kupienia'),
-                ),
-                { label: `Ø${d} — masa wbudowana`, formula: 'mb × kg/m', values: `${fmt(x.netMeters)} × ${fmt(k)}`, result: clean(x.netMeters * k), unit: 'kg' },
-              ],
-            }
-          : null,
-        packaging: { packUnit: 'pręt', perPack: clean(barLength * k), packLabel: `pręt ${fmt(barLength)} m = ${fmt(barLength * k)} kg` },
-        chargeFullPacks: true,
-        missing: [...resMissing],
-        note: REBAR_WARNING,
-      }),
-    )
-  }
-  const id = `${prefix}-drut`
-  const params = { pct: b.P(id, 'pct', 'Drut wiązałkowy — % masy stali', null, '%') }
-  const missing = [...resMissing]
-  const pct = need(params, 'pct', missing)
-  out.push(
-    b.item({
-      id,
-      category,
-      kind: 'material',
-      name: `Drut wiązałkowy — ${res?.name ?? category}`,
-      unit: 'kg',
-      params,
-      missing,
-      quantity:
-        res && pct !== null
-          ? computed('Drut wiązałkowy', 'm_stali × %', `${fmt(res.totalMassKg)} × ${fmt(pct)}%`, (res.totalMassKg * pct) / 100, 'kg')
-          : null,
-    }),
-  )
-  return out
-}
+import { computed, lumpItem, makeBuilder, manualItem, pourItems, projectBase, rebarItems } from './common'
 
 // ─── SSO ────────────────────────────────────────────────────────────────────
 
@@ -238,43 +22,9 @@ export function buildSSO(project: ProjectInput): { items: ItemSpec[]; context: S
   const b = makeBuilder(project)
   const { P, item } = b
   const f = project.foundation
-  const t = project.wallThickness
   const items: ItemSpec[] = []
-
-  const geo = computeGeometry({
-    footprint: { kind: 'rect', length: project.footprint.length, width: project.footprint.width },
-    wallThickness: t,
-    facadeInsulation: project.facadeInsulation,
-  })
-  const pOs = geo.axisPerimeter
-  const aWew = geo.interiorArea
-  const axis = { length: clean(project.footprint.length + t), width: clean(project.footprint.width + t) }
-  const sides = rectSides(axis)
-
-  // Poziomy fundamentu — wymagają danych bloczka
-  const levelsMissing: string[] = []
-  if (f.blockHeight === null) levelsMissing.push('wysokość bloczka fundamentowego')
-  if (f.jointThickness === null) levelsMissing.push('grubość spoiny bloczków fundamentowych')
-  if (f.layers === null) levelsMissing.push('liczba warstw bloczków fundamentowych')
-  const levels: LevelsResult | null =
-    levelsMissing.length === 0
-      ? computeLevels({
-          ...DEFAULT_LEVELS,
-          clearHeight: project.clearHeight,
-          wallRingBeamTop: project.wallRingBeamTop,
-          floorLayers: project.floorLayers,
-          slabThickness: project.slabThickness,
-          wall: project.wall,
-          foundation: {
-            blockHeight: f.blockHeight!,
-            jointThickness: f.jointThickness!,
-            layers: f.layers!,
-            ringBeamHeight: f.ringBeamHeight,
-            footingFormworkHeight: f.footingFormworkHeight,
-            footingHeight: f.footingHeight,
-          },
-        })
-      : null
+  // Geometria i poziomy (poziomy fundamentu wymagają danych bloczka)
+  const { pOs, aWew, axis, sides, levels, levelsMissing } = projectBase(project)
   const fl = levels?.foundation.value ?? null
 
   // ── Roboty ziemne i sprzęt
@@ -604,7 +354,14 @@ export function buildSSO(project: ProjectInput): { items: ItemSpec[]; context: S
         value: v,
         unit: 'm³',
         trace: [
-          { label: 'Wysokość zasypki', formula: 'spód chudziaka − dno wykopu', values: `${fmt(levels.slabBottom.value)} − (${fmt(fl.excavationBottom)})`, result: h, unit: 'm', note: 'dno wykopu 12 cm pod górą ławy; ze spoinami bloczków' },
+          {
+            label: 'Wysokość zasypki',
+            formula: '0,12 + n × (h_bl + spoina) + h_wieńca − g_chudziaka',
+            values: `${fmt(f.footingFormworkHeight)} + ${f.layers} × (${fmt(f.blockHeight!)} + ${fmt(f.jointThickness!)}) + ${fmt(f.ringBeamHeight)} − ${fmt(project.slabThickness)}`,
+            result: h,
+            unit: 'm',
+            note: 'od dna wykopu (12 cm pod górą ławy) do góry ściany fund. z wieńcem, minus chudziak',
+          },
           { label: 'Objętość luźna', formula: 'A_wew × h × k_zag', values: `${fmt(aWew.value)} × ${fmt(h)} × ${fmt(k)}`, result: v, unit: 'm³', ref: GEOMETRY_REFS.interiorArea },
         ],
       }

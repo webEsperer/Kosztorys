@@ -302,14 +302,15 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
 - Opcjonalnie (wyłączone): folia kubełkowa na XPS.
 
 ### Wieniec fundamentowy (domyślnie 25 cm)
-- Beton [licz]: `P_oś × t × 0,25` → moduł betonowania.
+- Beton [licz]: `P_oś × t_f × 0,25`, **t_f = szerokość bloczka fundamentowego** (wg użytkownika) → moduł betonowania.
 - Zbrojenie wieńca fundamentowego [licz].
 - Szalunek z OSB [licz]: obie strony; pas = wysokość wieńca + zakład na bloczki (parametr, domyślnie 10 cm);
   płyta np. 250 × 125 cm → moduł cięcia → liczba płyt, plan cięcia, koszt.
 
 ### Zasypka wewnątrz fundamentów
-- Piasek [licz]: od dna wykopu (12 cm poniżej góry ławy) do spodu chudziaka;
-  `wys = 0,12 + n_warstw·h_bloczka + h_wieńca − 0,10`;
+- Piasek [licz]: od dna wykopu (12 cm poniżej góry ławy) do górnej krawędzi ściany fundamentowej łącznie
+  z wieńcem, minus 10 cm na chudziak (= spód chudziaka) — wg użytkownika;
+  `wys = 0,12 + n_warstw·(h_bloczka + spoina) + h_wieńca − g_chudziaka` (spoiny wliczone; przykład 0,92 m);
   `pow = A_wew` (wnętrze ścian fundamentowych, minus ławy wewnętrzne jeśli są);
   `V_luźny = pow × wys × współczynnik zagęszczenia` (parametr, domyślnie 1,2 — do weryfikacji z dostawcą);
   cena za m³ lub tonę z transportem (przelicznik t/m³ parametr).
