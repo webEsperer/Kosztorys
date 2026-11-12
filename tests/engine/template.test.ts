@@ -75,9 +75,13 @@ describe('otwory — wyszczególnienie odejmowania', () => {
   })
 
   it('schowek 70 → drzwi 60; wszystkie drzwi wewnętrzne przypisane', async () => {
-    const { interiorDoors, DEFAULT_DOOR_MAP } = await import('../../src/engine/openings')
+    const { interiorDoors, DEFAULT_DOOR_MAP, openingDeductions, DEFAULT_LINTEL_TABLE } = await import('../../src/engine/openings')
     const r = interiorDoors(p.openings, DEFAULT_DOOR_MAP)
     expect(r.unmapped).toEqual([])
+    const o5 = p.openings.find((o) => o.mark === 'O5')!
+    expect([o5.width, o5.height]).toEqual([1.4, 2.3])
+    const d = openingDeductions(p.openings, { exterior: DEFAULT_LINTEL_TABLE, partition: DEFAULT_LINTEL_TABLE }, { exterior: 2, partition: 1 })
+    expect(d.rows.find((x) => x.opening.mark === 'O5')!.lintel).toEqual({ length: 2, pieces: 2 }) // 1,40 > 1,25 → nadproże 2,00 m
     expect(r.groups.map((g) => [g.leaf, g.count])).toEqual([[0.6, 1], [0.7, 6]])
   })
 })

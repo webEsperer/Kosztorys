@@ -33,7 +33,7 @@ export const USER_OPENINGS: Opening[] = [
   ext('t-o2', 'O2', 'okno', 1.5, 1.5, 'Sypialnia 2'),
   ext('t-o3', 'O3', 'okno', 1.5, 1.5, 'Sypialnia 3 (ściana boczna)'),
   ext('t-o4', 'O4', 'okno', 1.2, 1.5, 'Gabinet'),
-  ext('t-o5', 'O5', 'okno', 2.3, 1.4, 'Salon (FIX + uchylne)'),
+  ext('t-o5', 'O5', 'okno', 1.4, 2.3, 'Salon (FIX + uchylne)'), // szer. 1,40 × wys. 2,30 (poprawka użytkownika)
   ext('t-o6', 'O6', 'okno', 1.8, 1.2, 'Kuchnia (ściana boczna)'),
   ext('t-o7', 'O7', 'okno', 1.5, 1.2, 'Kuchnia (ściana z wejściem)'),
   ext('t-o8', 'O8', 'okno', 1.5, 1.2, 'Kotłownia'),
