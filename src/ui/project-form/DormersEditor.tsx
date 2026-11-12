@@ -29,10 +29,10 @@ export function DormersEditor({ project, update }: { project: ProjectInput; upda
         return (
           <div key={d.id} className="opening-row dormer-row">
             <b className="dormer-id">{d.id}</b>
-            <NumField label="b — szer. z okapami" unit="cm" scale={100} width={64} value={d.b} onChange={(v) => set(d.id, (x) => { x.b = v ?? 0 })} />
-            <NumField label="w — wysięg za okap" unit="cm" scale={100} width={64} value={d.w} onChange={(v) => set(d.id, (x) => { x.w = v ?? 0 })} />
-            <NumField label="β — kąt" unit="°" width={48} value={d.betaDeg} onChange={(v) => set(d.id, (x) => { x.betaDeg = v ?? 0 })} />
-            <NumField label="Δh okapu" unit="cm" scale={100} width={56} value={d.dh} onChange={(v) => set(d.id, (x) => { x.dh = v ?? 0 })} />
+            <NumField positive allowEmpty={false} label="b — szer. z okapami" unit="cm" scale={100} width={64} value={d.b} onChange={(v) => set(d.id, (x) => { x.b = v ?? 0 })} />
+            <NumField allowEmpty={false} label="w — wysięg za okap" unit="cm" scale={100} width={64} value={d.w} onChange={(v) => set(d.id, (x) => { x.w = v ?? 0 })} />
+            <NumField positive allowEmpty={false} label="β — kąt" unit="°" width={48} value={d.betaDeg} onChange={(v) => set(d.id, (x) => { x.betaDeg = v ?? 0 })} />
+            <NumField allowEmpty={false} label="Δh okapu" unit="cm" scale={100} width={56} value={d.dh} onChange={(v) => set(d.id, (x) => { x.dh = v ?? 0 })} />
             <label className="nf">
               <span className="nf-label">Strona</span>
               <span className="nf-box">
@@ -42,7 +42,7 @@ export function DormersEditor({ project, update }: { project: ProjectInput; upda
                 </select>
               </span>
             </label>
-            <NumField label="Położenie od początku okapu" unit="cm" scale={100} width={64} value={d.position} onChange={(v) => set(d.id, (x) => { x.position = v ?? 0 })} />
+            <NumField allowEmpty={false} label="Położenie od początku okapu" unit="cm" scale={100} width={64} value={d.position} onChange={(v) => set(d.id, (x) => { x.position = v ?? 0 })} />
             <label className="nf">
               <span className="nf-label">Szczyt daszku</span>
               <span className="nf-box">
@@ -52,7 +52,7 @@ export function DormersEditor({ project, update }: { project: ProjectInput; upda
                 </select>
               </span>
             </label>
-            <NumField label="Szer. ściany szczytu" unit="cm" scale={100} width={64} value={d.wallWidth ?? null} onChange={(v) => set(d.id, (x) => { x.wallWidth = v ?? undefined })} />
+            <NumField positive label="Szer. ściany szczytu" unit="cm" scale={100} width={64} value={d.wallWidth ?? null} onChange={(v) => set(d.id, (x) => { x.wallWidth = v ?? undefined })} />
             <button className="btn-icon" title="Usuń daszek" onClick={() => update((p) => { p.roof.dormers = p.roof.dormers.filter((x) => x.id !== d.id) })}>
               ✕
             </button>

@@ -7,6 +7,7 @@ import { formatPLN } from '../engine/money'
 import { newProject, type ProjectInput } from '../model/project'
 import { deleteProject, exportJson, importJson, listProjects, newId, saveProject, upgradeProject, type StoredProject } from '../storage/db'
 import { StageView } from './estimate/StageView'
+import { ErrorBoundary } from './common/ErrorBoundary'
 import { Summary, TodoList } from './estimate/Summary'
 import { ProjectForm } from './project-form/ProjectForm'
 import { ExportView } from './export/ExportView'
@@ -53,6 +54,8 @@ export function AppShell() {
   const [saved, setSaved] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  // Poprzednia wersja projektu — do „Cofnij ostatnią zmianę”, gdy widok się wywróci
+  const undoRef = useRef<ProjectInput | null>(null)
 
   const refresh = useCallback(async () => setProjects(await listProjects()), [])
 
@@ -92,6 +95,7 @@ export function AppShell() {
   const update = useCallback((fn: (p: ProjectInput) => void) => {
     setProject((prev) => {
       if (!prev) return prev
+      undoRef.current = prev
       const next = structuredClone(prev)
       fn(next)
       return next
@@ -208,6 +212,22 @@ export function AppShell() {
       </nav>
 
       <main className="content">
+        <ErrorBoundary
+          resetKey={project}
+          action={
+            undoRef.current
+              ? {
+                  label: 'Cofnij ostatnią zmianę',
+                  onClick: () => {
+                    if (undoRef.current) {
+                      setProject(undoRef.current)
+                      setSaved(false)
+                    }
+                  },
+                }
+              : undefined
+          }
+        >
         {estimate instanceof Error ? (
           <>
             <p className="error-bar">Błąd obliczeń: {estimate.message}</p>
@@ -268,6 +288,7 @@ export function AppShell() {
             <FoundationViewer />
           </Suspense>
         )}
+        </ErrorBoundary>
       </main>
       <footer className="foot muted small">Ceny brutto. {STAGE_LABEL.SSO} → {STAGE_LABEL.SD}: ilości wg CLAUDE.md, każda pozycja ma „Jak to policzono”.</footer>
     </div>

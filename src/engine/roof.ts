@@ -227,6 +227,7 @@ export function dormerWarnings(i: RoofInput, r: RoofResult): string[] {
 
 /** Liczba wiązarów z rozstawu: ⌈L_z / rozstaw⌉ + 1. */
 export function trussCount(length: number, spacing: number): { value: number; trace: TraceStep[] } {
+  if (!(spacing > 0)) throw new Error('Rozstaw wiązarów musi być większy od zera.')
   const value = Math.ceil(length / spacing - 1e-9) + 1
   return {
     value,

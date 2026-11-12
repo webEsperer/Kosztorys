@@ -45,6 +45,7 @@ export const DEFAULT_CEILING_RULES: CeilingRules = {
 
 /** Liczba linii na rozpiętości: skrajne `edge` od ścian, między nimi co ≤ `spacing`. */
 export function linesAcross(span: number, edge: number, spacing: number): number {
+  if (!(spacing > 0)) throw new Error('Rozstaw profili/wieszaków musi być większy od zera.')
   if (span <= 2 * edge + 1e-9) return 1
   return ceilSafe((span - 2 * edge) / spacing) + 1
 }

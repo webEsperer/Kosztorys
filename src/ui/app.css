@@ -818,3 +818,23 @@
     grid-column: span 2;
   }
 }
+
+.nf-invalid input {
+  border-color: var(--error);
+  background: color-mix(in srgb, var(--error) 10%, transparent);
+}
+
+.nf-error {
+  flex-basis: 100%;
+  font-size: 0.75rem;
+  color: var(--error);
+  text-align: right;
+}
+
+.nf {
+  flex-wrap: wrap;
+}
+
+.error-box {
+  cursor: default;
+}

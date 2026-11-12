@@ -21,7 +21,9 @@ export function parseNum(s: string): number | null {
 
 /**
  * Pole liczbowe. `scale` — przelicznik wartości do wyświetlenia (np. m → cm: 100).
- * Puste pole = null.
+ * Puste pole = null (gdy `allowEmpty`). `positive` — wartość musi być > 0.
+ * Wartość niepoprawna (np. pusta, gdy pustej nie wolno, albo 0 przy `positive`) NIE jest zapisywana —
+ * pole świeci na czerwono, a po wyjściu z pola wraca ostatnia poprawna wartość.
  */
 export function NumField({
   label,
@@ -33,6 +35,8 @@ export function NumField({
   required = false,
   placeholder,
   width,
+  positive = false,
+  allowEmpty = true,
 }: {
   label: ReactNode
   value: number | null
@@ -43,16 +47,21 @@ export function NumField({
   required?: boolean
   placeholder?: string
   width?: number
+  positive?: boolean
+  allowEmpty?: boolean
 }) {
   const shown = value === null ? '' : fmtNum(Math.round(value * scale * 1e6) / 1e6, 4)
   const [text, setText] = useState(shown)
   const [focused, setFocused] = useState(false)
+  const [invalid, setInvalid] = useState<string | null>(null)
+  // wartość sprzed edycji — przywracana, gdy pole (bez pustych) zostanie wyczyszczone
+  const [before, setBefore] = useState<number | null>(value)
   useEffect(() => {
     if (!focused) setText(shown)
   }, [shown, focused])
   const missing = required && value === null
   return (
-    <label className={`nf${missing ? ' nf-missing' : ''}`} title={hint}>
+    <label className={`nf${missing ? ' nf-missing' : ''}${invalid ? ' nf-invalid' : ''}`} title={invalid ?? hint}>
       <span className="nf-label">{label}</span>
       <span className="nf-box">
         <input
@@ -61,20 +70,43 @@ export function NumField({
           value={text}
           placeholder={placeholder ?? (required ? 'uzupełnij' : '')}
           style={width ? { width } : undefined}
-          onFocus={() => setFocused(true)}
+          onFocus={() => {
+            setFocused(true)
+            setBefore(value)
+          }}
           onBlur={() => {
             setFocused(false)
+            setInvalid(null)
             setText(shown)
           }}
           onChange={(e) => {
             setText(e.target.value)
+            if (e.target.value.trim() === '') {
+              if (allowEmpty) {
+                setInvalid(null)
+                onChange(null)
+              } else {
+                setInvalid('Wpisz wartość')
+                if (before !== null && before !== value) onChange(before)
+              }
+              return
+            }
             const v = parseNum(e.target.value)
-            if (e.target.value.trim() === '') onChange(null)
-            else if (v !== null) onChange(Math.round((v / scale) * 1e9) / 1e9)
+            if (v === null) {
+              setInvalid('To nie jest liczba')
+              return
+            }
+            if (positive && v <= 0) {
+              setInvalid('Wartość musi być większa od zera')
+              return
+            }
+            setInvalid(null)
+            onChange(Math.round((v / scale) * 1e9) / 1e9)
           }}
         />
         {unit && <em>{unit}</em>}
       </span>
+      {invalid && <span className="nf-error">{invalid}</span>}
     </label>
   )
 }

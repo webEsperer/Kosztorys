@@ -28,8 +28,8 @@ export function RoomsEditor({ project, update }: { project: ProjectInput; update
               <input type="text" value={r.name} style={{ width: 150 }} onChange={(e) => set(r.id, (x) => { x.name = e.target.value })} />
             </span>
           </label>
-          <NumField label="Długość" unit="cm" scale={100} width={70} value={r.length} onChange={(v) => set(r.id, (x) => { x.length = v ?? 0 })} />
-          <NumField label="Szerokość" unit="cm" scale={100} width={70} value={r.width} onChange={(v) => set(r.id, (x) => { x.width = v ?? 0 })} />
+          <NumField positive allowEmpty={false} label="Długość" unit="cm" scale={100} width={70} value={r.length} onChange={(v) => set(r.id, (x) => { x.length = v ?? 0 })} />
+          <NumField positive allowEmpty={false} label="Szerokość" unit="cm" scale={100} width={70} value={r.width} onChange={(v) => set(r.id, (x) => { x.width = v ?? 0 })} />
           <span className="muted small">{fmtQty(r.length * r.width)} m²</span>
           <button className="btn-icon" title="Usuń pomieszczenie" onClick={() => update((p) => { p.rooms = p.rooms.filter((x) => x.id !== r.id) })}>
             ✕
