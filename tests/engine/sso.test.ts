@@ -107,9 +107,9 @@ describe('SSO — przykład z danymi fundamentu', () => {
     const noChoice = byId(buildSSO(withSheet).items, 'sso-wf-osb')
     expect(noChoice.missing).toContain('wybór wariantu cięcia OSB (A lub B)')
     expect(noChoice.note).toContain('Wariant B jest tańszy')
-    const chosenB = byId(buildSSO({ ...withSheet, choices: { foundationRingBeamOsbVariant: 'B' } }).items, 'sso-wf-osb')
+    const chosenB = byId(buildSSO({ ...withSheet, choices: { ...p.choices, foundationRingBeamOsbVariant: 'B' } }).items, 'sso-wf-osb')
     expect(chosenB.quantity?.value).toBe(10)
-    const chosenA = byId(buildSSO({ ...withSheet, choices: { foundationRingBeamOsbVariant: 'A' } }).items, 'sso-wf-osb')
+    const chosenA = byId(buildSSO({ ...withSheet, choices: { ...p.choices, foundationRingBeamOsbVariant: 'A' } }).items, 'sso-wf-osb')
     expect(chosenA.quantity?.value).toBe(12)
   })
 

@@ -5,6 +5,8 @@ import { defaultPourParams } from '../engine/concrete'
 import type { Grosze } from '../engine/money'
 import type { FloorLayers, WallLayerParams } from '../engine/levels'
 import { DEFAULT_FLOOR_LAYERS, DEFAULT_WALL_LAYERS } from '../engine/levels'
+import type { DoorLeafMap, LintelSize, Opening } from '../engine/openings'
+import { DEFAULT_DOOR_MAP, DEFAULT_LINTEL_TABLE } from '../engine/openings'
 
 export interface FoundationInput {
   /** Bloczek fundamentowy — wymiary podaje użytkownik (null = uzupełnij). */
@@ -41,10 +43,20 @@ export interface ProjectInput {
     slab: ConcretePourParams
     wallRingBeam: ConcretePourParams
   }
+  /** Otwory (okna, drzwi, bramy) — typ, wymiary, liczba, ściana. */
+  openings: Opening[]
+  /** Nadproża systemowe: tabela dla ścian nośnych (115 mm) i działowych (120 mm — sprawdź u dostawcy). */
+  lintels: { exterior: LintelSize[]; partition: LintelSize[] }
+  /** Mapowanie otwór → skrzydło drzwi wewnętrznych. */
+  doorMap: DoorLeafMap[]
+  /** Ściany działowe: suma mb; wysokość null = od chudziaka do sufitu (z poziomów). */
+  partitions: { length: number | null; height: number | null }
   /** Wybory użytkownika (np. wariant cięcia OSB). */
   choices: {
     /** Wariant cięcia OSB szalunku wieńca fundamentowego — wybiera użytkownik. */
     foundationRingBeamOsbVariant: 'A' | 'B' | null
+    /** Wariant cięcia OSB szalunku wieńca ścian — wybiera użytkownik. */
+    wallRingBeamOsbVariant: 'A' | 'B' | null
   }
   /** Nadpisania parametrów pozycji: itemParams[idPozycji][klucz] = wartość. */
   itemParams: Record<string, Record<string, number | null>>
@@ -83,7 +95,11 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
       slab: { ...defaultPourParams('C12/15 z włóknami'), fibers: { enabled: false, kgPerM3: null, pricePerKgGrosze: null } },
       wallRingBeam: defaultPourParams('C20/25'),
     },
-    choices: { foundationRingBeamOsbVariant: null },
+    openings: [],
+    lintels: { exterior: DEFAULT_LINTEL_TABLE, partition: DEFAULT_LINTEL_TABLE },
+    doorMap: DEFAULT_DOOR_MAP,
+    partitions: { length: null, height: null },
+    choices: { foundationRingBeamOsbVariant: null, wallRingBeamOsbVariant: null },
     itemParams: {},
     prices: {},
     enabled: {},
