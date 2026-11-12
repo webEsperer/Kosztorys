@@ -110,6 +110,10 @@ export interface ProjectInput {
     foundationRingBeamOsbVariant: 'A' | 'B' | null
     /** Wariant cięcia OSB szalunku wieńca ścian — wybiera użytkownik. */
     wallRingBeamOsbVariant: 'A' | 'B' | null
+    /** Wariant cięcia papy pod ściany fundamentowe; null = automatycznie (mniej rolek). */
+    foundationFeltVariant: 'A' | 'B' | null
+    /** Wariant cięcia papy pod ściany nośne; null = automatycznie (mniej rolek). */
+    wallFeltVariant: 'A' | 'B' | null
   }
   /** Nadpisania parametrów pozycji: itemParams[idPozycji][klucz] = wartość. */
   itemParams: Record<string, Record<string, number | null>>
@@ -165,7 +169,7 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
     rooms: [],
     ceilingRules: DEFAULT_CEILING_RULES,
     partitions: { length: null, height: null },
-    choices: { foundationRingBeamOsbVariant: null, wallRingBeamOsbVariant: null },
+    choices: { foundationRingBeamOsbVariant: null, wallRingBeamOsbVariant: null, foundationFeltVariant: null, wallFeltVariant: null },
     itemParams: {},
     prices: {},
     enabled: {},

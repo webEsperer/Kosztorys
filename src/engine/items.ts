@@ -1,6 +1,7 @@
 // Pozycje kosztorysu: model i uniwersalne liczenie ilość → odpad → opakowania → koszt (z trace).
 // Definicje pozycji domyślnych są w engine/stages/*.ts; tu tylko wspólna mechanika.
 
+import type { CutSegment, CuttingResult } from './cutting'
 import { type Grosze, formatPLN, multiply } from './money'
 import { type Computed, type TraceStep, ceilSafe, clean, fmt } from './trace'
 
@@ -44,6 +45,22 @@ export interface Packaging {
   packLabel: string
 }
 
+/** Dane planu cięcia pasów (OSB, papa) — do rysunku w panelu pozycji. */
+export interface ItemCutting {
+  result: CuttingResult
+  sheet: { width: number; length: number }
+  stripWidth: number
+  segments: CutSegment[]
+  /** Wariant, który trafił do kosztorysu; null — jeszcze nie wybrany (OSB). */
+  used: 'A' | 'B' | null
+  /** Klucz wyboru wariantu w `project.choices`. */
+  choiceKey: CuttingChoiceKey
+  /** true — wariant musi wybrać użytkownik (OSB); false — domyślnie mniej arkuszy (papa). */
+  userMustChoose: boolean
+}
+
+export type CuttingChoiceKey = 'foundationRingBeamOsbVariant' | 'wallRingBeamOsbVariant' | 'foundationFeltVariant' | 'wallFeltVariant'
+
 /** Pozycja z wyliczoną ilością (bez ceny). */
 export interface ItemSpec {
   id: string
@@ -68,6 +85,8 @@ export interface ItemSpec {
   isCustom: boolean
   enabled: boolean
   note?: string
+  /** Plan cięcia (pozycje liczone modułem cięcia pasów). */
+  cutting?: ItemCutting
 }
 
 /** Pozycja z kosztem. */

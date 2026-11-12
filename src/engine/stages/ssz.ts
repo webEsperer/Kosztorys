@@ -5,7 +5,7 @@ import type { ProjectInput } from '../../model/project'
 import { linearElementVolume } from '../concrete'
 import { computeCutting, DEFAULT_FELT_OVERLAP, DEFAULT_MIN_PIECE, formworkSegmentsRect } from '../cutting'
 import { GEOMETRY_REFS } from '../geometry'
-import { type ItemSpec, type Param, need } from '../items'
+import { type ItemCutting, type ItemSpec, type Param, need } from '../items'
 import {
   DEFAULT_INTERIOR_DOOR_HEIGHT,
   interiorDoors,
@@ -17,7 +17,7 @@ import {
 } from '../openings'
 import { computeRebarElement, defaultRingBeamRebar } from '../rebar'
 import { type Computed, type TraceStep, clean, fmt } from '../trace'
-import { type Builder, blocksPerM2, computed, lumpItem, makeBuilder, pourItems, projectBase, rebarItems } from './common'
+import { type Builder, blocksPerM2, computed, feltRolls, lumpItem, makeBuilder, pourItems, projectBase, rebarItems } from './common'
 import { buildSSO } from './sso'
 import { roofItems } from './sszRoof'
 import { finishItems } from './sszFinish'
@@ -154,20 +154,17 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
     const rl = need(params, 'rollLength', missing)
     const ov = need(params, 'overlap', missing)
     const mp = need(params, 'minPiece', missing)
-    let quantity: Computed | null = null
-    if (sw !== null && rw !== null && rl !== null && ov !== null && mp !== null) {
-      const cut = computeCutting({
-        material: 'rolkę papy',
-        sheetUnit: 'rolek',
-        sheet: { width: rw, length: rl },
-        stripWidth: sw,
-        segments: sides.map((L, i) => ({ id: `b${i + 1}`, label: `bok ${i + 1}`, length: L })),
-        minPieceLength: mp,
-        jointOverlap: ov,
-      })
-      quantity = { value: cut.best.sheets, unit: 'szt', trace: cut.trace }
-    }
-    items.push(item({ id, category: C1, kind: 'material', name: 'Papa pod ściany nośne (rolki)', unit: 'szt', params, missing, quantity }))
+    const felt =
+      sw !== null && rw !== null && rl !== null && ov !== null && mp !== null
+        ? feltRolls(project, 'wallFeltVariant', {
+            sheet: { width: rw, length: rl },
+            stripWidth: sw,
+            segments: sides.map((L, i) => ({ id: `b${i + 1}`, label: `bok ${i + 1}`, length: L })),
+            minPieceLength: mp,
+            jointOverlap: ov,
+          })
+        : null
+    items.push(item({ id, category: C1, kind: 'material', name: 'Papa pod ściany nośne (rolki)', unit: 'szt', params, missing, quantity: felt?.quantity ?? null, ...(felt ? { cutting: felt.cutting } : {}), ...(felt?.note ? { note: felt.note } : {}) }))
   }
   {
     const base = computed('Podstawa pierwszej warstwy', 'P_oś × t', `${fmt(pOs.value)} × ${fmt(t)}`, pOs.value * t, 'm²', GEOMETRY_REFS.axisPerimeter)
@@ -219,6 +216,7 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
     const mp = need(params, 'minPiece', missing)
     const reuse = (params.reuse.value ?? 0) >= 1
     const variant = project.choices.wallRingBeamOsbVariant
+    let cutting: ItemCutting | undefined
     let quantity: Computed | null = null
     let note: string | undefined
     if (rbh !== null && sl !== null && sw !== null && ov !== null && mp !== null) {
@@ -247,9 +245,10 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
           }
         }
         quantity = { value: n, unit: 'szt', trace }
+        cutting = { result: cut, sheet: { width: sw, length: sl }, stripWidth: clean(rbh + ov), segments: formworkSegmentsRect(axis.length, axis.width, t), used: v.key, choiceKey: 'wallRingBeamOsbVariant', userMustChoose: true }
       }
     }
-    items.push(item({ id, category: C2, kind: 'material', name: 'Płyty OSB — szalunek wieńca ścian', unit: 'szt', params, missing, quantity, ...(note ? { note } : {}) }))
+    items.push(item({ id, category: C2, kind: 'material', name: 'Płyty OSB — szalunek wieńca ścian', unit: 'szt', params, missing, quantity, ...(note ? { note } : {}), ...(cutting ? { cutting } : {}) }))
   }
 
   // ── Otwory zewnętrzne i nadproża

@@ -3,7 +3,8 @@
 import type { ProjectInput } from '../../model/project'
 import { type ConcretePourParams, computeConcretePour } from '../concrete'
 import { computeGeometry, type GeometryResult } from '../geometry'
-import { type ItemKind, type ItemSpec, type Packaging, type Param, type PriceBasis, type Stage, type Unit, manualQuantity, need, param } from '../items'
+import { computeCutting, type CuttingInput } from '../cutting'
+import { type ItemCutting, type ItemKind, type ItemSpec, type Packaging, type Param, type PriceBasis, type Stage, type Unit, manualQuantity, need, param } from '../items'
 import {
   computeLevels,
   computeWallLayers,
@@ -17,7 +18,7 @@ import {
 } from '../levels'
 import { REBAR_WARNING, type RebarElementResult } from '../rebar'
 import { type AxisRect, rectSides } from '../rebarLayout'
-import { type Computed, type Traced, clean, fmt } from '../trace'
+import { type Computed, type TraceStep, type Traced, clean, fmt } from '../trace'
 
 export type Builder = ReturnType<typeof makeBuilder>
 // ─── pomocnicze ─────────────────────────────────────────────────────────────
@@ -37,6 +38,7 @@ export interface ItemInit {
   chargeFullPacks?: boolean
   enabled?: boolean
   note?: string
+  cutting?: ItemCutting
 }
 
 export function makeBuilder(project: ProjectInput, stage: Stage = 'SSO') {
@@ -63,8 +65,37 @@ export function makeBuilder(project: ProjectInput, stage: Stage = 'SSO') {
     isCustom: false,
     enabled: project.enabled[i.id] ?? i.enabled ?? true,
     ...(i.note ? { note: i.note } : {}),
+    ...(i.cutting ? { cutting: i.cutting } : {}),
   })
   return { P, item }
+}
+
+/**
+ * Papa z rolki cięta na pasy: domyślnie wariant z mniejszą liczbą rolek (przy remisie mniej łączeń),
+ * użytkownik może go zmienić (`project.choices[choiceKey]`).
+ */
+export function feltRolls(
+  project: ProjectInput,
+  choiceKey: 'foundationFeltVariant' | 'wallFeltVariant',
+  input: Omit<CuttingInput, 'material' | 'sheetUnit'>,
+): { quantity: Computed; cutting: ItemCutting; note?: string } {
+  const cut = computeCutting({ ...input, material: 'rolkę papy', sheetUnit: 'rolek' })
+  const choice = project.choices[choiceKey] ?? null
+  const picked = choice ? cut[choice] : null
+  const used = picked ?? cut.best
+  const trace: TraceStep[] = [...cut.trace]
+  let note: string | undefined
+  if (choice && picked && picked.key !== cut.best.key) {
+    trace.push({ label: 'Wariant zmieniony przez użytkownika', formula: '', values: picked.instruction, result: picked.sheets, unit: 'rolek' })
+  } else if (choice && !picked) {
+    note = `Wariant ${choice} niemożliwy dla tej rolki (pas szerszy niż rolka w tym kierunku) — przyjęto wariant ${cut.best.key}.`
+    trace.push({ label: 'Wariant wybrany przez użytkownika niemożliwy', formula: '', values: `przyjęto ${cut.best.key}`, result: cut.best.sheets, unit: 'rolek' })
+  }
+  return {
+    quantity: { value: used.sheets, unit: 'szt', trace },
+    cutting: { result: cut, sheet: input.sheet, stripWidth: input.stripWidth, segments: input.segments, used: used.key, choiceKey, userMustChoose: false },
+    ...(note ? { note } : {}),
+  }
 }
 
 export function computed(label: string, formula: string, values: string, value: number, unit: string, ref?: string): Computed {

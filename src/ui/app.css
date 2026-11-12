@@ -1005,3 +1005,39 @@
 .error-box {
   cursor: default;
 }
+
+/* Plan cięcia w panelu pozycji (OSB, papa) */
+.ip-cutting {
+  margin: 10px 0;
+}
+
+.ip-cutting .ip-choice {
+  margin: 0 0 6px;
+}
+
+.btn.on .muted {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-small {
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  margin-right: 4px;
+}
+
+.ip-plan {
+  margin-top: 6px;
+}
+
+.ip-plan summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.88rem;
+  margin-bottom: 8px;
+}

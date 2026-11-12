@@ -1,6 +1,8 @@
 // Panel pozycji: „Jak to policzono” (trace), cena, parametry, wybory, włącz/wyłącz, przeniesienie do etapu.
 
-import type { ItemResult, Stage } from '../../engine/items'
+import type { ItemCutting, ItemResult, Stage } from '../../engine/items'
+import { useState } from 'react'
+import { CuttingPlan } from '../cutting/CuttingPlan'
 import { STAGE_LABEL, STAGES } from '../../engine/estimate'
 import { formatPLN } from '../../engine/money'
 import { fmt } from '../../engine/trace'
@@ -16,10 +18,50 @@ const PRICE_UNIT: Record<ItemResult['spec']['priceBasis'], (r: ItemResult) => st
   lumpSum: () => 'zł (kwota)',
 }
 
-/** Pozycje z wyborem wariantu cięcia OSB. */
-const OSB_CHOICE: Record<string, keyof ProjectInput['choices']> = {
-  'sso-wf-osb': 'foundationRingBeamOsbVariant',
-  'ssz-ws-osb': 'wallRingBeamOsbVariant',
+/** Wybór wariantu cięcia (OSB — wybiera użytkownik; papa — domyślnie mniej rolek) i rysunek planu cięcia. */
+function CuttingSection({ c, project, update }: { c: ItemCutting; project: ProjectInput; update: Update }) {
+  const [preview, setPreview] = useState<'A' | 'B'>(c.used ?? c.result.cheaper ?? c.result.best.key)
+  const chosen = project.choices[c.choiceKey]
+  const shownKey = c.used ?? preview
+  const shown = c.result[shownKey] ?? c.result.best
+  const unit = c.userMustChoose ? 'płyt' : 'rolek'
+  const setChoice = (v: 'A' | 'B' | null) => update((p) => { p.choices[c.choiceKey] = v })
+  return (
+    <div className="ip-cutting">
+      <div className="ip-choice">
+        <span>{c.userMustChoose ? 'Wariant cięcia OSB (wybierasz Ty):' : 'Wariant cięcia papy:'}</span>
+        {!c.userMustChoose && (
+          <button className={`btn${chosen === null ? ' on' : ''}`} onClick={() => setChoice(null)}>
+            Automatycznie (mniej rolek)
+          </button>
+        )}
+        {(['A', 'B'] as const).map((v) => {
+          const r = c.result[v]
+          return (
+            <button key={v} className={`btn${chosen === v ? ' on' : ''}`} disabled={!r} title={r ? undefined : 'pas szerszy niż arkusz w tym kierunku'} onClick={() => { setChoice(v); setPreview(v) }}>
+              {v} {v === 'A' ? 'wzdłuż' : 'w poprzek'}
+              {r && <span className="muted"> — {r.sheets} {unit}, {r.joints} łączeń</span>}
+            </button>
+          )
+        })}
+      </div>
+      {!c.userMustChoose && c.result.jointsWarning && <p className="ip-note">⚠ {c.result.jointsWarning}</p>}
+      {c.used === null && (
+        <p className="muted small">
+          Podgląd planu:{' '}
+          {(['A', 'B'] as const).filter((v) => c.result[v]).map((v) => (
+            <button key={v} className={`btn btn-small${preview === v ? ' on' : ''}`} onClick={() => setPreview(v)}>
+              wariant {v}
+            </button>
+          ))}
+        </p>
+      )}
+      <details className="ip-plan" open>
+        <summary>Plan cięcia — wariant {shown.key}{c.used === null ? ' (podgląd, jeszcze nie wybrany)' : ''}</summary>
+        <CuttingPlan result={c.result} variant={shown} chosen={c.used === shown.key} sheet={c.sheet} stripWidth={c.stripWidth} segments={c.segments} sheetName={c.userMustChoose ? 'Płyta' : 'Rolka'} />
+      </details>
+    </div>
+  )
 }
 
 export function ItemPanel({
@@ -37,7 +79,6 @@ export function ItemPanel({
 }) {
   const s = r.spec
   const roofKind = kindForItem(s.id)
-  const choiceKey = OSB_CHOICE[s.id]
   return (
     <aside className="item-panel" aria-label="Szczegóły pozycji">
       <div className="ip-head">
@@ -93,17 +134,7 @@ export function ItemPanel({
         })}
       </div>
 
-      {choiceKey && (
-        <div className="ip-choice">
-          <span>Wariant cięcia OSB (wybierasz Ty):</span>
-          {(['A', 'B'] as const).map((v) => (
-            <button key={v} className={`btn${project.choices[choiceKey] === v ? ' on' : ''}`} onClick={() => update((p) => { p.choices[choiceKey] = v })}>
-              Wariant {v} {v === 'A' ? '(wzdłuż)' : '(w poprzek)'}
-            </button>
-          ))}
-          <span className="muted small">Plan cięcia i porównanie — w trace poniżej oraz w zakładce „Fundament 3D → Szalunek OSB”.</span>
-        </div>
-      )}
+      {s.cutting && <CuttingSection c={s.cutting} project={project} update={update} />}
 
       <div className="ip-row">
         <Check

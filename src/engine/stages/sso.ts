@@ -5,11 +5,11 @@ import type { ProjectInput } from '../../model/project'
 import { linearElementVolume, slabVolume } from '../concrete'
 import { computeCutting, DEFAULT_MIN_PIECE, DEFAULT_FELT_OVERLAP, formworkSegmentsRect } from '../cutting'
 import { footingFacePerimeters, GEOMETRY_REFS } from '../geometry'
-import { type ItemSpec, need } from '../items'
+import { type ItemCutting, type ItemSpec, need } from '../items'
 import type { LevelsResult } from '../levels'
 import { computeRebarElement, defaultFootingRebar, defaultRingBeamRebar } from '../rebar'
 import { type Computed, ceilSafe, clean, fmt } from '../trace'
-import { computed, lumpItem, makeBuilder, manualItem, pourItems, projectBase, rebarItems } from './common'
+import { computed, feltRolls, lumpItem, makeBuilder, manualItem, pourItems, projectBase, rebarItems } from './common'
 
 // ─── SSO ────────────────────────────────────────────────────────────────────
 
@@ -168,20 +168,17 @@ export function buildSSO(project: ProjectInput): { items: ItemSpec[]; context: S
     const rl = need(params, 'rollLength', missing)
     const ov = need(params, 'overlap', missing)
     const mp = need(params, 'minPiece', missing)
-    let quantity: Computed | null = null
-    if (sw !== null && rw !== null && rl !== null && ov !== null && mp !== null) {
-      const cut = computeCutting({
-        material: 'rolkę papy',
-        sheetUnit: 'rolek',
-        sheet: { width: rw, length: rl },
-        stripWidth: sw,
-        segments: sides.map((L, i) => ({ id: `b${i + 1}`, label: `bok ${i + 1}`, length: L })),
-        minPieceLength: mp,
-        jointOverlap: ov,
-      })
-      quantity = { value: cut.best.sheets, unit: 'szt', trace: cut.trace }
-    }
-    items.push(item({ id, category: C2, kind: 'material', name: 'Papa na ławie pod bloczki (rolki)', unit: 'szt', params, missing, quantity }))
+    const felt =
+      sw !== null && rw !== null && rl !== null && ov !== null && mp !== null
+        ? feltRolls(project, 'foundationFeltVariant', {
+            sheet: { width: rw, length: rl },
+            stripWidth: sw,
+            segments: sides.map((L, i) => ({ id: `b${i + 1}`, label: `bok ${i + 1}`, length: L })),
+            minPieceLength: mp,
+            jointOverlap: ov,
+          })
+        : null
+    items.push(item({ id, category: C2, kind: 'material', name: 'Papa na ławie pod bloczki (rolki)', unit: 'szt', params, missing, quantity: felt?.quantity ?? null, ...(felt ? { cutting: felt.cutting } : {}), ...(felt?.note ? { note: felt.note } : {}) }))
   }
   const hSf = fl ? fl.wallHeight : null
   {
@@ -320,6 +317,7 @@ export function buildSSO(project: ProjectInput): { items: ItemSpec[]; context: S
     const variant = project.choices.foundationRingBeamOsbVariant
     let quantity: Computed | null = null
     let note: string | undefined
+    let cutting: ItemCutting | undefined
     if (rbw !== null && sl !== null && sw !== null && ov !== null && mp !== null) {
       const cut = computeCutting({
         material: 'płytę OSB',
@@ -335,8 +333,9 @@ export function buildSSO(project: ProjectInput): { items: ItemSpec[]; context: S
       if (variant === null) missing.push('wybór wariantu cięcia OSB (A lub B)')
       else if (v === null) missing.push(`wariant ${variant} niemożliwy dla tej płyty — wybierz drugi`)
       if (v) quantity = { value: v.sheets, unit: 'szt', trace: [...cut.trace, { label: 'Wariant wybrany przez użytkownika', formula: '', values: v.instruction, result: v.sheets, unit: 'płyt' }] }
+      cutting = { result: cut, sheet: { width: sw, length: sl }, stripWidth: clean(rbh + ov), segments: formworkSegmentsRect(axis.length, axis.width, rbw), used: v ? v.key : null, choiceKey: 'foundationRingBeamOsbVariant', userMustChoose: true }
     }
-    items.push(item({ id, category: C3, kind: 'material', name: 'Płyty OSB — szalunek wieńca fundamentowego', unit: 'szt', params, missing, quantity, ...(note ? { note } : {}) }))
+    items.push(item({ id, category: C3, kind: 'material', name: 'Płyty OSB — szalunek wieńca fundamentowego', unit: 'szt', params, missing, quantity, ...(note ? { note } : {}), ...(cutting ? { cutting } : {}) }))
   }
 
   // ── Zasypka wewnątrz fundamentów

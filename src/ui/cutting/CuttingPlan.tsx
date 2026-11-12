@@ -16,6 +16,7 @@ export function CuttingPlan({
   sheet,
   stripWidth,
   segments,
+  sheetName = 'Arkusz',
 }: {
   result: CuttingResult
   variant: CuttingVariant
@@ -23,13 +24,17 @@ export function CuttingPlan({
   sheet: { width: number; length: number }
   stripWidth: number
   segments: CutSegment[]
+  /** Nazwa arkusza w podpisach: „Arkusz” (OSB), „Rolka” (papa). */
+  sheetName?: string
 }) {
   const long = Math.max(sheet.width, sheet.length)
   const short = Math.min(sheet.width, sheet.length)
   const color = new Map(segments.map((s, i) => [s.id, PALETTE[i % PALETTE.length]]))
   const label = new Map(segments.map((s) => [s.id, s.label]))
   const sheets = Array.from({ length: variant.sheets }, (_, i) => variant.strips.filter((s) => s.sheet === i))
-  const W = 260
+  // długie rolki (np. papa 1 × 10 m) — szeroki rysunek, jedna rolka w wierszu, żeby pasy były czytelne
+  const wide = long / short > 4
+  const W = wide ? 400 : 260
   const scale = W / long
   const H = short * scale
 
@@ -42,10 +47,10 @@ export function CuttingPlan({
         {chosen && <span className="cp-best">wybrany</span>}
         {result.cheaper === variant.key && <span className="cp-best cp-cheap">tańszy</span>}
       </p>
-      <div className="cp-grid">
+      <div className={`cp-grid${wide ? ' cp-grid-wide' : ''}`}>
         {sheets.map((strips, si) => (
           <figure key={si} className="cp-sheet">
-            <svg viewBox={`-1 -1 ${W + 2} ${H + 2}`} width="100%" role="img" aria-label={`Arkusz ${si + 1}`}>
+            <svg viewBox={`-1 -1 ${W + 2} ${H + 2}`} width="100%" role="img" aria-label={`${sheetName} ${si + 1}`}>
               <defs>
                 <pattern id={`hatch-${si}`} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
                   <line x1="0" y1="0" x2="0" y2="6" className="cp-hatch" />
@@ -90,7 +95,7 @@ export function CuttingPlan({
               })}
             </svg>
             <figcaption>
-              Arkusz {si + 1}
+              {sheetName} {si + 1}
               {strips.length < variant.stripsPerSheet && ` — ${variant.stripsPerSheet - strips.length} pas(y) niewykorzystane`}
             </figcaption>
           </figure>

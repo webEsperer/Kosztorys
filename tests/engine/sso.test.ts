@@ -127,6 +127,21 @@ describe('SSO — przykład z danymi fundamentu', () => {
     const papa = byId(q, 'sso-sf-papa')
     expect(papa.quantity?.value).toBeGreaterThanOrEqual(2)
     expect(renderTrace(papa.quantity!.trace)).toContain('Wybrany wariant')
+    // plan cięcia dołączony do pozycji; domyślnie wariant z mniejszą liczbą rolek
+    const c = papa.cutting!
+    expect(c.used).toBe(c.result.best.key)
+    expect(c.userMustChoose).toBe(false)
+    expect(papa.quantity!.value).toBe(c.result.best.sheets)
+  })
+
+  it('papa pod bloczki: użytkownik zmienia wariant → ilość z wybranego wariantu, krok w trace', () => {
+    const base = { ...p, itemParams: { 'sso-sf-papa': { stripWidth: 0.4, rollWidth: 1, rollLength: 10 } } }
+    const best = byId(buildSSO(base).items, 'sso-sf-papa').cutting!.result.best.key
+    const other = best === 'A' ? 'B' : 'A'
+    const papa = byId(buildSSO({ ...base, choices: { ...base.choices, foundationFeltVariant: other } }).items, 'sso-sf-papa')
+    expect(papa.cutting!.used).toBe(other)
+    expect(papa.quantity!.value).toBe(papa.cutting!.result[other]!.sheets)
+    expect(renderTrace(papa.quantity!.trace)).toContain('Wariant zmieniony przez użytkownika')
   })
 
   it('suma: pozycje bez ceny → niepełna; ryczałt z kwotą liczy się', () => {

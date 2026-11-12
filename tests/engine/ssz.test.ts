@@ -108,7 +108,7 @@ describe('SSZ — wieniec ścian', () => {
     const noChoice = byId(buildSSZ(withSheet).items, 'ssz-ws-osb')
     expect(noChoice.params.sheetLength.value).toBe(2.5)
     expect(noChoice.missing).toContain('wybór wariantu cięcia OSB (A lub B)')
-    const chosen = { ...withSheet, choices: { foundationRingBeamOsbVariant: 'A' as const, wallRingBeamOsbVariant: 'A' as const } }
+    const chosen = { ...withSheet, choices: { ...p.choices, foundationRingBeamOsbVariant: 'A' as const, wallRingBeamOsbVariant: 'A' as const } }
     const full = byId(buildSSZ(chosen).items, 'ssz-ws-osb').quantity!.value
     const reused = byId(buildSSZ({ ...chosen, itemParams: { ...chosen.itemParams, 'ssz-ws-osb': { reuse: 1 } } }).items, 'ssz-ws-osb')
     expect(reused.quantity!.value).toBe(Math.max(0, full - 12))

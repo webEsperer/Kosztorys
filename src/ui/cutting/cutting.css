@@ -91,3 +91,7 @@
 .cp-cheap {
   background: #2b8a3e;
 }
+
+.cp-grid-wide {
+  grid-template-columns: 1fr;
+}
