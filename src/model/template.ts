@@ -51,16 +51,17 @@ export const USER_OPENINGS: Opening[] = [
 /**
  * Szablon wbudowany — dane domu użytkownika: bloczek fund. 38 × 24 × 12, nośny 59 × 24 (ściana 24),
  * działowy 59 × 24 (ściana 12), ściany nośne 2,80 m od posadzki, działowe 47 mb, dach 30°, okapy 60 cm, otwory.
- * Pozostałe pola (warstwy podłogi, spoina fund.) — z wartości domyślnych projektu (null = uzupełnij).
+ * Spoina fund. 1,5 cm, podłoga: EPS 15 cm (3 × 5) + wylewka 7 cm; wykończenie podłogi — null (uzupełnij).
  */
 export function builtInTemplate(base: ProjectInput): ProjectTemplate {
   return {
-    foundationBlock: { blockLength: 0.38, blockWidth: 0.24, blockHeight: 0.12, jointThickness: base.foundation.jointThickness },
+    foundationBlock: { blockLength: 0.38, blockWidth: 0.24, blockHeight: 0.12, jointThickness: 0.015 },
     wallBlock: { blockLength: 0.59, blockHeight: 0.24, jointThickness: base.wall.jointThickness },
     partitionBlock: { blockLength: 0.59, blockHeight: 0.24, jointThickness: base.partitionBlock.jointThickness },
     wallHeight: 2.8,
     partitions: { length: 47, heightAboveFloor: null, topMargin: base.partitions.topMargin },
-    floorLayers: { ...base.floorLayers },
+    // podłoga: EPS 3 × 5 cm = 15 cm, wylewka 7 cm; wykończenie (płytka/panel) — jeszcze nie podane
+    floorLayers: { ...base.floorLayers, insulation: 0.15, screed: 0.07 },
     ceiling: { ...base.ceiling },
     roof: { pitchDeg: 30, eaveOverhang: 0.6, gableOverhang: 0.6 },
     openings: structuredClone(USER_OPENINGS),

@@ -11,7 +11,8 @@ describe('szablon nowego projektu — dane domu użytkownika', () => {
     expect(p.foundation).toMatchObject({ blockLength: 0.38, blockWidth: 0.24, blockHeight: 0.12 })
     expect(p.wall).toMatchObject({ blockLength: 0.59, blockHeight: 0.24 })
     expect(p.partitionBlock).toMatchObject({ blockLength: 0.59, blockHeight: 0.24 })
-    expect(p.floorLayers.insulation).toBeNull() // nie podane — uzupełnia użytkownik
+    expect(p.foundation.jointThickness).toBe(0.015)
+    expect(p.floorLayers).toEqual({ insulation: 0.15, screed: 0.07, finish: null }) // wykończenie — uzupełnia użytkownik
   })
 
   it('ściany nośne 2,80 od posadzki, działowe 47 mb, dach 30°, okapy 60 cm', () => {
@@ -44,6 +45,6 @@ describe('szablon nowego projektu — dane domu użytkownika', () => {
     expect(t.floorLayers).toEqual(src.floorLayers)
     expect(t.roof).toMatchObject({ pitchDeg: 30, eaveOverhang: 0.5, gableOverhang: 0.6 })
     expect(t.wallBlock.blockLength).toBe(0.59)
-    expect(describeTemplate(t)[0]).toBe('bloczek fundamentowy 38 × 24 × 12 cm, spoina — cm')
+    expect(describeTemplate(t)[0]).toBe('bloczek fundamentowy 38 × 24 × 12 cm, spoina 1,5 cm')
   })
 })

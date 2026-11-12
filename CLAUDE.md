@@ -627,7 +627,8 @@ Układ: profile główne wzdłuż dłuższego boku pomieszczenia, nośne krzyżo
 9. **Ustawienia domyślne nowych projektów** (`model/template.ts`, zapis w IndexedDB): przycisk „Ustaw jako domyślne”
    zapamiętuje z bieżącego projektu bloczek fundamentowy, warstwy podłogi, sufit, kąt dachu i okapy; „Nowy” je wpisuje.
    Szablon wbudowany = **dom użytkownika** (`builtInTemplate`): bloczek fund. 38 × 24 × 12, nośny 59 × 24 (ściana 24),
-   działowy 59 × 24 (ściana 12), ściany nośne 2,80 m od gotowej posadzki, działowe 47 mb (wysokość ponad stelaż GK + 2 cm), dach 30°, okapy 60 cm
+   działowy 59 × 24 (ściana 12), spoina fund. 1,5 cm, podłoga EPS 3 × 5 = 15 cm + wylewka 7 cm (wykończenie — uzupełnij),
+   ściany nośne 2,80 m od gotowej posadzki, działowe 47 mb (wysokość ponad stelaż GK + 2 cm), dach 30°, okapy 60 cm
    (poziomo od lica elewacji), otwory: 9 okien, 3 drzwi zewn., 7 drzwi wewn. (`USER_OPENINGS`).
    „Wczytaj domyślne” wpisuje szablon do bieżącego projektu. Wartości w projekcie zawsze edytowalne.
 
