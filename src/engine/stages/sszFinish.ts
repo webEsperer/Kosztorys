@@ -4,7 +4,6 @@ import type { ProjectInput } from '../../model/project'
 import { computeCeiling } from '../ceiling'
 import { computeFacade, gablesArea, soffitArea } from '../facade'
 import { type ItemKind, type ItemSpec, type PackUnit, type Unit, UNIT_LABEL, need } from '../items'
-import { floorBuildUp } from '../levels'
 import { type Computed, ceilSafe, clean, fmt } from '../trace'
 import { type Builder, computed, lumpItem, projectBase } from './common'
 import { roofOf } from './sszRoof'
@@ -60,7 +59,7 @@ function consumptionItem(b: Builder, id: string, category: string, name: string,
 
 export function finishItems(b: Builder, project: ProjectInput): ItemSpec[] {
   const out: ItemSpec[] = []
-  const { geo, aWew } = projectBase(project)
+  const { geo, aWew, slabTop, ringTop, floorMissing } = projectBase(project)
   const pWew = geo.interiorPerimeter.value
   const L = project.footprint.length
   const B = project.footprint.width
@@ -106,26 +105,37 @@ export function finishItems(b: Builder, project: ProjectInput): ItemSpec[] {
 
   // ── Elewacja
   const C2 = 'Elewacja — EPS'
-  const slabTop = clean(-floorBuildUp(project.floorLayers).value)
-  const fac = computeFacade({
-    interiorPerimeter: pWew,
-    wallThickness: project.wallThickness,
-    eps: project.facadeInsulation,
-    epsBottom: clean(slabTop - 0.03),
-    soffitLevel: clean(project.wallRingBeamTop + (b.P('ssz-eps', 'soffitAbove', 'Linia podbitki nad górą wieńca', 0, 'm').value ?? 0)),
-    wallOpenings: project.openings.filter((o) => o.wall === 'zewnętrzna'),
-  })
-  out.push(consumptionItem(b, 'ssz-eps', C2, `EPS ${fmt(project.facadeInsulation * 100)} cm — elewacja`, fac.netArea, [], { unit: 'm2', pack: { packUnit: 'paczka', label: 'm² w paczce EPS', value: null } }))
-  out.push(consumptionItem(b, 'ssz-eps-klej', C2, 'Klej do EPS', fac.netArea, [], { unit: 'kg', rate: { label: 'Zużycie kleju do EPS', unit: 'kg/m²', value: null }, pack: { packUnit: 'worek', label: 'Klej w worku', value: null } }))
-  out.push(consumptionItem(b, 'ssz-eps-klej-siatka', C2, 'Klej do zatapiania siatki', fac.netArea, [], { unit: 'kg', rate: { label: 'Zużycie kleju do siatki', unit: 'kg/m²', value: null }, pack: { packUnit: 'worek', label: 'Klej w worku', value: null } }))
-  out.push(consumptionItem(b, 'ssz-eps-siatka', C2, 'Siatka elewacyjna', fac.netArea, [], { unit: 'm2', waste: 10, pack: { packUnit: 'rolka', label: 'm² w rolce siatki', value: null } }))
-  out.push(consumptionItem(b, 'ssz-eps-kolki', C2, 'Kołki do EPS 20 cm', fac.netArea, [], { unit: 'szt', rate: { label: 'Kołków na m²', unit: 'szt/m²', value: null }, pack: { packUnit: 'paczka', label: 'Kołków w paczce', value: null } }))
-  out.push(consumptionItem(b, 'ssz-eps-grunt', C2, 'Grunt pod tynk', fac.netArea, [], { unit: 'kg', rate: { label: 'Zużycie gruntu', unit: 'kg/m²', value: null }, pack: { packUnit: 'wiadro', label: 'Grunt w wiadrze', value: null } }))
-  out.push(consumptionItem(b, 'ssz-eps-tynk', C2, 'Tynk cienkowarstwowy', fac.netArea, [], { unit: 'kg', rate: { label: 'Zużycie tynku', unit: 'kg/m²', value: null }, pack: { packUnit: 'wiadro', label: 'Tynk w wiadrze', value: null } }))
-  out.push(consumptionItem(b, 'ssz-eps-listwa-startowa', C2, 'Listwa startowa', fac.startRail, [], { unit: 'mb' }))
-  out.push(consumptionItem(b, 'ssz-eps-narozniki', C2, 'Narożniki z siatką (naroża + ościeża)', fac.cornerBeads, [], { unit: 'mb' }))
-  out.push(consumptionItem(b, 'ssz-eps-apu', C2, 'Listwy APU (obwody okien i drzwi)', fac.apu, [], { unit: 'mb' }))
-  out.push(consumptionItem(b, 'ssz-eps-oscieza', C2, 'Ościeża — XPS/EPS cienki', fac.apu, [], { unit: 'm2', rate: { label: 'Głębokość ościeża', unit: 'm', value: null } }))
+  const soffitAbove = b.P('ssz-eps', 'soffitAbove', 'Linia podbitki nad górą wieńca', 0, 'm').value ?? 0
+  const facRaw =
+    slabTop === null
+      ? null
+      : computeFacade({
+          interiorPerimeter: pWew,
+          wallThickness: project.wallThickness,
+          eps: project.facadeInsulation,
+          epsBottom: clean(slabTop - 0.03),
+          soffitLevel: clean(ringTop.value + soffitAbove),
+          wallOpenings: project.openings.filter((o) => o.wall === 'zewnętrzna'),
+        })
+  const withRing = (c: Computed | undefined): Computed | null => (c ? { ...c, trace: [...ringTop.trace, ...c.trace] } : null)
+  const fac = {
+    netArea: withRing(facRaw?.netArea),
+    startRail: facRaw?.startRail ?? null,
+    cornerBeads: withRing(facRaw?.cornerBeads),
+    apu: facRaw?.apu ?? null,
+  }
+  const fM = floorMissing
+  out.push(consumptionItem(b, 'ssz-eps', C2, `EPS ${fmt(project.facadeInsulation * 100)} cm — elewacja`, fac.netArea, fM, { unit: 'm2', pack: { packUnit: 'paczka', label: 'm² w paczce EPS', value: null } }))
+  out.push(consumptionItem(b, 'ssz-eps-klej', C2, 'Klej do EPS', fac.netArea, fM, { unit: 'kg', rate: { label: 'Zużycie kleju do EPS', unit: 'kg/m²', value: null }, pack: { packUnit: 'worek', label: 'Klej w worku', value: null } }))
+  out.push(consumptionItem(b, 'ssz-eps-klej-siatka', C2, 'Klej do zatapiania siatki', fac.netArea, fM, { unit: 'kg', rate: { label: 'Zużycie kleju do siatki', unit: 'kg/m²', value: null }, pack: { packUnit: 'worek', label: 'Klej w worku', value: null } }))
+  out.push(consumptionItem(b, 'ssz-eps-siatka', C2, 'Siatka elewacyjna', fac.netArea, fM, { unit: 'm2', waste: 10, pack: { packUnit: 'rolka', label: 'm² w rolce siatki', value: null } }))
+  out.push(consumptionItem(b, 'ssz-eps-kolki', C2, 'Kołki do EPS 20 cm', fac.netArea, fM, { unit: 'szt', rate: { label: 'Kołków na m²', unit: 'szt/m²', value: null }, pack: { packUnit: 'paczka', label: 'Kołków w paczce', value: null } }))
+  out.push(consumptionItem(b, 'ssz-eps-grunt', C2, 'Grunt pod tynk', fac.netArea, fM, { unit: 'kg', rate: { label: 'Zużycie gruntu', unit: 'kg/m²', value: null }, pack: { packUnit: 'wiadro', label: 'Grunt w wiadrze', value: null } }))
+  out.push(consumptionItem(b, 'ssz-eps-tynk', C2, 'Tynk cienkowarstwowy', fac.netArea, fM, { unit: 'kg', rate: { label: 'Zużycie tynku', unit: 'kg/m²', value: null }, pack: { packUnit: 'wiadro', label: 'Tynk w wiadrze', value: null } }))
+  out.push(consumptionItem(b, 'ssz-eps-listwa-startowa', C2, 'Listwa startowa', fac.startRail, fM, { unit: 'mb' }))
+  out.push(consumptionItem(b, 'ssz-eps-narozniki', C2, 'Narożniki z siatką (naroża + ościeża)', fac.cornerBeads, fM, { unit: 'mb' }))
+  out.push(consumptionItem(b, 'ssz-eps-apu', C2, 'Listwy APU (obwody okien i drzwi)', fac.apu, fM, { unit: 'mb' }))
+  out.push(consumptionItem(b, 'ssz-eps-oscieza', C2, 'Ościeża — XPS/EPS cienki', fac.apu, fM, { unit: 'm2', rate: { label: 'Głębokość ościeża', unit: 'm', value: null } }))
 
   // ── Szczyty i podbitka
   const C3 = 'Elewacja — szczyty i podbitka'

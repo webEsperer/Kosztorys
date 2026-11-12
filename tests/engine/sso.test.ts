@@ -8,6 +8,9 @@ import { renderTrace } from '../../src/engine/trace'
 // Dane PRZYKŁADOWE fundamentu: bloczek 38 × 24 × 12 cm, spoina 1 cm, 5 warstw, ława 60 × 40.
 function example(): ProjectInput {
   const p = newProject('Przykład 12 × 9')
+  p.floorLayers = { insulation: 0.15, screed: 0.065, finish: 0.015 }
+  p.wall = { ...p.wall, blockLength: 0.59, blockHeight: 0.24 }
+  p.partitionBlock = { blockLength: 0.59, blockHeight: 0.24, jointThickness: 0 }
   p.foundation = { ...p.foundation, blockLength: 0.38, blockWidth: 0.24, blockHeight: 0.12, jointThickness: 0.01, layers: 5, footingWidth: 0.6, footingHeight: 0.4 }
   return p
 }

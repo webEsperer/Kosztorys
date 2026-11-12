@@ -6,7 +6,6 @@ import { linearElementVolume } from '../concrete'
 import { computeCutting, DEFAULT_FELT_OVERLAP, DEFAULT_MIN_PIECE, formworkSegmentsRect } from '../cutting'
 import { GEOMETRY_REFS } from '../geometry'
 import { type ItemSpec, type Param, need } from '../items'
-import { computeWallLayers, floorBuildUp } from '../levels'
 import {
   DEFAULT_INTERIOR_DOOR_HEIGHT,
   interiorDoors,
@@ -18,13 +17,11 @@ import {
 } from '../openings'
 import { computeRebarElement, defaultRingBeamRebar } from '../rebar'
 import { type Computed, type TraceStep, clean, fmt } from '../trace'
-import { type Builder, computed, lumpItem, makeBuilder, pourItems, projectBase, rebarItems } from './common'
+import { type Builder, blocksPerM2, computed, lumpItem, makeBuilder, pourItems, projectBase, rebarItems } from './common'
 import { buildSSO } from './sso'
 import { roofItems } from './sszRoof'
 import { finishItems } from './sszFinish'
 
-/** Gęstość bloczków H+H Gold 590 × 240 / 590 × 120 (wys. 240): 7,06 szt/m². */
-export const HH_BLOCKS_PER_M2 = 7.06
 
 function cmLabel(m: number): string {
   return String(Math.round(m * 100))
@@ -40,13 +37,22 @@ function wallBlocksItem(
   grossMissing: string[],
   openings: Opening[],
   lintels: (h: number | null) => LintelSchedule,
+  block: { blockLength: number | null; blockHeight: number | null; jointThickness: number },
 ): { item: ItemSpec; netArea: Computed | null; lintelHeight: Param } {
+  const dims =
+    block.blockLength !== null && block.blockHeight !== null
+      ? `1 / ((${fmt(block.blockLength)} + ${fmt(block.jointThickness)}) × (${fmt(block.blockHeight)} + ${fmt(block.jointThickness)}))`
+      : 'podaj wymiary bloczka'
   const params = {
-    perM2: b.P(id, 'perM2', 'Bloczków na m²', HH_BLOCKS_PER_M2, 'szt/m²'),
+    perM2: b.P(id, 'perM2', 'Bloczków na m² (z wymiarów bloczka)', blocksPerM2(block), 'szt/m²', dims),
     lintelHeight: b.P(id, 'lintelHeight', 'Wysokość nadproża systemowego', null, 'm', 'z karty nadproża (do odjęcia od muru)'),
   }
   const missing = [...grossMissing]
-  const perM2 = need(params, 'perM2', missing)
+  if (params.perM2.value === null) {
+    if (block.blockLength === null) missing.push('długość bloczka')
+    if (block.blockHeight === null) missing.push('wysokość bloczka')
+  }
+  const perM2 = params.perM2.value
   const lh = need(params, 'lintelHeight', missing)
   const ls = lintels(lh)
   if (ls.tooWide.length) missing.push(`nadproże indywidualne dla: ${ls.tooWide.map((o) => o.mark).join(', ')} (powierzchnia do odjęcia)`)
@@ -125,12 +131,8 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
   const b = makeBuilder(project, 'SSZ')
   const { P, item } = b
   const items: ItemSpec[] = []
-  const { pOs, axis, sides } = projectBase(project)
+  const { pOs, axis, sides, wallLayers: wl, wallMissing, floorBuild, floorMissing } = projectBase(project)
   const t = project.wallThickness
-
-  const fb = floorBuildUp(project.floorLayers)
-  const slabTop = clean(-fb.value)
-  const wl = computeWallLayers(project.wallRingBeamTop, slabTop, project.wall)
 
   const extOpenings = project.openings.filter((o) => o.wall === 'zewnętrzna')
   const partOpenings = project.openings.filter((o) => o.wall === 'działowa')
@@ -171,7 +173,7 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
     const base = computed('Podstawa pierwszej warstwy', 'P_oś × t', `${fmt(pOs.value)} × ${fmt(t)}`, pOs.value * t, 'm²', GEOMETRY_REFS.axisPerimeter)
     items.push(perAreaBagItem(b, 'ssz-zaprawa-wyrownawcza', C1, 'Zaprawa cementowa — warstwa wyrównawcza pierwszej warstwy', base, [], 'zaprawy'))
   }
-  const hhGross: Computed = {
+  const hhGross: Computed | null = wl && {
     value: clean(pOs.value * wl.value.masonryHeight),
     unit: 'm²',
     trace: [
@@ -188,18 +190,18 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
   }
   const extLintelsPer = P('ssz-nadproza-zew', 'perOpening', 'Nadproży na otwór (ściana 24 cm)', 2, 'szt')
   const extLintels = (h: number | null) => lintelSchedule(extOpenings, project.lintels.exterior, extLintelsPer.value ?? 2, h)
-  const hh = wallBlocksItem(b, 'ssz-hh-bloczki', C1, 'Bloczki H+H Gold 590 × 240 × 240 mm', hhGross, [], extOpenings, extLintels)
+  const hh = wallBlocksItem(b, 'ssz-hh-bloczki', C1, 'Bloczki ścian nośnych', hhGross, wallMissing.filter((m) => m !== 'wysokość bloczka ściany nośnej'), extOpenings, extLintels, project.wall)
   items.push(hh.item)
   items.push(perAreaBagItem(b, 'ssz-hh-klej', C1, 'Klej do cienkich spoin — ściany nośne', hh.netArea, hh.item.missing, 'kleju'))
 
   // ── Wieniec ścian nośnych
   const C2 = 'Wieniec ścian nośnych'
-  const rbh = wl.value.ringBeamHeight
-  const rbVol = linearElementVolume('wieniec ścian', pOs.value, t, rbh)
-  rbVol.trace.unshift(...wl.trace.filter((s) => /wieni/i.test(s.label)))
-  items.push(...pourItems(b, 'ssz-ws', C2, 'wieniec ścian nośnych', rbVol, [], project.concrete.wallRingBeam))
-  const rp = defaultRingBeamRebar(t, rbh)
-  items.push(...rebarItems(b, 'ssz-ws', 'Zbrojenie wieńca ścian', computeRebarElement('wieniec ścian', sides, rp), [], rp.massPerMeter, rp.barLength))
+  const rbh = wl ? wl.value.ringBeamHeight : null
+  const rbVol = rbh !== null ? linearElementVolume('wieniec ścian', pOs.value, t, rbh) : null
+  if (rbVol && wl) rbVol.trace.unshift(...wl.trace)
+  items.push(...pourItems(b, 'ssz-ws', C2, 'wieniec ścian nośnych', rbVol, wallMissing, project.concrete.wallRingBeam))
+  const rp = defaultRingBeamRebar(t, rbh ?? project.wall.ringBeamMin)
+  items.push(...rebarItems(b, 'ssz-ws', 'Zbrojenie wieńca ścian', rbh !== null ? computeRebarElement('wieniec ścian', sides, rp) : null, wallMissing, rp.massPerMeter, rp.barLength))
   {
     const id = 'ssz-ws-osb'
     const fundOsb = project.itemParams['sso-wf-osb'] ?? {}
@@ -210,7 +212,7 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
       minPiece: P(id, 'minPiece', 'Min. kawałek z resztki', DEFAULT_MIN_PIECE, 'm'),
       reuse: P(id, 'reuse', 'Użyj płyt z wieńca fundamentowego (1 = tak)', 0, '', 'zmniejsza zakup o płyty kupione na wieniec fundamentowy'),
     }
-    const missing: string[] = []
+    const missing: string[] = [...wallMissing]
     const sl = need(params, 'sheetLength', missing)
     const sw = need(params, 'sheetWidth', missing)
     const ov = need(params, 'overlap', missing)
@@ -219,7 +221,7 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
     const variant = project.choices.wallRingBeamOsbVariant
     let quantity: Computed | null = null
     let note: string | undefined
-    if (sl !== null && sw !== null && ov !== null && mp !== null) {
+    if (rbh !== null && sl !== null && sw !== null && ov !== null && mp !== null) {
       const cut = computeCutting({
         material: 'płytę OSB',
         sheetUnit: 'płyt',
@@ -269,9 +271,10 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
   const C4 = 'Ściany działowe'
   const partMissing: string[] = []
   if (project.partitions.length === null) partMissing.push('długość ścian działowych (mb)')
-  const partH = project.partitions.height ?? clean(project.clearHeight + fb.value)
+  const partH = project.partitions.height ?? (floorBuild ? clean(project.clearHeight + floorBuild.value) : null)
+  if (partH === null) partMissing.push(...floorMissing)
   const partGross: Computed | null =
-    project.partitions.length !== null
+    project.partitions.length !== null && partH !== null
       ? computed(
           'Powierzchnia ścian działowych brutto',
           'mb × wysokość (od chudziaka do sufitu)',
@@ -282,7 +285,7 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
       : null
   const partLintelsPer = P('ssz-nadproza-dz', 'perOpening', 'Nadproży na otwór (ściana 12 cm)', 1, 'szt')
   const partLintels = (h: number | null) => lintelSchedule(partOpenings, project.lintels.partition, partLintelsPer.value ?? 1, h)
-  const part = wallBlocksItem(b, 'ssz-dz-bloczki', C4, 'Bloczki H+H Gold 590 × 120 × 240 mm — ściany działowe', partGross, partMissing, partOpenings, partLintels)
+  const part = wallBlocksItem(b, 'ssz-dz-bloczki', C4, 'Bloczki ścian działowych', partGross, partMissing, partOpenings, partLintels, project.partitionBlock)
   items.push(part.item)
   items.push(perAreaBagItem(b, 'ssz-dz-klej', C4, 'Klej do cienkich spoin — ściany działowe', part.netArea, part.item.missing, 'kleju'))
   items.push(...lintelItems(b, 'ssz-nadproza-dz', C4, '12 cm (sprawdź tabelę dostawcy)', partLintels(null)))

@@ -4,8 +4,8 @@ import type { ConcretePourParams } from '../engine/concrete'
 import { defaultPourParams } from '../engine/concrete'
 import type { Grosze } from '../engine/money'
 import type { Stage } from '../engine/items'
-import type { FloorLayers, WallLayerParams } from '../engine/levels'
-import { DEFAULT_FLOOR_LAYERS, DEFAULT_WALL_LAYERS } from '../engine/levels'
+import type { CeilingBuildUp } from '../engine/levels'
+import { DEFAULT_CEILING_BUILD_UP } from '../engine/levels'
 import type { DoorLeafMap, LintelSize, Opening } from '../engine/openings'
 import { DEFAULT_DOOR_MAP, DEFAULT_LINTEL_TABLE } from '../engine/openings'
 import type { Dormer } from '../engine/roof'
@@ -26,6 +26,33 @@ export interface FoundationInput {
   footingFormworkHeight: number
 }
 
+/** Warstwy podłogi na chudziaku — podaje użytkownik (null = uzupełnij). */
+export interface FloorLayersInput {
+  /** Izolacja (EPS) na chudziaku [m]. */
+  insulation: number | null
+  /** Wylewka [m]. */
+  screed: number | null
+  /** Wykończenie: płytka / panel [m]. */
+  finish: number | null
+}
+
+/** Ściany murowane (nośne / działowe): wymiary bloczka podaje użytkownik. */
+export interface WallBlockInput {
+  blockLength: number | null
+  blockHeight: number | null
+  /** Spoina [m] (cienka spoina — 0). */
+  jointThickness: number
+}
+
+export interface WallInput extends WallBlockInput {
+  /** Warstwa wyrównawcza pod pierwszą warstwą [m]. */
+  levelingLayer: number
+  /** Minimalna wysokość wieńca ścian [m] (np. 0,25). */
+  ringBeamMin: number
+  /** Reszta do tej wysokości dokładana do wieńca; większa → warstwa docinana [m]. */
+  maxRingBeamExtension: number
+}
+
 export interface ProjectInput {
   name: string
   /** Wymiary wewnętrzne prostokąta [m]. */
@@ -33,11 +60,14 @@ export interface ProjectInput {
   wallThickness: number
   facadeInsulation: number
   foundationInsulation: number
+  /** Wysokość w świetle: gotowa posadzka → gotowy sufit [m]. */
   clearHeight: number
-  wallRingBeamTop: number
-  floorLayers: FloorLayers
+  floorLayers: FloorLayersInput
+  /** Sufit podwieszany: GK + stelaż + pustka — wyznacza górę wieńca ścian. */
+  ceiling: CeilingBuildUp
   slabThickness: number
-  wall: WallLayerParams
+  wall: WallInput
+  partitionBlock: WallBlockInput
   foundation: FoundationInput
   concrete: {
     footing: ConcretePourParams
@@ -92,10 +122,11 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
     facadeInsulation: 0.2,
     foundationInsulation: 0.1,
     clearHeight: 2.7,
-    wallRingBeamTop: 2.89,
-    floorLayers: DEFAULT_FLOOR_LAYERS,
+    floorLayers: { insulation: null, screed: null, finish: null },
+    ceiling: DEFAULT_CEILING_BUILD_UP,
     slabThickness: 0.1,
-    wall: DEFAULT_WALL_LAYERS,
+    wall: { blockLength: null, blockHeight: null, jointThickness: 0, levelingLayer: 0, ringBeamMin: 0.25, maxRingBeamExtension: 0.04 },
+    partitionBlock: { blockLength: null, blockHeight: null, jointThickness: 0 },
     foundation: {
       blockLength: null,
       blockWidth: null,

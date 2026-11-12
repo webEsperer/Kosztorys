@@ -19,7 +19,8 @@ export function buildSD(project: ProjectInput): { items: ItemSpec[] } {
   // Wylewka
   {
     const id = 'sd-wylewka'
-    const q = { ...aWew, trace: [...aWew.trace, { label: 'Informacyjnie — objętość wylewki', formula: 'A_wew × grubość', values: `${fmt(aWew.value)} × ${fmt(project.floorLayers.screed)}`, result: clean(aWew.value * project.floorLayers.screed), unit: 'm³' }] }
+    const sc = project.floorLayers.screed
+    const q = sc === null ? aWew : { ...aWew, trace: [...aWew.trace, { label: 'Informacyjnie — objętość wylewki', formula: 'A_wew × grubość', values: `${fmt(aWew.value)} × ${fmt(sc)}`, result: clean(aWew.value * sc), unit: 'm³' }] }
     items.push(item({ id, category: 'Posadzki', kind: 'service', name: 'Wylewka cementowa (usługa z materiałem)', unit: 'm2', quantity: q }))
   }
 

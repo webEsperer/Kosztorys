@@ -87,10 +87,12 @@ Zasady:
 ### 2. Wysokości (poziom ±0 = gotowa posadzka)
 | Parametr | Domyślnie |
 |---|---|
-| Wysokość w świetle (posadzka → gotowy sufit) | 270 cm |
-| Góra wieńca ścian nośnych | +289 cm |
-| Warstwy podłogi na chudziaku: EPS 15 + wylewka 6,5 + wykończenie 1,5 | 23 cm |
-| Góra chudziaka = góra wieńca fundamentowego | −23 cm |
+| Wysokość w świetle (gotowa posadzka → gotowy sufit) | 270 cm |
+| Warstwy podłogi na chudziaku: izolacja + wylewka + płytka/panel | **podaje użytkownik** (np. 15 + 6,5 + 1,5 = 23 cm) |
+| Góra chudziaka = góra wieńca fundamentowego | − suma warstw podłogi (np. −23 cm) |
+| Sufit podwieszany: płyta GK 1,2 + stelaż krzyżowy 2 × 3 cm + pustka 15 cm (dojście wkrętarką do wieszaków) | 22,2 cm |
+| Góra wieńca ścian nośnych = gotowy sufit + warstwy sufitu (konstrukcja dachu na wieńcu, sufit pod nią) | np. 270 + 22,2 = +292,2 cm |
+| Wieniec ścian minimalny | 25 cm |
 | Grubość chudziaka | 10 cm |
 | Kąt nachylenia dachu | podaje użytkownik |
 | Okap boczny (poziomo od lica gotowego EPS) | podaje użytkownik |
@@ -101,6 +103,8 @@ Aplikacja rysuje **schemat poziomów** (przekrój) z wyliczonymi rzędnymi i pok
 
 ### 3. Grubości ścian i izolacji
 - Ściana nośna: H+H Gold 24 cm. Ściana fundamentowa: grubość wg wymiaru bloczka (podaje użytkownik).
+- **Wymiary bloczków ścian nośnych i działowych (dł. × wys., spoina) podaje użytkownik** — liczba sztuk na m²
+  wynika z wymiarów: `1 / ((dł. + spoina) × (wys. + spoina))` (np. 59 × 24 cm → 7,062 szt/m²).
 - XPS fundament 10 cm, EPS elewacja 20 cm.
 
 ### 4. Otwory
@@ -257,11 +261,14 @@ Jedna funkcja dla OSB, papy itp.: dane `arkusz/rolka (szer × dł)`, `szerokoś�
 **Fundament:** `h_ściany_fund = n_warstw × (h_bloczka + spoina) + h_wieńca_fund (25 cm)`.
 Góra ławy = −23 cm − h_ściany_fund. Dno wykopu = góra ławy − 12 cm (górne 12 cm ławy w szalunku z desek).
 
-**Ściany nośne H+H:** wysokość od góry wieńca fund. (−23) do góry wieńca ścian (+289) = 312 cm.
-- `H = 312 − warstwa wyrównawcza pierwszej warstwy (parametr, domyślnie 0)`
-- `n = floor((H − wieniec_min) / h_warstwy)`, gdzie `h_warstwy` = 24 cm (+ spoina), `wieniec_min` = 24 cm
+**Ściany nośne:** liczone od dołu (wg użytkownika): góra chudziaka = −(izolacja + wylewka + wykończenie);
+góra wieńca ścian = wysokość w świetle + GK 1,2 + stelaż 2 × 3 + pustka 15 cm.
+Przykład: od −23 do +292,2 = 315,2 cm.
+- `H = (góra wieńca − góra chudziaka) − warstwa wyrównawcza pierwszej warstwy (parametr, domyślnie 0)`
+- `n = floor((H − wieniec_min) / h_warstwy)`, gdzie `h_warstwy` = wys. bloczka (+ spoina), `wieniec_min` = 25 cm
 - reszta `r = H − n·h_warstwy − wieniec_min`
-- jeśli `r ≤ maks. dołożenie do wieńca` (parametr, domyślnie 10 cm) → wieniec = `wieniec_min + r`
+- jeśli `r ≤ maks. dołożenie do wieńca` (parametr, **domyślnie 4 cm** — wg użytkownika) → wieniec = `wieniec_min + r`
+  (przykład: 12 warstw × 24, r = 2,2 cm → wieniec 27,2 cm)
 - w przeciwnym razie → dodatkowa warstwa docinana o wysokości `r`, wieniec = `wieniec_min`
 - trace pokazuje: liczbę warstw, wysokość docinki, końcową wysokość wieńca.
 
@@ -328,7 +335,8 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
 ### Ściany nośne
 - Papa pod ściany nośne [licz]: pas szer. 40 cm (parametr) × `P_oś` → moduł cięcia z rolki → liczba rolek.
 - Warstwa wyrównawcza pierwszej warstwy: zaprawa cementowa [licz] — zużycie `null` (uzupełnij).
-- Bloczki **H+H Gold 590 × 240 × 240 mm, 7,06 szt/m²** [licz]: `P_oś × (n·0,24 + docinka) − otwory − nadproża`.
+- Bloczki ścian nośnych (np. **H+H Gold 590 × 240 × 240 mm**; wymiary od użytkownika → szt/m²) [licz]:
+  `P_oś × (n·h_warstwy + docinka) − otwory − nadproża`.
 - Klej do cienkich spoin [licz] — zużycie `null` (uzupełnij z karty kleju).
 
 ### Wieniec ścian nośnych
@@ -357,8 +365,10 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
 - Parapety zewnętrzne [licz: mb = szerokości okien + 2 × 3 cm].
 
 ### Ściany działowe
-- Dane: mb ścian, wysokość (domyślnie od chudziaka do stropu: 293 cm — parametr), otwory drzwiowe.
-- Bloczki **H+H Gold 590 × 120 × 240 mm, 7,06 szt/m²** [licz] (netto po odjęciu otworów i nadproży).
+- Dane: mb ścian, wysokość (domyślnie od chudziaka do gotowego sufitu: wysokość w świetle + warstwy podłogi,
+  np. 293 cm — parametr), otwory drzwiowe.
+- Bloczki (np. **H+H Gold 590 × 120 × 240 mm**; wymiary od użytkownika → szt/m²) [licz] (netto po odjęciu
+  otworów i nadproży).
 - Klej [licz] — zużycie `null`.
 - Nadproża [licz]: ten sam algorytm, szerokość 120 mm, 1 szt na otwór (parametr, sprawdź tabelę dostawcy).
 - **Lista drzwi wewnętrznych** [licz]: mapowanie otwór → skrzydło (parametr): otwór 70 → drzwi 60, 80 → 70,

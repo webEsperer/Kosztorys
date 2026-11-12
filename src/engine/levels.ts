@@ -84,6 +84,40 @@ export const DEFAULT_LEVELS: Omit<LevelsInput, 'foundation'> & {
   foundation: { ringBeamHeight: 0.25, footingFormworkHeight: 0.12 },
 }
 
+/** Warstwy sufitu podwieszanego (od gotowego sufitu w górę do spodu konstrukcji dachu = góra wieńca ścian). */
+export interface CeilingBuildUp {
+  /** Płyta GK [m] (domyślnie 0,012). */
+  board: number
+  /** Stelaż krzyżowy: 2 × profil 3 cm [m] (domyślnie 0,06). */
+  grid: number
+  /** Pustka nad profilami — dojście wkrętarką do wieszaków [m] (domyślnie 0,15). */
+  voidAbove: number
+}
+
+export const DEFAULT_CEILING_BUILD_UP: CeilingBuildUp = { board: 0.012, grid: 0.06, voidAbove: 0.15 }
+
+/**
+ * Góra wieńca ścian nośnych = gotowy sufit + GK + stelaż + pustka.
+ * (Wiązary/konstrukcja dachu opiera się na wieńcu, sufit wisi pod nią.)
+ */
+export function wallRingBeamTopFromCeiling(clearHeight: number, c: CeilingBuildUp): Computed {
+  const value = clean(clearHeight + c.board + c.grid + c.voidAbove)
+  return {
+    value,
+    unit: 'm',
+    trace: [
+      {
+        label: 'Rzędna góry wieńca ścian',
+        formula: 'h_światło + GK + stelaż + pustka',
+        values: `${fmt(clearHeight)} + ${fmt(c.board)} + ${fmt(c.grid)} + ${fmt(c.voidAbove)}`,
+        result: value,
+        unit: 'm',
+        note: 'sufit podwieszany pod konstrukcją dachu opartą na wieńcu',
+      },
+    ],
+  }
+}
+
 /** Grubość warstw podłogi na chudziaku (domyślnie 0,23 m). */
 export function floorBuildUp(l: FloorLayers): Computed {
   const value = clean(l.insulation + l.screed + l.finish)

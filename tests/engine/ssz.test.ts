@@ -8,6 +8,9 @@ import { selectLintel, DEFAULT_LINTEL_TABLE } from '../../src/engine/openings'
 // Przykład 12 × 9 m, ściana 0,24 (P_oś = 42,96). Otwory PRZYKŁADOWE.
 function example(): ProjectInput {
   const p = newProject('Przykład 12 × 9')
+  p.floorLayers = { insulation: 0.15, screed: 0.065, finish: 0.015 }
+  p.wall = { ...p.wall, blockLength: 0.59, blockHeight: 0.24 }
+  p.partitionBlock = { blockLength: 0.59, blockHeight: 0.24, jointThickness: 0 }
   p.foundation = { ...p.foundation, blockLength: 0.38, blockWidth: 0.24, blockHeight: 0.12, jointThickness: 0.01, layers: 5, footingWidth: 0.6, footingHeight: 0.4 }
   p.openings = [
     { id: 'o1', mark: 'O1', type: 'okno', width: 1.5, height: 1.5, count: 4, wall: 'zewnętrzna' },
@@ -45,14 +48,35 @@ describe('SSZ — ściany nośne', () => {
     expect(byId(items, 'ssz-hh-bloczki').missing).toContain('Wysokość nadproża systemowego')
   })
 
-  it('bloczki H+H: 42,96 × 2,88 − 13,8 − 2,82 = 107,1048 m² × 7,06 szt/m²', () => {
+  it('poziomy: góra wieńca 2,70 + 0,012 + 0,06 + 0,15 = 2,922; 12 warstw; reszta 2,2 cm ≤ 4 cm → wieniec 27,2 cm', () => {
+    const it = byId(items, 'ssz-ws-beton')
+    const t = renderTrace(it.quantity!.trace)
+    expect(t).toContain('2,922')
+    expect(t).toContain('Liczba pełnych warstw')
+  })
+
+  it('reszta > 4 cm → warstwa docinana, wieniec 25 cm (wysokość pomieszczenia 2,75 m)', () => {
+    // góra wieńca 2,972; H = 3,202; n = ⌊2,952 / 0,24⌋ = 12; r = 3,202 − 2,88 − 0,25 = 0,072 > 0,04
+    const q = buildSSZ({ ...p, clearHeight: 2.75 }).items
+    const v = byId(q, 'ssz-ws-beton').quantity!.value
+    expect(v).toBe(Math.round(42.96 * 0.24 * 0.25 * 1.03 * 1e6) / 1e6)
+  })
+
+  it('bez warstw podłogi lub wymiarów bloczka → uzupełnij', () => {
+    const q = buildSSZ(newProject()).items
+    expect(byId(q, 'ssz-hh-bloczki').missing).toEqual(expect.arrayContaining(['grubość izolacji na chudziaku', 'grubość wylewki', 'grubość wykończenia podłogi (płytka / panel)', 'długość bloczka', 'wysokość bloczka']))
+    expect(byId(q, 'ssz-ws-beton').quantity).toBeNull()
+  })
+
+  it('bloczki z wymiarów 59 × 24: 1 / (0,59 × 0,24) = 7,0621 szt/m²; 42,96 × 2,88 − 13,8 − 2,82 = 107,1048 m²', () => {
     const q = buildSSZ({ ...p, itemParams: { 'ssz-hh-bloczki': { lintelHeight: 0.24 } } }).items
     const it = byId(q, 'ssz-hh-bloczki')
-    expect(it.quantity?.value).toBeCloseTo(107.1048 * 7.06, 6)
+    expect(it.params.perM2.value).toBeCloseTo(7.062147, 6)
+    expect(it.quantity?.value).toBeCloseTo(107.1048 * 7.062147, 4)
     const t = renderTrace(it.quantity!.trace)
     expect(t).toContain('123,725') // brutto
     expect(t).toContain('Liczba pełnych warstw')
-    expect(computeItem(it, null).quantityWithWaste).toBeCloseTo(107.1048 * 7.06 * 1.03, 6)
+    expect(computeItem(it, null).quantityWithWaste).toBeCloseTo(107.1048 * 7.062147 * 1.03, 3)
   })
 
   it('nadproża zewn.: O1 1,5 → 2,0 m (4 × 2 = 8), O2 0,9 i D1 1,0 → 1,25 m (2 × 2 + 1 × 2 = 6)', () => {
@@ -69,14 +93,14 @@ describe('SSZ — wieniec ścian', () => {
   const p = example()
   const { items } = buildSSZ(p)
 
-  it('wysokość z poziomów 0,24 m: 42,96 × 0,24 × 0,24 × 1,03 = 2,54873088 m³, 1 kurs', () => {
-    expect(byId(items, 'ssz-ws-beton').quantity?.value).toBe(2.548731) // zaokr. do 6 miejsc
+  it('wieniec 27,2 cm: 42,96 × 0,24 × 0,272 × 1,03 = 2,888562 m³, 1 kurs', () => {
+    expect(byId(items, 'ssz-ws-beton').quantity?.value).toBe(2.888562) // zaokr. do 6 miejsc
     expect(byId(items, 'ssz-ws-transport').quantity?.value).toBe(1)
   })
 
-  it('stal: Ø12 38 prętów, Ø6 189,2 mb → 32 pręty', () => {
+  it('stal: Ø12 38 prętów; strzemię 2·0,18 + 2·0,212 + 0,14 = 0,924 × 220 = 203,28 mb → 34 pręty Ø6', () => {
     expect(computeItem(byId(items, 'ssz-ws-stal12'), null).packs).toBe(38)
-    expect(computeItem(byId(items, 'ssz-ws-stal6'), null).packs).toBe(32)
+    expect(computeItem(byId(items, 'ssz-ws-stal6'), null).packs).toBe(34)
   })
 
   it('OSB: wymiar płyty przejęty z wieńca fund.; bez wyboru wariantu → uzupełnij; odzysk płyt zmniejsza zakup', () => {
@@ -96,9 +120,9 @@ describe('SSZ — ściany działowe i drzwi', () => {
   const p = example()
   const { items } = buildSSZ(p)
 
-  it('działowe: 30 × 2,93 − 11,178 − 1,86 = 74,862 m² × 7,06', () => {
+  it('działowe: 30 × (2,70 + 0,23) − 11,178 − 1,86 = 74,862 m² × 7,0621', () => {
     const q = buildSSZ({ ...p, itemParams: { 'ssz-dz-bloczki': { lintelHeight: 0.24 } } }).items
-    expect(byId(q, 'ssz-dz-bloczki').quantity?.value).toBeCloseTo(74.862 * 7.06, 6)
+    expect(byId(q, 'ssz-dz-bloczki').quantity?.value).toBeCloseTo(74.862 * 7.062147, 4)
   })
 
   it('nadproża działowe (1 na otwór): 1,25 m × 5, 1,5 m × 1', () => {

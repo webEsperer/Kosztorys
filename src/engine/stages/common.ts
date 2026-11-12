@@ -4,10 +4,20 @@ import type { ProjectInput } from '../../model/project'
 import { type ConcretePourParams, computeConcretePour } from '../concrete'
 import { computeGeometry, type GeometryResult } from '../geometry'
 import { type ItemKind, type ItemSpec, type Packaging, type Param, type PriceBasis, type Stage, type Unit, manualQuantity, need, param } from '../items'
-import { computeLevels, DEFAULT_LEVELS, type LevelsResult } from '../levels'
+import {
+  computeLevels,
+  computeWallLayers,
+  DEFAULT_LEVELS,
+  type FloorLayers,
+  floorBuildUp,
+  type LevelsResult,
+  wallRingBeamTopFromCeiling,
+  type WallLayerParams,
+  type WallLayersResult,
+} from '../levels'
 import { REBAR_WARNING, type RebarElementResult } from '../rebar'
 import { type AxisRect, rectSides } from '../rebarLayout'
-import { type Computed, clean, fmt } from '../trace'
+import { type Computed, type Traced, clean, fmt } from '../trace'
 
 export type Builder = ReturnType<typeof makeBuilder>
 // ─── pomocnicze ─────────────────────────────────────────────────────────────
@@ -237,8 +247,25 @@ export interface ProjectBase {
   axis: AxisRect
   /** Boki w osi: lewy, górny, prawy, dolny. */
   sides: number[]
+  /** Warstwy podłogi (gdy podane wszystkie). */
+  floor: FloorLayers | null
+  floorMissing: string[]
+  /** Grubość warstw podłogi (z trace) i rzędna góry chudziaka = góry wieńca fund. */
+  floorBuild: Computed | null
+  slabTop: number | null
+  /** Rzędna góry wieńca ścian z wysokości pomieszczenia i warstw sufitu. */
+  ringTop: Computed
+  /** Warstwy bloczków ścian nośnych i wieniec ścian. */
+  wallLayers: Traced<WallLayersResult> | null
+  wallMissing: string[]
   levels: LevelsResult | null
   levelsMissing: string[]
+}
+
+/** Gęstość bloczków z wymiarów: 1 / ((dł. + spoina) × (wys. + spoina)). */
+export function blocksPerM2(b: { blockLength: number | null; blockHeight: number | null; jointThickness: number }): number | null {
+  if (b.blockLength === null || b.blockHeight === null) return null
+  return clean(1 / ((b.blockLength + b.jointThickness) * (b.blockHeight + b.jointThickness)))
 }
 
 export function projectBase(project: ProjectInput): ProjectBase {
@@ -250,19 +277,44 @@ export function projectBase(project: ProjectInput): ProjectBase {
     facadeInsulation: project.facadeInsulation,
   })
   const axis = { length: clean(project.footprint.length + t), width: clean(project.footprint.width + t) }
-  const levelsMissing: string[] = []
+
+  const fl = project.floorLayers
+  const floorMissing: string[] = []
+  if (fl.insulation === null) floorMissing.push('grubość izolacji na chudziaku')
+  if (fl.screed === null) floorMissing.push('grubość wylewki')
+  if (fl.finish === null) floorMissing.push('grubość wykończenia podłogi (płytka / panel)')
+  const floor: FloorLayers | null = floorMissing.length ? null : { insulation: fl.insulation!, screed: fl.screed!, finish: fl.finish! }
+  const floorBuild = floor ? floorBuildUp(floor) : null
+  const slabTop = floorBuild ? clean(-floorBuild.value) : null
+
+  const ringTop = wallRingBeamTopFromCeiling(project.clearHeight, project.ceiling)
+  const w = project.wall
+  const wallMissing = [...floorMissing]
+  if (w.blockHeight === null) wallMissing.push('wysokość bloczka ściany nośnej')
+  const wallParams: WallLayerParams | null =
+    w.blockHeight === null
+      ? null
+      : { blockHeight: w.blockHeight, jointThickness: w.jointThickness, levelingLayer: w.levelingLayer, ringBeamMin: w.ringBeamMin, maxRingBeamExtension: w.maxRingBeamExtension }
+  let wallLayers: Traced<WallLayersResult> | null = null
+  if (slabTop !== null && wallParams) {
+    const wl = computeWallLayers(ringTop.value, slabTop, wallParams)
+    wallLayers = { value: wl.value, trace: [...floorBuild!.trace, ...ringTop.trace, ...wl.trace] }
+  }
+
+  const levelsMissing: string[] = [...floorMissing]
   if (f.blockHeight === null) levelsMissing.push('wysokość bloczka fundamentowego')
   if (f.jointThickness === null) levelsMissing.push('grubość spoiny bloczków fundamentowych')
   if (f.layers === null) levelsMissing.push('liczba warstw bloczków fundamentowych')
+  if (w.blockHeight === null) levelsMissing.push('wysokość bloczka ściany nośnej')
   const levels: LevelsResult | null =
     levelsMissing.length === 0
       ? computeLevels({
           ...DEFAULT_LEVELS,
           clearHeight: project.clearHeight,
-          wallRingBeamTop: project.wallRingBeamTop,
-          floorLayers: project.floorLayers,
+          wallRingBeamTop: ringTop.value,
+          floorLayers: floor!,
           slabThickness: project.slabThickness,
-          wall: project.wall,
+          wall: wallParams!,
           foundation: {
             blockHeight: f.blockHeight!,
             jointThickness: f.jointThickness!,
@@ -273,5 +325,5 @@ export function projectBase(project: ProjectInput): ProjectBase {
           },
         })
       : null
-  return { geo, pOs: geo.axisPerimeter, aWew: geo.interiorArea, axis, sides: rectSides(axis), levels, levelsMissing }
+  return { geo, pOs: geo.axisPerimeter, aWew: geo.interiorArea, axis, sides: rectSides(axis), floor, floorMissing, floorBuild, slabTop, ringTop, wallLayers, wallMissing, levels, levelsMissing }
 }

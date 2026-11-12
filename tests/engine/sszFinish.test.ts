@@ -7,6 +7,9 @@ import { computeCeiling } from '../../src/engine/ceiling'
 // Przykład 12 × 9 m (A_wew = 108, P_wew = 42), ściana 0,24, EPS 0,20; dach 35°, okapy 0,60.
 function example(): ProjectInput {
   const p = newProject('Przykład')
+  p.floorLayers = { insulation: 0.15, screed: 0.065, finish: 0.015 }
+  p.wall = { ...p.wall, blockLength: 0.59, blockHeight: 0.24 }
+  p.partitionBlock = { blockLength: 0.59, blockHeight: 0.24, jointThickness: 0 }
   p.roof = { ...p.roof, pitchDeg: 35, eaveOverhang: 0.6, gableOverhang: 0.6 }
   p.partitions = { length: 30, height: null }
   p.openings = [
@@ -53,12 +56,12 @@ describe('SSZ — sufit, elewacja, podłoga (przykład)', () => {
     expect(byId(items, 'ssz-sufit-ud30').quantity?.value).toBe(102)
   })
 
-  it('EPS: obwód 42 + 8 × 0,34 = 44,72; wys. 2,89 − (−0,26) = 3,15; brutto 140,868 − otwory 11,1 = 129,768 m²', () => {
-    expect(byId(items, 'ssz-eps').quantity?.value).toBe(129.768)
+  it('EPS: obwód 42 + 8 × 0,34 = 44,72; wys. 2,922 − (−0,26) = 3,182; brutto 142,29904 − otwory 11,1 = 131,19904 m²', () => {
+    expect(byId(items, 'ssz-eps').quantity?.value).toBe(131.19904)
   })
 
-  it('narożniki z siatką: 4 × 3,15 + O1 4 × (3 + 1,5) + D1 (4,2 + 1) = 35,8 mb; APU 2 × (3 × 4 ... )', () => {
-    expect(byId(items, 'ssz-eps-narozniki').quantity?.value).toBe(35.8)
+  it('narożniki z siatką: 4 × 3,182 + O1 4 × (3 + 1,5) + D1 (4,2 + 1) = 35,928 mb; APU 30,2 mb', () => {
+    expect(byId(items, 'ssz-eps-narozniki').quantity?.value).toBe(35.928)
     expect(byId(items, 'ssz-eps-apu').quantity?.value).toBe(30.2) // 2 × 3 × 4 + 2 × 3,1
     expect(byId(items, 'ssz-eps-listwa-startowa').quantity?.value).toBe(43.92)
   })
