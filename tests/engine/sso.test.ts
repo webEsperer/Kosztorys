@@ -77,10 +77,12 @@ describe('SSO — przykład z danymi fundamentu', () => {
     expect(computeItem(byId(items, 'sso-lawy-stal6'), 500).packs).toBe(64)
   })
 
-  it('bloczki: 5 × ⌈42,96 / 0,39⌉ = 5 × 111 = 555, +3% → 571,65 → do zapłaty 571,65 szt', () => {
+  it('bloczki: 5 × ⌈42,96 / 0,39⌉ = 5 × 111 = 555, +3% → 571,65 → do zapłaty 572 szt', () => {
     const r = computeItem(byId(items, 'sso-sf-bloczki'), 600)
     expect(r.spec.quantity?.value).toBe(555)
     expect(r.quantityWithWaste).toBe(571.65)
+    expect(r.chargedQuantity).toBe(572)
+    expect(r.costGrosze).toBe(572 * 600)
   })
 
   it('hydroizolacja: pow. 2 × 42,96 × 0,90 = 77,328 m² (zużycia null → uzupełnij)', () => {

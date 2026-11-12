@@ -25,6 +25,9 @@ export const UNIT_LABEL: Record<Unit, string> = {
   ryczałt: 'ryczałt',
 }
 
+/** Jednostki liczone w całości — ilość do zapłaty zaokrąglana w górę. */
+export const COUNTED_UNITS: Unit[] = ['szt', 'kurs', 'kpl']
+
 /** Edytowalny współczynnik pozycji. `null` = niepewny — „uzupełnij”. */
 export interface Param {
   label: string
@@ -191,6 +194,10 @@ export function computeItem(spec: ItemSpec, unitPriceGrosze: Grosze | null): Ite
         unit: u,
       })
     }
+  } else if (!spec.packaging && COUNTED_UNITS.includes(spec.unit) && !Number.isInteger(qW)) {
+    // Sztuki, kursy, komplety kupuje się w całości.
+    charged = ceilSafe(qW)
+    trace.push({ label: 'Zaokrąglenie do pełnych sztuk', formula: '⌈q⌉', values: `⌈${fmt(qW)}⌉`, result: charged, unit: u })
   } else {
     charged = qW
   }

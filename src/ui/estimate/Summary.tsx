@@ -1,0 +1,112 @@
+// Podsumowanie całości i lista „do uzupełnienia”.
+
+import { KIND_LABEL, STAGE_LABEL, type Estimate } from '../../engine/estimate'
+import type { ItemKind, Stage } from '../../engine/items'
+import { formatPLN } from '../../engine/money'
+import { fmtQty } from '../common/fields'
+
+export function Summary({ estimate, onOpen }: { estimate: Estimate; onOpen: (stage: Stage) => void }) {
+  return (
+    <div className="summary">
+      <section className="card">
+        <h2>Podsumowanie budowy</h2>
+        <table className="sum-table">
+          <thead>
+            <tr>
+              <th>Etap</th>
+              <th>Suma</th>
+              <th>Udział</th>
+              <th>Braki</th>
+            </tr>
+          </thead>
+          <tbody>
+            {estimate.stages.map((s) => (
+              <tr key={s.stage} onClick={() => onOpen(s.stage)} className="clickable">
+                <th>{STAGE_LABEL[s.stage]}</th>
+                <td>{formatPLN(s.totalGrosze)}</td>
+                <td>{fmtQty(estimate.shares[s.stage], 1)}%</td>
+                <td>{s.missingCount ? <span className="badge warn">{s.missingCount}</span> : <span className="badge ok">komplet</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th>Suma etapów</th>
+              <td>{formatPLN(estimate.subtotalGrosze)}</td>
+              <td colSpan={2} />
+            </tr>
+            <tr>
+              <th>Rezerwa {fmtQty(estimate.reservePercent)}%</th>
+              <td>{formatPLN(estimate.reserveGrosze)}</td>
+              <td colSpan={2} />
+            </tr>
+            <tr className="grand">
+              <th>Razem</th>
+              <td>{formatPLN(estimate.totalGrosze)}</td>
+              <td colSpan={2}>
+                {estimate.perM2Grosze !== null && (
+                  <span className="muted">
+                    {formatPLN(estimate.perM2Grosze)}/m² ({fmtQty(estimate.area)} m² wewn.)
+                  </span>
+                )}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+        {!estimate.complete && <p className="warn-text">Kosztorys niepełny — {estimate.todo.length} pozycji bez ceny lub danych (poniżej).</p>}
+      </section>
+
+      <section className="card">
+        <h2>Podział na rodzaje</h2>
+        <table className="sum-table">
+          <thead>
+            <tr>
+              <th>Etap</th>
+              {(Object.keys(KIND_LABEL) as ItemKind[]).map((k) => (
+                <th key={k}>{KIND_LABEL[k]}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {estimate.stages.map((s) => (
+              <tr key={s.stage}>
+                <th>{s.stage}</th>
+                {(Object.keys(KIND_LABEL) as ItemKind[]).map((k) => (
+                  <td key={k}>{formatPLN(s.byKind[k])}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  )
+}
+
+export function TodoList({ estimate, onOpenItem }: { estimate: Estimate; onOpenItem: (stage: Stage, id: string) => void }) {
+  if (estimate.todo.length === 0) return <p className="card">Wszystko uzupełnione.</p>
+  const stages = [...new Set(estimate.todo.map((t) => t.stage))]
+  return (
+    <div className="todo">
+      {stages.map((st) => (
+        <section key={st} className="card">
+          <h2>
+            {STAGE_LABEL[st]} <span className="badge warn">{estimate.todo.filter((t) => t.stage === st).length}</span>
+          </h2>
+          <ul>
+            {estimate.todo
+              .filter((t) => t.stage === st)
+              .map((t) => (
+                <li key={t.itemId}>
+                  <button className="link" onClick={() => onOpenItem(t.stage, t.itemId)}>
+                    {t.name}
+                  </button>
+                  <span className="muted small"> — {t.missing.join(', ')}</span>
+                </li>
+              ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  )
+}

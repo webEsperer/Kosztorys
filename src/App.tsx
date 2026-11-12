@@ -1,7 +1,7 @@
-import { FoundationViewer } from './ui/foundation-view/FoundationViewer'
+import { AppShell } from './ui/AppShell'
 
 function App() {
-  return <FoundationViewer />
+  return <AppShell />
 }
 
 export default App
