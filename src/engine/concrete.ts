@@ -67,9 +67,9 @@ export type ConcreteTransport =
 
 export interface ConcretePump {
   enabled: boolean
-  /** Ryczałt za podjazd pompy. */
-  setupGrosze: Grosze | null
-  /** Opcjonalnie: dopłata za m³ pompowanego betonu. */
+  /** Wynajem pompy — kwota wpisana przez użytkownika (ryczałt). */
+  rentalGrosze: Grosze | null
+  /** Opcjonalnie, jeśli firma tak liczy: dopłata za m³ pompowanego betonu. */
   perM3Grosze?: Grosze | null
   /** Opcjonalnie: cena za godzinę pracy pompy… */
   perHourGrosze?: Grosze | null
@@ -106,7 +106,7 @@ export function defaultPourParams(concreteClass: string): ConcretePourParams {
     concreteClass,
     pricePerM3Grosze: null,
     transport: { mode: 'perTrip', truckCapacityM3: DEFAULT_TRUCK_CAPACITY_M3, pricePerTripGrosze: null },
-    pump: { enabled: false, setupGrosze: null },
+    pump: { enabled: false, rentalGrosze: null },
   }
 }
 
@@ -178,7 +178,7 @@ export function computeConcretePour(name: string, volume: Computed, p: ConcreteP
   }
 
   if (p.pump.enabled) {
-    lines.push(costLine('Pompa — podjazd', 1, 'ryczałt', p.pump.setupGrosze))
+    lines.push(costLine('Pompa — wynajem', 1, 'ryczałt', p.pump.rentalGrosze))
     if (p.pump.perM3Grosze !== undefined) {
       lines.push(costLine('Pompa — za m³', ordered, 'm³', p.pump.perM3Grosze))
     }

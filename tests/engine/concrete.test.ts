@@ -52,7 +52,7 @@ describe('concrete — betonowanie', () => {
       ...defaultPourParams('C20/25'),
       pricePerM3Grosze: 42000,
       transport: { mode: 'perTrip', truckCapacityM3: 8, pricePerTripGrosze: 25000 },
-      pump: { enabled: true, setupGrosze: 60000, perM3Grosze: 1000 },
+      pump: { enabled: true, rentalGrosze: 60000, perM3Grosze: 1000 },
     }
     const r = computeConcretePour('Ławy', footings, p)
     // beton: 10,619712 × 420 = 4460,27904 → 4460,28 zł
@@ -83,7 +83,7 @@ describe('concrete — betonowanie', () => {
   it('pompa za godziny bez podanych godzin → uzupełnij', () => {
     const p: ConcretePourParams = {
       ...defaultPourParams('C20/25'),
-      pump: { enabled: true, setupGrosze: 50000, perHourGrosze: 30000, hours: null },
+      pump: { enabled: true, rentalGrosze: 50000, perHourGrosze: 30000, hours: null },
     }
     const r = computeConcretePour('Ławy', footings, p)
     const hoursLine = r.lines.find((l) => l.label === 'Pompa — godziny pracy')
