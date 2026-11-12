@@ -2,6 +2,7 @@
 
 import Dexie, { type Table } from 'dexie'
 import { newProject, type ProjectInput } from '../model/project'
+import { builtInTemplate, type ProjectTemplate } from '../model/template'
 
 export interface StoredProject {
   id: string
@@ -10,15 +11,40 @@ export interface StoredProject {
   data: ProjectInput
 }
 
+interface Setting {
+  key: string
+  value: unknown
+}
+
 class KosztorysDB extends Dexie {
   projects!: Table<StoredProject, string>
+  settings!: Table<Setting, string>
   constructor() {
     super('kosztorys')
     this.version(1).stores({ projects: 'id, name, updatedAt' })
+    this.version(2).stores({ projects: 'id, name, updatedAt', settings: 'key' })
   }
 }
 
 export const db = new KosztorysDB()
+
+/** Szablon nowego projektu zapisany przez użytkownika; brak → szablon wbudowany. */
+export async function loadTemplate(): Promise<ProjectTemplate> {
+  const s = await db.settings.get('template')
+  const builtIn = builtInTemplate(newProject())
+  if (!s) return builtIn
+  const t = s.value as Partial<ProjectTemplate>
+  return {
+    foundationBlock: { ...builtIn.foundationBlock, ...(t.foundationBlock ?? {}) },
+    floorLayers: { ...builtIn.floorLayers, ...(t.floorLayers ?? {}) },
+    ceiling: { ...builtIn.ceiling, ...(t.ceiling ?? {}) },
+    roof: { ...builtIn.roof, ...(t.roof ?? {}) },
+  }
+}
+
+export async function saveTemplate(t: ProjectTemplate): Promise<void> {
+  await db.settings.put({ key: 'template', value: t })
+}
 
 export function newId(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `p-${Date.now()}-${Math.random().toString(36).slice(2)}`

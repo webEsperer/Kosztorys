@@ -5,7 +5,8 @@ import { computeEstimate, STAGE_LABEL, STAGES } from '../engine/estimate'
 import type { Stage } from '../engine/items'
 import { formatPLN } from '../engine/money'
 import { newProject, type ProjectInput } from '../model/project'
-import { deleteProject, exportJson, importJson, listProjects, newId, saveProject, upgradeProject, type StoredProject } from '../storage/db'
+import { deleteProject, exportJson, importJson, listProjects, loadTemplate, newId, saveProject, saveTemplate, upgradeProject, type StoredProject } from '../storage/db'
+import { applyTemplate, describeTemplate, templateFrom } from '../model/template'
 import { StageView } from './estimate/StageView'
 import { ErrorBoundary } from './common/ErrorBoundary'
 import { Summary, TodoList } from './estimate/Summary'
@@ -68,7 +69,7 @@ export function AppShell() {
         setId(list[0].id)
         setProject(upgradeProject(list[0].data))
       } else {
-        const p = newProject('Mój dom')
+        const p = applyTemplate(newProject('Mój dom'), await loadTemplate())
         const nid = newId()
         await saveProject(nid, p)
         setId(nid)
@@ -145,8 +146,23 @@ export function AppShell() {
           ))}
         </select>
         <div className="top-actions">
-          <button className="btn" onClick={() => create(newProject('Nowy projekt'))}>
+          <button className="btn" title="Nowy projekt z Twoimi ustawieniami domyślnymi (bloczek fund., podłoga, sufit, dach)" onClick={async () => create(applyTemplate(newProject('Nowy projekt'), await loadTemplate()))}>
             Nowy
+          </button>
+          <button
+            className="btn"
+            title="Zapamiętaj bloczek fundamentowy, warstwy podłogi, sufit, kąt dachu i okapy z tego projektu dla nowych projektów"
+            onClick={async () => {
+              const t = templateFrom(project)
+              if (!confirm(`Zapamiętać jako domyślne dla nowych projektów?\n\n• ${describeTemplate(t).join('\n• ')}\n\nIstniejące projekty się nie zmienią. W każdym projekcie wartości można dalej zmieniać.`)) return
+              try {
+                await saveTemplate(t)
+              } catch (err) {
+                setError(err instanceof Error ? err.message : String(err))
+              }
+            }}
+          >
+            Ustaw jako domyślne
           </button>
           <button className="btn" onClick={() => create({ ...structuredClone(project), name: `${project.name} (wariant)` })}>
             Duplikuj
@@ -165,7 +181,7 @@ export function AppShell() {
               const list = await listProjects()
               setProjects(list)
               if (list.length) await open(list[0].id, list)
-              else await create(newProject('Mój dom'))
+              else await create(applyTemplate(newProject('Mój dom'), await loadTemplate()))
             }}
           >
             Usuń

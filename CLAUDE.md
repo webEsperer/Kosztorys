@@ -619,6 +619,9 @@ Układ: profile główne wzdłuż dłuższego boku pomieszczenia, nośne krzyżo
    i całości (suma etapów, udział %, koszt na m² powierzchni użytkowej, rezerwa).
 7. Plan cięcia OSB i papy (SVG), schemat poziomów (SVG).
 8. Wiele projektów, duplikowanie (warianty), import/eksport JSON, eksport CSV/PDF, zestawienie otworów dla producenta.
+9. **Ustawienia domyślne nowych projektów** (`model/template.ts`, zapis w IndexedDB): przycisk „Ustaw jako domyślne”
+   zapamiętuje z bieżącego projektu bloczek fundamentowy, warstwy podłogi, sufit, kąt dachu i okapy; „Nowy” je wpisuje.
+   Wbudowany bloczek fundamentowy **38 × 24 × 12 cm** (wg użytkownika). Wartości w projekcie zawsze edytowalne.
 
 ## Testy
 
