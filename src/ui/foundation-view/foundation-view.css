@@ -355,3 +355,40 @@
 .fv-error {
   color: var(--error);
 }
+
+.fv-osb-title {
+  font-size: 1rem;
+  margin-bottom: 8px;
+}
+
+.fv-osb-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.fv-osb-form input {
+  width: 64px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  text-align: right;
+}
+
+.fv-osb .fv-seg {
+  margin: 4px 0 12px;
+  flex-wrap: wrap;
+}
+
+.fv-trace {
+  white-space: pre-wrap;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 6px 0 0;
+}

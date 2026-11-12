@@ -15,6 +15,7 @@ import { layoutRebarPlan, rectSides, type AxisRect } from '../../engine/rebarLay
 import { buildFoundationSection } from '../../engine/foundationSection'
 import { SectionScene } from './SectionScene'
 import { PlanScene, type PlanElement } from './PlanScene'
+import { FormworkOsb } from '../cutting/FormworkOsb'
 import { pl } from './sceneUtils'
 import './foundation-view.css'
 
@@ -58,7 +59,7 @@ const FIELDS: { key: keyof FormCm; label: string; unit: string; step?: number }[
   { key: 'ringBeamHeight', label: 'Wieniec fund. — wysokość', unit: 'cm' },
 ]
 
-type Tab = 'przekroj' | 'rzut'
+type Tab = 'przekroj' | 'rzut' | 'osb'
 
 export function FoundationViewer() {
   const [form, setForm] = useState<FormCm>(INITIAL)
@@ -115,7 +116,8 @@ export function FoundationViewer() {
         { key: 'lawa', name: 'Ława', layout: layoutRebarPlan(axis, footP, footR) },
         { key: 'wieniec', name: 'Wieniec fund.', layout: layoutRebarPlan(axis, ringP, ringR) },
       ]
-      return { ok: true as const, pOs, axis, section, elements, results: [footR, ringR], summary: summarizeRebar([footR, ringR]) }
+      const ringBeam = { width: m(form.fwThickness), height: m(form.ringBeamHeight) }
+      return { ok: true as const, pOs, axis, ringBeam, section, elements, results: [footR, ringR], summary: summarizeRebar([footR, ringR]) }
     } catch (e) {
       return { ok: false as const, error: e instanceof Error ? e.message : String(e) }
     }
@@ -190,13 +192,23 @@ export function FoundationViewer() {
             <button role="tab" aria-selected={tab === 'rzut'} className={tab === 'rzut' ? 'on' : ''} onClick={() => setTab('rzut')}>
               Rzut zbrojenia
             </button>
+            <button role="tab" aria-selected={tab === 'osb'} className={tab === 'osb' ? 'on' : ''} onClick={() => setTab('osb')}>
+              Szalunek OSB
+            </button>
           </div>
           {!model.ok ? (
             <p className="fv-error">{model.error}</p>
           ) : tab === 'przekroj' ? (
             <SectionScene section={model.section} />
-          ) : (
+          ) : tab === 'rzut' ? (
             <PlanScene axis={model.axis} elements={model.elements} />
+          ) : (
+            <FormworkOsb
+              title="Szalunek wieńca fundamentowego — plan cięcia OSB"
+              axis={model.axis}
+              beamWidth={model.ringBeam.width}
+              beamHeight={model.ringBeam.height}
+            />
           )}
         </main>
       </div>
