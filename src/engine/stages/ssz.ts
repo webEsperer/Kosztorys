@@ -21,6 +21,7 @@ import { type Computed, type TraceStep, clean, fmt } from '../trace'
 import { type Builder, computed, lumpItem, makeBuilder, pourItems, projectBase, rebarItems } from './common'
 import { buildSSO } from './sso'
 import { roofItems } from './sszRoof'
+import { finishItems } from './sszFinish'
 
 /** Gęstość bloczków H+H Gold 590 × 240 / 590 × 120 (wys. 240): 7,06 szt/m². */
 export const HH_BLOCKS_PER_M2 = 7.06
@@ -314,6 +315,9 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
 
   // ── Dach
   items.push(...roofItems(b, project))
+
+  // ── Sufit, elewacja, podłoga, instalacje
+  items.push(...finishItems(b, project))
 
   return { items }
 }
