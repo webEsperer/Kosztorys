@@ -3,6 +3,7 @@
 import type { ConcretePourParams } from '../engine/concrete'
 import { defaultPourParams } from '../engine/concrete'
 import type { Grosze } from '../engine/money'
+import type { Stage } from '../engine/items'
 import type { FloorLayers, WallLayerParams } from '../engine/levels'
 import { DEFAULT_FLOOR_LAYERS, DEFAULT_WALL_LAYERS } from '../engine/levels'
 import type { DoorLeafMap, LintelSize, Opening } from '../engine/openings'
@@ -77,6 +78,10 @@ export interface ProjectInput {
   prices: Record<string, Grosze | null>
   /** Włączenie / wyłączenie pozycji wg id (nadpisuje domyślne). */
   enabled: Record<string, boolean>
+  /** Przeniesienie pozycji do innego etapu wg id. */
+  stageOverride: Record<string, Stage>
+  /** Rezerwa na nieprzewidziane wydatki: % od sumy etapów (domyślnie 10). */
+  reservePercent: number
 }
 
 export function newProject(name = 'Nowy projekt'): ProjectInput {
@@ -117,5 +122,7 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
     itemParams: {},
     prices: {},
     enabled: {},
+    stageOverride: {},
+    reservePercent: 10,
   }
 }
