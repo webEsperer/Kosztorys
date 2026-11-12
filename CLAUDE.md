@@ -1,0 +1,444 @@
+# CLAUDE.md — Kalkulator kosztów budowy domu jednorodzinnego
+
+## Cel projektu
+
+Aplikacja na telefon i komputer do liczenia **ilości materiałów** i **kosztów** budowy parterowego domu
+jednorodzinnego z dachem dwuspadowym na wiązarach.
+Użytkownik podaje wymiary wewnętrzne budynku w rzucie poziomym i kilka parametrów. Aplikacja wylicza materiały,
+robociznę/sprzęt i koszty w podziale na:
+
+1. **Stan surowy otwarty (SSO)**
+2. **Stan surowy zamknięty (SSZ)**
+3. **Stan deweloperski (SD)**
+4. **Koszty ogólne budowy** (kwoty wpisywane ręcznie: geodeta, kierownik budowy, przyłącza, narzędzia…)
+
+Użytkownik wpisuje cenę jednostkową (za szt., mb, m², m³, kg, t, rolkę, paczkę, worek, wiadro, puszkę, godzinę,
+dobę, kurs lub kwotę ryczałtową). Aplikacja pokazuje ilość, koszt każdej pozycji, sumę etapu i sumę całej budowy.
+
+**Najważniejsza zasada: każde obliczenie musi być przejrzyste.** Każda pozycja ma podgląd „Jak to policzono”:
+wzór, podstawione dane, kroki pośrednie, naddatek, zaokrąglenie, koszt.
+
+## Język i konwencje
+
+- Interfejs, nazwy materiałów, komunikaty i opisy obliczeń: **po polsku**.
+- Kod (zmienne, funkcje, typy): po angielsku; komentarze mogą być po polsku.
+- Wymiary w UI wprowadzane w **cm** (domyślnie) lub m; grubości materiałów w mm lub cm. W silniku zawsze metry.
+- Pieniądze: liczba całkowita **groszy**. Waluta PLN, format `12 345,67 zł`.
+- Liczby w UI w formacie polskim (przecinek dziesiętny, spacja tysięcy).
+- Ceny brutto; opcjonalne pole VAT (8% / 23%) do podglądu netto.
+- **Wartości domyślne niepewne** (zużycia z kart producentów) mają wartość `null` i pozycja jest oznaczona
+  „uzupełnij” — aplikacja nie liczy jej kosztu, dopóki użytkownik nie poda wartości. Nie wymyślaj zużyć.
+- Wartości domyślne pewne (masa stali, wymiary H+H itp.) są wpisane, ale zawsze edytowalne.
+
+## Stos technologiczny
+
+- **PWA**: React + TypeScript + Vite — jedna aplikacja w przeglądarce na komputerze i telefonie,
+  instalowalna na ekranie głównym, działająca offline.
+- Zapisy: IndexedDB (Dexie). Brak backendu.
+- Testy: Vitest (silnik), Testing Library (UI).
+- Eksport/import projektu: JSON. Eksport zestawień: CSV i PDF/druk. Eksport zestawienia otworów dla producenta stolarki.
+- Rysunki pomocnicze (plan cięcia płyt OSB i pasów papy, schemat poziomów): SVG generowane w aplikacji.
+- Układ: telefon — etapy jako zakładki, pozycje jako karty z rozwijanym trace;
+  komputer — tabela + panel boczny „Jak to policzono”.
+
+## Architektura
+
+```
+src/
+  engine/              # CZYSTA logika — zero importów z React/UI
+    geometry.ts        # obwody (wew./oś/zew.), pola, poziomy wysokościowe
+    levels.ts          # schemat wysokości: posadzka, chudziak, wieńce, liczba warstw bloczków
+    rebar.ts           # zbrojenie: pręty podłużne, strzemiona, zakłady, masa
+    cutting.ts         # cięcie pasów z arkuszy/rolek (OSB, papa) — plan cięcia
+    concrete.ts        # betonowania: objętość, kursy gruszki, pompa
+    openings.ts        # otwory, nadproża, lista drzwi, eksport dla producenta stolarki
+    roof.ts            # połać, pokrycie, łaty/kontrłaty, obróbki, podbitka
+    facade.ts          # EPS do linii okapu, szczyty z wełną i boazerią
+    ceiling.ts         # sufit podwieszany krzyżowy GK
+    stages/            # definicje pozycji domyślnych
+      sso.ts
+      ssz.ts
+      sd.ts
+      general.ts       # koszty ogólne (ryczałty)
+    trace.ts           # typy i helpery kroków obliczeń
+    money.ts           # grosze, zaokrąglenia
+  model/               # typy danych projektu
+  storage/             # IndexedDB, import/eksport
+  ui/
+tests/engine/          # testy z ręcznie policzonymi przykładami
+```
+
+Zasady:
+- `engine/` testowalny bez przeglądarki.
+- Każda funkcja licząca zwraca **wynik + trace**, nigdy samą liczbę.
+- Wszystkie współczynniki są parametrami (projektu lub pozycji), nie stałymi w kodzie.
+- Każda pozycja ma pole `stage`, a UI pozwala **przenieść pozycję do innego etapu**.
+
+## Dane wejściowe — kreator projektu
+
+### 1. Geometria (wymiary wewnętrzne w rzucie)
+- Tryb podstawowy: prostokąt `długość wew. × szerokość wew.` (np. 1200 × 900 cm).
+- Tryb rozszerzony: obrys prostokątny wielokątny (lista odcinków). Dach liczony tylko dla prostokąta —
+  przy wielokącie aplikacja prosi o ręczne wymiary dachu.
+- Kierunek kalenicy: równolegle do dłuższego boku (domyślnie) lub krótszego.
+- Ściany działowe: suma mb, wysokość.
+- Opcjonalnie lista pomieszczeń (nazwa, wymiary) — do podłóg, sufitów, tynków per pomieszczenie.
+
+### 2. Wysokości (poziom ±0 = gotowa posadzka)
+| Parametr | Domyślnie |
+|---|---|
+| Wysokość w świetle (posadzka → gotowy sufit) | 270 cm |
+| Góra wieńca ścian nośnych | +289 cm |
+| Warstwy podłogi na chudziaku: EPS 15 + wylewka 6,5 + wykończenie 1,5 | 23 cm |
+| Góra chudziaka = góra wieńca fundamentowego | −23 cm |
+| Grubość chudziaka | 10 cm |
+| Kąt nachylenia dachu | podaje użytkownik |
+| Okap boczny (poziomo od lica gotowego EPS) | podaje użytkownik |
+| Okap szczytowy (poziomo od lica gotowego EPS) | podaje użytkownik |
+
+Aplikacja rysuje **schemat poziomów** (przekrój) z wyliczonymi rzędnymi i pokazuje wyliczoną wysokość budynku
+(kalenica), aby użytkownik mógł zweryfikować dane.
+
+### 3. Grubości ścian i izolacji
+- Ściana nośna: H+H Gold 24 cm. Ściana fundamentowa: grubość wg wymiaru bloczka (podaje użytkownik).
+- XPS fundament 10 cm, EPS elewacja 20 cm.
+
+### 4. Otwory
+Lista typów otworów: `typ (okno / drzwi zewnętrzne / brama / drzwi wewnętrzne), szerokość, wysokość, liczba,
+ściana (zewnętrzna / szczyt / działowa), oznaczenie (O1, D1…)`.
+
+## Wzory geometryczne (geometry.ts)
+
+Dla obrysu prostokątnego wielokątnego (liczba narożników wypukłych − wklęsłych = 4):
+`P(d) = P_wew + 8·d`, gdzie `d` = odsunięcie od lica wewnętrznego na zewnątrz.
+- obwód w osi ściany grubości `t`: `P_oś = P_wew + 4·t`
+- obwód lica zewnętrznego ściany: `P_zew = P_wew + 8·t`
+- obwód lica zewnętrznego EPS grubości `e`: `P_wew + 8·(t + e)`
+- lica ławy szerokości `b` (oś ławy = oś ściany): `P_oś ± 4·b`
+- do powierzchni izolacji liczonej „na płasko” używaj obwodu w połowie grubości warstwy.
+
+Pole wewnętrzne `A_wew` = suma pól (prostokąt: dł × szer). Wymiary zewnętrzne (prostokąt):
+`L_z = L_wew + 2t + 2e`, `B_z = B_wew + 2t + 2e`.
+
+## Model pozycji
+
+```ts
+type Unit = 'szt' | 'mb' | 'm2' | 'm3' | 'kg' | 't' | 'l' | 'h' | 'doba' | 'kurs' | 'kpl' | 'ryczałt';
+type PackUnit = 'rolka' | 'paczka' | 'worek' | 'wiadro' | 'puszka' | 'płyta' | 'pręt' | 'bęben' | 'szt';
+
+interface Item {
+  id: string;
+  stage: 'SSO' | 'SSZ' | 'SD' | 'OGOLNE';
+  category: string;                 // np. "Fundamenty", "Zbrojenie ław", "Dach – pokrycie"
+  kind: 'material' | 'service' | 'equipment' | 'lumpSum';
+  name: string;
+  unit: Unit;                       // jednostka ilości wyliczonej
+  quantity: Computed;               // wynik + trace
+  packaging?: { packUnit: PackUnit; perPack: number | null; packLabel: string }; // np. 1 paczka = 3 m²
+  wastePercent: number;
+  priceBasis: 'perUnit' | 'perPack' | 'lumpSum';
+  unitPriceGrosze: number | null;
+  params: Record<string, Param>;    // edytowalne współczynniki tej pozycji
+  isCustom: boolean;
+  enabled: boolean;
+  note?: string;
+}
+```
+
+Ilość do zakupu = `ceil(ilość × (1 + odpad) / perPack)` opakowań; koszt = opakowania × cena (lub ilość × cena).
+
+## Śledzenie obliczeń (trace) — wymóg kluczowy
+
+Krok: `{ label, formula, values, result, unit }`. Kroki odwołujące się do wielkości pochodnych (obwód, poziomy,
+liczba warstw) są klikalne. Przykład:
+
+```
+Bloczki H+H Gold 24 — ściany nośne
+1. Obwód w osi = 4200 cm + 4 × 24 cm = 4296 cm = 42,96 m
+2. Wysokość murowana = 2,64 m (11 warstw × 0,24 m — patrz „Poziomy”)
+3. Pow. brutto = 42,96 × 2,64 = 113,41 m²
+4. Otwory + nadproża = 21,30 m²
+5. Pow. netto = 92,11 m²
+6. Ilość = 92,11 × 7,06 szt/m² = 650,3 szt; odpad +3% → 669,8 → 670 szt
+7. Koszt = 670 × 31,00 zł = 20 770,00 zł
+```
+
+## Betonowania (wspólny moduł concrete.ts)
+
+Każde betonowanie (ławy, wieniec fundamentowy, chudziak, wieniec ścian) ma osobno:
+- objętość m³ (+ naddatek domyślnie 3%), klasa betonu (opis), cena betonu za m³,
+- transport: za m³ **albo** za kurs (`kursy = ceil(V / pojemność gruszki)`, domyślnie 8 m³),
+- pompa: przełącznik „potrzebna pompa” + cena (ryczałt za podjazd + opcjonalnie za m³ lub za godzinę).
+Chudziak: beton z włóknami zbrojącymi (cena m³ z włóknami od dostawcy; opcjonalnie włókna osobno kg/m³).
+
+## Zbrojenie (rebar.ts) — domyślne „standardowe”, do zastąpienia projektem
+
+**Uwaga w UI: zbrojenie przyjęte orientacyjnie, ostateczne wg projektu konstruktora.**
+
+| Element | Pręty podłużne | Strzemiona | Otulina |
+|---|---|---|---|
+| Ławy fundamentowe | 4 × Ø12 | Ø6 co 30 cm | 5 cm |
+| Wieniec fundamentowy | 4 × Ø12 | Ø6 co 25 cm | 3 cm |
+| Wieniec ścian nośnych | 4 × Ø12 | Ø6 co 25 cm | 3 cm |
+
+- Długość linii = obwód w osi elementu. Pręty handlowe 12 m (parametr). Zakład 60 cm (50Ø) — parametr.
+  Liczba odcinków na linię = `ceil(L / (12 − zakład))`.
+- Naroża: dodatkowe pręty narożne „L” — domyślnie 4 szt × 1,2 m na naroże (parametr).
+- Strzemię: `2·(b − 2c) + 2·(h − 2c) + 2 × 8 cm` (haki); liczba = `ceil(L / rozstaw) + 1`.
+- Masa: Ø6 = 0,222 kg/m, Ø8 = 0,395, Ø10 = 0,617, Ø12 = 0,888 kg/m.
+- Wynik osobno dla każdego elementu: liczba prętów 12 m Ø12, mb i liczba strzemion Ø6 (sztuk i mb), masa kg;
+  cena za kg, za tonę lub za pręt (wybór). Drut wiązałkowy: % masy stali (parametr, `null` = uzupełnij).
+
+## Cięcie pasów z arkuszy i rolek (cutting.ts)
+
+Jedna funkcja dla OSB, papy itp.: dane `arkusz/rolka (szer × dł)`, `szerokość pasa`, lista odcinków ścian.
+- Wariant A: pasy wzdłuż dłuższego boku (`floor(szer / pas)` pasów na arkusz).
+- Wariant B: pasy wzdłuż krótszego boku (`floor(dł / pas)` pasów).
+- Odcinki ścian pokrywane pasami; reszty wykorzystywane na kolejne odcinki (first-fit decreasing).
+- Wybór wariantu z mniejszą liczbą arkuszy; wynik: liczba arkuszy, odpad m² i %, **rysunek SVG planu cięcia**
+  („tnij płytę 250×125 na 3 pasy po 35 cm wzdłuż, reszta 20 cm – odpad”).
+
+## Poziomy i warstwy (levels.ts)
+
+**Fundament:** `h_ściany_fund = n_warstw × (h_bloczka + spoina) + h_wieńca_fund (25 cm)`.
+Góra ławy = −23 cm − h_ściany_fund. Dno wykopu = góra ławy − 12 cm (górne 12 cm ławy w szalunku z desek).
+
+**Ściany nośne H+H:** wysokość od góry wieńca fund. (−23) do góry wieńca ścian (+289) = 312 cm.
+- `H = 312 − warstwa wyrównawcza pierwszej warstwy (parametr, domyślnie 0)`
+- `n = floor((H − wieniec_min) / h_warstwy)`, gdzie `h_warstwy` = 24 cm (+ spoina), `wieniec_min` = 24 cm
+- reszta `r = H − n·h_warstwy − wieniec_min`
+- jeśli `r ≤ maks. dołożenie do wieńca` (parametr, domyślnie 10 cm) → wieniec = `wieniec_min + r`
+- w przeciwnym razie → dodatkowa warstwa docinana o wysokości `r`, wieniec = `wieniec_min`
+- trace pokazuje: liczbę warstw, wysokość docinki, końcową wysokość wieńca.
+
+---
+
+# Pozycje domyślne
+
+Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkownik podaje ilość lub kwotę.
+
+## SSO — Stan surowy otwarty
+
+### Roboty ziemne i sprzęt
+- Praca koparki — wykop [ręcznie: godziny] × cena/h
+- Praca koparki — zasypanie [ręcznie: godziny] × cena/h
+- Wynajem zagęszczarki [ręcznie: doby] × cena/doba
+- Opcjonalnie: wywóz nadmiaru ziemi [ręcznie]
+
+### Ławy fundamentowe
+- Parametry: szerokość `b`, wysokość `h` ławy; opcjonalnie ławy pod ścianami wewnętrznymi (mb).
+- Beton ław [licz]: `P_oś × b × h` → moduł betonowania.
+- Deski szalunkowe [licz]: górne 12 cm ławy po obu stronach; długość = `(P_oś + 4b) + (P_oś − 4b)`;
+  parametry deski: szerokość (≥12 cm), grubość 25 mm, długość handlowa (np. 4 m); wynik w szt., mb i m³;
+  paliki/kołki co 1 m [licz].
+- Zbrojenie ław [licz] — patrz moduł zbrojenia.
+
+### Ściany fundamentowe
+- Parametry bloczka: długość, szerokość, wysokość, grubość spoiny; liczba warstw.
+- Bloczki [licz]: `n_warstw × ceil(P_oś / (dł_bloczka + spoina))` + odpad.
+- Zaprawa murarska [licz]: worki — zużycie na m² lub m³ muru `null` (uzupełnij).
+- Papa na ławie pod bloczki [licz]: pas o szerokości (parametr) × `P_oś`; rolka podana jako
+  m² lub szer × dł → moduł cięcia pasów → liczba rolek.
+- Hydroizolacja (dysperbit/masa) [licz]: strona wewnętrzna i zewnętrzna ściany fundamentowej (bloczki + wieniec);
+  `pow = (P_oś − 2t + P_oś + 2t) × h_ściany_fund` (oznaczenie: lica wg wzoru `P(d)`), liczba warstw, zużycie kg/m²
+  na warstwę, wielkość wiadra → liczba wiader.
+- XPS 10 cm na zewnątrz [licz]: od góry ławy do 3 cm poniżej góry wieńca fundamentowego;
+  `pow = obwód w połowie XPS × wysokość`; płyta (wymiary brytu) i liczba płyt w paczce → m²/paczkę → liczba paczek.
+- Pianoklej do XPS [licz]: m² na puszkę (parametr) → liczba puszek.
+- Opcjonalnie (wyłączone): folia kubełkowa na XPS.
+
+### Wieniec fundamentowy (domyślnie 25 cm)
+- Beton [licz]: `P_oś × t × 0,25` → moduł betonowania.
+- Zbrojenie wieńca fundamentowego [licz].
+- Szalunek z OSB [licz]: obie strony; pas = wysokość wieńca + zakład na bloczki (parametr, domyślnie 10 cm);
+  płyta np. 250 × 125 cm → moduł cięcia → liczba płyt, plan cięcia, koszt.
+
+### Zasypka wewnątrz fundamentów
+- Piasek [licz]: od dna wykopu (12 cm poniżej góry ławy) do spodu chudziaka;
+  `wys = 0,12 + n_warstw·h_bloczka + h_wieńca − 0,10`;
+  `pow = A_wew` (wnętrze ścian fundamentowych, minus ławy wewnętrzne jeśli są);
+  `V_luźny = pow × wys × współczynnik zagęszczenia` (parametr, domyślnie 1,2 — do weryfikacji z dostawcą);
+  cena za m³ lub tonę z transportem (przelicznik t/m³ parametr).
+
+### Chudziak (10 cm, beton z włóknami)
+- Beton [licz]: `A_wew × 0,10` → moduł betonowania.
+
+### Kanalizacja i przejścia
+- Kanalizacja podposadzkowa [ręcznie: kwota za całość].
+- Rury osłonowe przejść przez fundament (woda, prąd) [ręcznie].
+- Uziom fundamentowy: bednarka ocynkowana mb ≈ `P_oś` + wyprowadzenia [licz], złącza krzyżowe [ręcznie].
+
+## SSZ — Stan surowy zamknięty
+
+### Ściany nośne
+- Papa pod ściany nośne [licz]: pas szer. 40 cm (parametr) × `P_oś` → moduł cięcia z rolki → liczba rolek.
+- Warstwa wyrównawcza pierwszej warstwy: zaprawa cementowa [licz] — zużycie `null` (uzupełnij).
+- Bloczki **H+H Gold 590 × 240 × 240 mm, 7,06 szt/m²** [licz]: `P_oś × (n·0,24 + docinka) − otwory − nadproża`.
+- Klej do cienkich spoin [licz] — zużycie `null` (uzupełnij z karty kleju).
+
+### Wieniec ścian nośnych
+- Wysokość wg levels.ts (dopasowana do warstw).
+- Beton [licz]: `P_oś × 0,24 × h_wieńca` → moduł betonowania.
+- Zbrojenie [licz].
+- Szalunek [licz]: OSB tą samą metodą cięcia; opcja „użyj płyt z wieńca fundamentowego” (zmniejsza zakup).
+
+### Otwory zewnętrzne i nadproża
+- Okna, drzwi zewnętrzne, brama: lista z wymiarami → pole do odjęcia od muru.
+- **Nadproża systemowe H+H** [licz]: dla otworu wybierz najkrótsze nadproże, którego „maks. otwór” ≥ szerokość.
+  Tabela domyślna (z cennika H+H, szer. 115 mm — sprawdź u dostawcy):
+
+  | Długość | Maks. otwór |
+  |---|---|
+  | 1,25 m | 1,01 m |
+  | 1,50 m | 1,25 m |
+  | 2,00 m | 1,75 m |
+  | 2,50 m | 2,25 m |
+  | 3,00 m | 2,75 m |
+
+  Ściana 24 cm → 2 szt na otwór (parametr). Wynik: liczba szt. każdej długości i koszt.
+- Stolarka okienna i drzwi zewnętrzne [ręcznie: kwota z wyceny producenta].
+- **Eksport zestawienia otworów dla producenta** (CSV + PDF): lp., oznaczenie, szerokość × wysokość otworu,
+  ilość, pomieszczenie, typ otwierania, kolor, uwagi (pola do uzupełnienia), data, nazwa projektu.
+- Parapety zewnętrzne [licz: mb = szerokości okien + 2 × 3 cm].
+
+### Ściany działowe
+- Dane: mb ścian, wysokość (domyślnie od chudziaka do stropu: 293 cm — parametr), otwory drzwiowe.
+- Bloczki **H+H Gold 590 × 120 × 240 mm, 7,06 szt/m²** [licz] (netto po odjęciu otworów i nadproży).
+- Klej [licz] — zużycie `null`.
+- Nadproża [licz]: ten sam algorytm, szerokość 120 mm, 1 szt na otwór (parametr, sprawdź tabelę dostawcy).
+- **Lista drzwi wewnętrznych** [licz]: mapowanie otwór → skrzydło (parametr): otwór 70 → drzwi 60, 80 → 70,
+  90 → 80, 100 → 90 (wysokość otworu domyślnie 207 cm). Wynik: „Drzwi 80 – 4 szt.” + ościeżnice; cena za typ.
+
+### Dach — konstrukcja
+- Wiązary z montażem [ręcznie: kwota od firmy].
+- Liczba wiązarów: podana lub z rozstawu (`ceil(L_z / rozstaw) + 1`, rozstaw domyślnie 90 cm).
+- Kominy: liczba × cena kompletu [ręcznie].
+
+### Dach — pokrycie (roof.ts)
+- Połać: `s = (B_z/2 + okap_boczny) / cos α`, `R = L_z + 2 × okap_szczytowy`, `A_dachu = 2 × s × R`.
+- Membrana dachowa [licz]: `A × (1 + zakłady 10%)` / m² w rolce.
+- Kontrłaty [licz]: `2 × N_wiązarów × s` mb; przekrój domyślnie 3,2 × 5 cm → m³.
+- Łaty [licz]: rzędy = `ceil(s / rozstaw_łat) + 1` na połać, `mb = 2 × rzędy × R`; rozstaw z karty dachówki
+  (`null` = uzupełnij); przekrój domyślnie 4 × 6 cm → m³.
+- Dachówka [licz]: `A × szt/m²` (zużycie `null` = uzupełnij).
+- Gąsiory [licz]: `R × szt/mb` + gąsior początkowy i końcowy.
+- Dachówki krawędziowe lub wiatrownice blaszane [licz]: `4 × s` mb.
+- Pas nadrynnowy, pas podrynnowy [licz]: `2 × R` mb każdy.
+- Grzebień okapowy (wróblownica) [licz]: `2 × R` mb.
+- Taśma kalenicowa, uchwyty łaty kalenicowej [licz]: `R` mb.
+- Deski czołowe [licz]: `2 × R` mb (+ deski wiatrowe na szczytach `4 × s` — opcja).
+- Struktonit (płytki włóknocementowe Cedral, domyślnie 30 × 30 cm, gr. 4 mm, sprzedawane na sztuki)
+  na deski czołowe [licz]:
+  - parametry: wymiar płytki, wysokość deski czołowej, szerokość krycia w poziomie (płytka − zakład boczny),
+    wysokość krycia rzędu (płytka − zakład górny), zakłady `null` = uzupełnij lub 0 dla układu na styk;
+  - `rzędy = ceil(wys_deski / wys_krycia)`, `szt_na_mb = rzędy / szer_krycia`;
+  - `szt = mb_desek × szt_na_mb × (1 + odpad 10%)` → sztuki; mb desek = `2 × R`
+    (+ opcja: deski wiatrowe na szczytach `4 × s`);
+  - gwoździe/wkręty nierdzewne [licz]: szt na płytkę (parametr, domyślnie 2);
+  - trace pokazuje rzędy, sztuki na mb i całość.
+- Rynny `2 × R` mb, haki co 60 cm, rury spustowe (liczba × wysokość), narożniki/lejki/zaślepki [licz/ręcznie].
+- Obróbki blacharskie [ręcznie: liczba × cena za obróbkę], w tym obróbki kominów.
+- Opcjonalnie: wkręty/klamry do dachówek, ławy kominiarskie, okna dachowe.
+
+### Sufit podwieszany krzyżowy GK + ocieplenie (ceiling.ts)
+- Pow. sufitu = `A_wew` (lub suma pomieszczeń).
+- Profile CD60 główne [licz]: mb = `A / rozstaw_główne` (domyślnie 1,0 m) → szt. (dł. profilu 3 m lub 4 m).
+- Profile CD60 nośne [licz]: mb = `A / rozstaw_nośne` (domyślnie 0,5 m).
+- Profile UD30 [licz]: obwody pomieszczeń.
+- Wieszaki (noniusz/ES) [licz]: `A / (rozstaw_główne × 0,9)`.
+- Łączniki krzyżowe [licz]: `A / (rozstaw_główne × rozstaw_nośne)`; łączniki wzdłużne [licz].
+- Płyty GK 120 × 260 cm = 3,12 m² [licz]: `A × (1 + 10%) / 3,12`.
+- Wkręty do GK, kołki do UD30, taśma, masa szpachlowa — zużycia `null` (uzupełnij).
+- Wełna mineralna na sufit [licz]: m², grubość/warstwy (parametr), m² w paczce.
+- Paroizolacja [licz]: `A × 1,1` m² + taśma mb.
+
+### Elewacja (facade.ts)
+- EPS 20 cm [licz]: od góry XPS (−26 cm) do linii podbitki (parametr: wysokość nad górą wieńca, domyślnie 0);
+  `pow = obwód w połowie EPS × wysokość − otwory`; paczki z m²/paczkę.
+- Klej do EPS, klej do siatki, siatka (`× 1,1`), kołki (dł. pod 20 cm), grunt, tynk cienkowarstwowy
+  — zużycia `null` (uzupełnij); listwa startowa [licz: obwód], narożniki z siatką [licz: naroża budynku + ościeża],
+  listwy APU [licz: obwody okien], ościeża — XPS/EPS cienki [licz: obwody otworów × głębokość].
+- Szczyty (2 szt.) nad linią okapu: `pow_szczytu = B_z² / 4 × tan α` każdy (minus okna w szczytach):
+  - wsporniki elewacyjne [licz: siatka rozstawów, parametr] + łączniki mocujące [licz],
+  - wełna skalna fasadowa [licz] + łączniki talerzykowe [licz],
+  - membrana wiatroizolacyjna fasadowa (odporna na UV) [licz: `× 1,1`] + taśma,
+  - łaty pionowe nośne na wspornikach + łaty poziome pod pionową boazerię [licz: mb z rozstawów],
+  - boazeria (deska elewacyjna pionowa) [licz: `pow × (1 + 10%)`],
+  - wkręty nierdzewne do desek [licz], siatka przeciw owadom góra/dół [licz: mb],
+  - okapnik/listwa przejścia EPS–drewno [licz: `2 × B_z`], impregnat/olej [licz: zużycie `null`].
+- Podbitka [licz]: okapy boczne `2 × R × okap_boczny` + szczytowe `4 × s × okap_szczytowy − narożniki`;
+  materiał podbitki m² + ruszt mb + kratki wentylacyjne.
+
+### Podłoga na gruncie i instalacje
+- Folia PE pod styropian [licz]: `A_wew × 1,15` + wywinięcie na ściany.
+- EPS podłogowy 3 × 5 cm [licz]: `3 × A_wew` m² → paczki.
+- Mata/folia systemowa do podłogówki [licz]: `A_wew × 1,05` → rolki.
+- Taśma dylatacyjna przyścienna [licz]: obwody pomieszczeń.
+- Rura PEX 16 [ręcznie, domyślnie 800 m] → zwoje (np. 200 m); kontrolnie aplikacja pokazuje szacunek
+  `A_wew × 6,7 mb/m²` (rozstaw 15 cm).
+- Spinki do rur [licz]: mb PEX × szt/mb (parametr).
+- Rozdzielacz podłogówki 11 obwodów + szafka + złączki (2 na obwód) [licz/ręcznie].
+- Rozdzielacz wody użytkowej [ręcznie] + rury i kształtki wod-kan [ręcznie].
+- Przewód YDYp 3 × 2,5 — 600 m, YDYp 3 × 1,5 — 400 m [domyślne ilości, edytowalne] → bębny 100 m.
+- Puszki, peszle, rozdzielnica elektryczna z zabezpieczeniami [ręcznie].
+- Wentylacja/rekuperacja [ręcznie, opcjonalnie].
+
+## SD — Stan deweloperski
+
+- Wylewka cementowa [licz: m² = `A_wew`; usługa: cena za m²]; informacyjnie objętość przy 6,5 cm.
+- Tynki wewnętrzne [licz: m²; usługa: cena za m²]:
+  ściany zewnętrzne od środka `P_wew × 2,70` − otwory + ściany działowe obustronnie `2 × mb × 2,70` − otwory × 2
+  (+ opcjonalnie ościeża).
+- Szpachlowanie/gładź sufitu GK [licz: m² = pow. sufitu].
+- Parapety wewnętrzne [licz: mb].
+- Drzwi wewnętrzne z ościeżnicami [z listy drzwi; cena za typ] — opcjonalnie tutaj zamiast SSZ.
+
+## Koszty ogólne budowy (kwoty ręczne)
+
+- Kotłownia: kocioł/piec na pellet lub pompa ciepła, bufor, zasobnik/boiler CWU, zbiornik wyrównawczy,
+  falownik, osprzęt, montaż.
+- Geodeta: mapa do celów projektowych, wytyczenie budynku i osi, inwentaryzacja powykonawcza.
+- Projekt domu i adaptacja, badania geotechniczne gruntu, pozwolenie/zgłoszenie, dziennik budowy.
+- Kierownik budowy.
+- Przyłącze prądu (+ prąd budowlany i zużycie), przyłącze wody lub studnia głębinowa, kanalizacja zewnętrzna
+  (szambo/oczyszczalnia/przyłącze).
+- Ogrodzenie, brama wjazdowa, utwardzenie dojazdu.
+- Opaska wokół domu, odprowadzenie wody z rynien (studnia chłonna), taras, schody zewnętrzne.
+- Instalacja odgromowa, fotowoltaika (opcjonalnie).
+- Odbiory i pomiary: kominiarski, pomiary elektryczne, odbiór budynku.
+- Narzędzia: wkrętarka, szlifierka, poziomice, rusztowanie itp.; wypożyczenia sprzętu (cena za dobę × doby).
+- Drobne materiały: wkręty do drewna, wkręty/łączniki do betonu komórkowego, kotwy, pianka, silikony, folie.
+- Zaplecze budowy: toaleta przenośna, kontener na odpady, woda budowlana.
+- Ubezpieczenie budowy.
+- **Rezerwa na nieprzewidziane wydatki**: % od sumy wszystkich etapów (domyślnie 10%).
+
+## Funkcje aplikacji
+
+1. Kreator projektu: geometria → wysokości → grubości → otwory → kontrola schematu poziomów.
+2. Zakładki etapów z tabelą: nazwa, ilość, jednostka, opakowania, cena, wartość, „szczegóły”.
+3. **Dodawanie własnej pozycji** w każdym etapie: nazwa, kategoria, jednostka, wymiary (dł./szer./wys.)
+   lub ilość ręczna, liczba sztuk, opakowanie, cena — ilość z wymiarów zależnie od jednostki
+   (mb → dł., m² → dł. × szer., m³ → dł. × szer. × wys.), z trace jak dla pozycji domyślnych.
+4. Edycja/wyłączanie/usuwanie pozycji, edycja współczynników, przenoszenie między etapami.
+5. Lista „do uzupełnienia”: wszystkie pozycje bez ceny lub ze zużyciem `null`.
+6. Podsumowanie każdego etapu (suma, podział na kategorie: materiały / usługi / sprzęt)
+   i całości (suma etapów, udział %, koszt na m² powierzchni użytkowej, rezerwa).
+7. Plan cięcia OSB i papy (SVG), schemat poziomów (SVG).
+8. Wiele projektów, duplikowanie (warianty), import/eksport JSON, eksport CSV/PDF, zestawienie otworów dla producenta.
+
+## Testy
+
+- Przykład referencyjny do testów: dom prostokątny 12,00 × 9,00 m wewnątrz, ściana 24 cm, EPS 20 cm,
+  kąt dachu 35°, okapy 60 cm. Każdy wzór ma test z wynikiem policzonym ręcznie.
+- Testy levels.ts: przypadki z resztą 0, 3 cm (dokładana do wieńca) i większą niż limit (warstwa docinana).
+- Testy cutting.ts: oba warianty cięcia, wykorzystanie resztek.
+- Testy rebar.ts: liczba prętów z zakładami, strzemiona, masy.
+- Testy groszowe i zaokrągleń do opakowań; trace zgodny z wynikiem.
+- Przed zakończeniem zadania: `npm test` i `npm run build`.
+
+## Sposób pracy z Claude Code
+
+- Kolejność: geometry/levels → concrete/rebar/cutting → pozycje SSO → SSZ → SD → ogólne → UI → eksporty.
+- Nie zmieniaj wzorów ani domyślnych wartości bez wyjaśnienia, skąd pochodzi zmiana.
+- Gdy wzór budowlany jest niejednoznaczny — zapytaj użytkownika, a przyjęte założenie opisz w trace.
+- Małe, działające kroki; po każdym: co zrobione, jak sprawdzić.
