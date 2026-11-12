@@ -46,7 +46,7 @@ function wallBlocksItem(
       : 'podaj wymiary bloczka'
   const params = {
     perM2: b.P(id, 'perM2', 'Bloczków na m² (z wymiarów bloczka)', blocksPerM2(block), 'szt/m²', dims),
-    lintelHeight: b.P(id, 'lintelHeight', 'Wysokość nadproża systemowego', null, 'm', 'z karty nadproża (do odjęcia od muru)'),
+    lintelHeight: b.P(id, 'lintelHeight', 'Wysokość nadproża systemowego', 0.24, 'm', 'wg użytkownika 24 cm (sprawdź z kartą nadproża) — do odjęcia od muru'),
   }
   const missing = [...grossMissing]
   if (params.perM2.value === null) {

@@ -48,8 +48,9 @@ describe('SSZ — ściany nośne', () => {
   const p = example()
   const { items } = buildSSZ(p)
 
-  it('bloczki H+H: wysokość nadproża null → uzupełnij', () => {
-    expect(byId(items, 'ssz-hh-bloczki').missing).toContain('Wysokość nadproża systemowego')
+  it('bloczki H+H: wysokość nadproża domyślnie 24 cm (wg użytkownika), bez braków', () => {
+    expect(byId(items, 'ssz-hh-bloczki').params.lintelHeight.value).toBe(0.24)
+    expect(byId(items, 'ssz-hh-bloczki').missing).toEqual([])
   })
 
   it('poziomy: góra wieńca 2,70 + 0,012 + 0,06 + 0,15 = 2,922; 12 warstw; reszta 2,2 cm ≤ 4 cm → wieniec 27,2 cm', () => {

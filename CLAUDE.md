@@ -374,6 +374,7 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
   | 3,00 m | 2,75 m |
 
   Ściana 24 cm → 2 szt na otwór (parametr). Wynik: liczba szt. każdej długości i koszt.
+  **Wysokość nadproża 24 cm** (wg użytkownika; parametr) — pole nadproży odejmowane od muru nośnego i działowego.
 - Stolarka okienna i drzwi zewnętrzne [ręcznie: kwota z wyceny producenta].
 - **Eksport zestawienia otworów dla producenta** (CSV + PDF): lp., oznaczenie, szerokość × wysokość otworu,
   ilość, pomieszczenie, typ otwierania, kolor, uwagi (pola do uzupełnienia), data, nazwa projektu.
