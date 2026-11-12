@@ -193,26 +193,44 @@ Każde betonowanie (ławy, wieniec fundamentowy, chudziak, wieniec ścian) ma os
 - pompa: przełącznik „potrzebna pompa” + cena (ryczałt za podjazd + opcjonalnie za m³ lub za godzinę).
 Chudziak: beton z włóknami zbrojącymi (cena m³ z włóknami od dostawcy; opcjonalnie włókna osobno kg/m³).
 
-## Zbrojenie (rebar.ts) — domyślne „standardowe”, do zastąpienia projektem
+## Zbrojenie (rebar.ts) — reguły użytkownika (sztywne), zbrojenie do zastąpienia projektem
 
 **Uwaga w UI: zbrojenie przyjęte orientacyjnie, ostateczne wg projektu konstruktora.**
 
-| Element | Pręty podłużne | Strzemiona | Otulina |
+| Element | Pręty główne | Strzemiona (odcinki proste / naroża) | Otulina |
 |---|---|---|---|
-| Ławy fundamentowe | 4 × Ø12 | Ø6 co 30 cm | 5 cm |
-| Wieniec fundamentowy | 4 × Ø12 | Ø6 co 25 cm | 3 cm |
-| Wieniec ścian nośnych | 4 × Ø12 | Ø6 co 25 cm | 3 cm |
+| Ławy fundamentowe (na chudziaku) | 4 × Ø12 | Ø6 co 25 cm / co 10 cm | 5 cm |
+| Wieniec fundamentowy | 4 × Ø12 | Ø6 co 25 cm / co 10 cm | 3 cm |
+| Wieniec ścian nośnych | 4 × Ø12 | Ø6 co 25 cm / co 10 cm | 3 cm |
 
-- Długość linii = obwód w osi elementu. Pręty handlowe **6 m dla wszystkich średnic** (parametr; tak sprzedaje
-  skład — decyzja użytkownika). Zakład 60 cm (50Ø) — parametr.
-  Liczba odcinków na linię = `ceil(L / (6 − zakład))`.
-- Naroża: dodatkowe pręty narożne „L” — domyślnie 4 szt × 1,2 m na naroże (parametr).
-- Strzemię: `2·(b − 2c) + 2·(h − 2c) + 2 × 8 cm` (haki); liczba = `ceil(L / rozstaw) + 1`.
-- Masa: Ø6 = 0,222 kg/m, Ø8 = 0,395, Ø10 = 0,617, Ø12 = 0,888 kg/m.
-- Wynik osobno dla każdego elementu: liczba prętów 6 m Ø12, mb i liczba strzemion Ø6 (sztuk i mb), masa kg;
-  dla każdej średnicy **metry wbudowane** (z zakładami) i **metry do kupienia** (pręty × 6 m);
-  zestawienie zbiorcze całej budowy: ile metrów Ø6 i ile Ø12;
-  cena za kg, za tonę lub za pręt (wybór). Drut wiązałkowy: % masy stali (parametr, `null` = uzupełnij).
+Liczymy **po bokach** obrysu (odcinki proste w osi elementu, od naroża do naroża); liczba naroży = liczba boków.
+Pręty handlowe **6 m dla wszystkich średnic** (parametr; tak sprzedaje skład — decyzja użytkownika,
+nadrzędna wobec „12 m” z wytycznych zbrojenia).
+
+**Pręty główne (Ø12):**
+- Zakład wzdłużny = 50d (Ø12 → 60 cm), liczony raz (część wspólna, nie ×2). Na każdym boku:
+  `n_zakł = ceil(L_boku / 6) − 1` („dolicz 60 cm przy przekroczeniu każdych 6 m”).
+- Zakotwienie w narożu: **każdy pręt dochodzący do naroża ma +50d (60 cm)** zagięcia — 2 końce na bok.
+- Jedna linia na boku: `l = L_boku + n_zakł × 0,6 + 2 × 0,6`; razem `Σ l × 4 pręty`.
+- **Dodatkowo eLki** w każdym narożu (i skrzyżowaniu T): ramiona 50d + 50d = 120 cm, po jednej na każdy pręt
+  główny → 4 szt × 1,2 m = 4,8 mb na róg. (Decyzja użytkownika: eLki **i** zakotwienie 60 cm na pręcie.)
+
+**Strzemiona (Ø6):**
+- Wymiar = przekrój − otulina z każdej strony; długość drutu = `2·(b − 2c) + 2·(h − 2c) + 14 cm` (haki/zamki).
+- Rozstaw na odcinkach prostych 25 cm (parametr); **w strefie 1 m od każdego rogu (w każdą stronę) co 10 cm**.
+- Na boku: `2 × ceil(1,0 / 0,10)` w strefach + `ceil((L − 2) / 0,25) − 1` w środku (równo rozłożone);
+  bok krótszy niż 2 m — cały co 10 cm: `ceil(L / 0,10) − 1`; plus **1 strzemię w każdym narożu**.
+
+**Zakup:** suma mb danej średnicy → `ceil(mb / 6)` prętów handlowych (osobno dla elementu i dla całej budowy
+z sumy mb); masa = pręty × 6 m × kg/m. Masa: Ø6 = 0,222 kg/m, Ø8 = 0,395, Ø10 = 0,617, Ø12 = 0,888 kg/m.
+- Wynik osobno dla każdego elementu i zbiorczo: dla każdej średnicy **mb wbudowane** i **pręty / mb do kupienia**,
+  masa; cena za kg, za tonę lub za pręt (wybór). Drut wiązałkowy: % masy stali (parametr, `null` = uzupełnij).
+- Przykład 12 × 9 m (boki w osi 12,24 / 9,24), ława 60 × 40: Ø12 = 4 × 51,36 + 19,2 = 224,64 m → 38 prętów;
+  strzemiona 220 szt × 1,74 m = 382,8 m → 64 pręty Ø6.
+
+**Wizualizacja (ui/foundation-view/):** przekrój pionowy fundamentu (wycinek 3D, R3F) i rzut rozłożenia zbrojenia
+(kawałki prętów, zakłady, zakotwienia, eLki, strzemiona) — dane z `engine/rebarLayout.ts` i
+`engine/foundationSection.ts`; etykiety jako nakładka DOM (nie drei `<Html>` — problemy z React 19).
 
 ## Cięcie pasów z arkuszy i rolek (cutting.ts)
 

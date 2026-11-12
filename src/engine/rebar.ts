@@ -1,9 +1,21 @@
-// Zbrojenie elementów liniowych (ławy, wieniec fundamentowy, wieniec ścian).
+// Zbrojenie elementów liniowych (ławy, wieniec fundamentowy, wieniec ścian) — wg wytycznych użytkownika:
+//
+// Pręty główne (Ø12):
+//  • zakład wzdłużny 50d (Ø12 → 60 cm): na każdym boku (odcinku prostym) doliczany przy przekroczeniu
+//    każdych l_pręta metrów: n_zakł = ⌈L_boku / l_pręta⌉ − 1 (część wspólna liczona raz, nie ×2);
+//  • zakotwienie w narożu: każdy pręt dochodzący do naroża ma +50d (60 cm) zagięcia — 2 końce na bok;
+//  • dodatkowo eLki w każdym narożu: ramiona 50d + 50d (120 cm), po jednej na każdy pręt główny (4 szt/róg).
+// Strzemiona (Ø6):
+//  • wymiar = przekrój − otulina z każdej strony (ława 5 cm, wieniec 3 cm);
+//  • długość = obwód zredukowanego prostokąta + 14 cm na haki (zamki);
+//  • rozstaw na odcinkach prostych 25 cm, w strefie 1 m od każdego rogu (w każdą stronę) co 10 cm.
+// Zakup: suma metrów bieżących danej średnicy / długość pręta handlowego (6 m), zaokrąglone w górę.
+//
 // UWAGA (do UI): zbrojenie przyjęte orientacyjnie, ostateczne wg projektu konstruktora.
 // Wymiary w metrach, średnice w mm, kwoty w groszach.
 
 import { type CostLine, type Grosze, costLine, sumCosts } from './money'
-import { type TraceStep, ceilSafe, clean, floorSafe, fmt } from './trace'
+import { type TraceStep, ceilSafe, clean, fmt } from './trace'
 import { GEOMETRY_REFS } from './geometry'
 
 export const REBAR_WARNING = 'Zbrojenie przyjęte orientacyjnie, ostateczne wg projektu konstruktora.'
@@ -21,28 +33,28 @@ export interface RebarElementParams {
   width: number
   /** Wysokość przekroju h [m]. */
   height: number
-  /** Otulina c [m]. */
+  /** Otulina c [m] (z każdej strony). */
   cover: number
-  /** Liczba prętów podłużnych. */
+  /** Liczba prętów głównych. */
   longitudinalCount: number
-  /** Średnica prętów podłużnych [mm]. */
+  /** Średnica prętów głównych [mm]. */
   longitudinalDiameter: number
+  /** Krotność średnicy dla zakładu, zakotwienia i ramienia eLki (50 → 50d). */
+  lapFactor: number
+  /** Długość handlowa pręta [m] (skład: 6 m dla wszystkich średnic). */
+  barLength: number
+  /** eLki na róg (domyślnie = liczba prętów głównych). */
+  cornerBarsPerCorner: number
   /** Średnica strzemion [mm]. */
   stirrupDiameter: number
-  /** Rozstaw strzemion [m]. */
+  /** Rozstaw strzemion na odcinkach prostych [m]. */
   stirrupSpacing: number
-  /** Długość haka strzemienia [m] (2 haki na strzemię). */
-  stirrupHook: number
-  /** Długość handlowa pręta [m]. */
-  barLength: number
-  /** Długość zakładu [m]. */
-  lapLength: number
-  /** Liczba naroży (prostokąt: 4). */
-  corners: number
-  /** Dodatkowe pręty narożne „L” — sztuk na naroże. */
-  cornerBarsPerCorner: number
-  /** Długość pręta narożnego [m]. */
-  cornerBarLength: number
+  /** Długość strefy zagęszczenia od każdego rogu, w każdą stronę [m]. */
+  cornerZoneLength: number
+  /** Rozstaw strzemion w strefie naroża [m]. */
+  cornerZoneSpacing: number
+  /** Zapas na haki (zamki) na jedno strzemię, łącznie [m]. */
+  stirrupHookAllowance: number
   /** Masy kg/m wg średnicy. */
   massPerMeter: Record<number, number>
 }
@@ -50,53 +62,70 @@ export interface RebarElementParams {
 const COMMON = {
   longitudinalCount: 4,
   longitudinalDiameter: 12,
-  stirrupDiameter: 6,
-  stirrupHook: 0.08,
-  // Pręty kupowane na składzie w długości 6 m (wszystkie średnice) — decyzja użytkownika.
+  lapFactor: 50,
   barLength: 6,
-  lapLength: 0.6,
-  corners: 4,
   cornerBarsPerCorner: 4,
-  cornerBarLength: 1.2,
+  stirrupDiameter: 6,
+  stirrupSpacing: 0.25,
+  cornerZoneLength: 1.0,
+  cornerZoneSpacing: 0.1,
+  stirrupHookAllowance: 0.14,
   massPerMeter: DEFAULT_REBAR_MASS,
 }
 
-/** Ławy: 4 × Ø12, Ø6 co 30 cm, otulina 5 cm. Przekrój ławy podaje użytkownik. */
+/** Ława (na chudziaku): 4 × Ø12, Ø6 co 25 cm (naroża co 10 cm), otulina 5 cm. Przekrój podaje użytkownik. */
 export function defaultFootingRebar(width: number, height: number): RebarElementParams {
-  return { ...COMMON, width, height, cover: 0.05, stirrupSpacing: 0.3 }
+  return { ...COMMON, width, height, cover: 0.05 }
 }
 
-/** Wieniec (fundamentowy lub ścian): 4 × Ø12, Ø6 co 25 cm, otulina 3 cm. */
+/** Wieniec (fundamentowy lub ścian): 4 × Ø12, Ø6 co 25 cm (naroża co 10 cm), otulina 3 cm. */
 export function defaultRingBeamRebar(width: number, height: number): RebarElementParams {
-  return { ...COMMON, width, height, cover: 0.03, stirrupSpacing: 0.25 }
+  return { ...COMMON, width, height, cover: 0.03 }
+}
+
+/** Zakład = zakotwienie = ramię eLki = 50d. */
+export function lapLength(p: RebarElementParams): number {
+  return clean((p.lapFactor * p.longitudinalDiameter) / 1000)
 }
 
 /** Zestawienie dla jednej średnicy. */
 export interface RebarByDiameter {
   diameter: number
-  /** Liczba prętów handlowych do zakupu. */
-  bars: number
-  /** mb wbudowane (zużycie: linie z zakładami, pręty narożne, strzemiona). */
+  /** mb wbudowane (suma wg reguł: pręty z zakładami i zakotwieniami, eLki, strzemiona). */
   netMeters: number
+  /** Liczba prętów handlowych do zakupu: ⌈mb / l_pręta⌉. */
+  bars: number
   /** mb do zakupu (pręty × długość handlowa). */
   meters: number
   /** Masa do zakupu [kg]. */
   massKg: number
 }
 
+export interface RebarSide {
+  /** Długość boku w osi [m]. */
+  length: number
+  /** Liczba zakładów na boku. */
+  laps: number
+  /** Długość jednej linii pręta na boku: L + n_zakł × zakład + 2 × zakotwienie. */
+  lineLength: number
+  /** Położenia strzemion na boku (odległość od naroża początkowego, bez samych naroży). */
+  stirrupPositions: number[]
+}
+
 export interface RebarElementResult {
   name: string
-  lineLength: number
-  /** Odcinki (pręty handlowe) na jedną linię prętów podłużnych. */
-  segmentsPerLine: number
-  longitudinalBars: number
+  barLength: number
+  lap: number
+  sides: RebarSide[]
+  corners: number
+  /** mb prętów głównych (bez eLek). */
+  longitudinalNetMeters: number
   cornerPieces: number
-  cornerBars: number
+  cornerPieceLength: number
+  cornerNetMeters: number
   stirrupLength: number
   stirrupCount: number
   stirrupNetMeters: number
-  stirrupBars: number
-  /** Zestawienie zakupowe wg średnic. */
   byDiameter: RebarByDiameter[]
   totalMassKg: number
   trace: TraceStep[]
@@ -106,144 +135,153 @@ function assertPositive(name: string, x: number): void {
   if (!(x > 0)) throw new Error(`${name} musi być większe od zera (podano ${x}).`)
 }
 
-function massOf(params: RebarElementParams, diameter: number): number {
-  const m = params.massPerMeter[diameter]
+function massOf(p: RebarElementParams, diameter: number): number {
+  const m = p.massPerMeter[diameter]
   if (!(m > 0)) throw new Error(`Brak masy 1 mb dla pręta Ø${diameter}.`)
   return m
 }
 
 /**
- * Zbrojenie elementu liniowego o długości `lineLength` (obwód w osi elementu).
- * Masa liczona z długości zakupowej (całe pręty handlowe) — tyle waży stal na wadze w składzie.
+ * Położenia strzemion na jednym boku (bez naroży — strzemię w narożu liczone osobno, 1 na róg).
+ * Strefy przy obu narożach: m = ⌈z / s_n⌉ strzemion równo do granicy strefy;
+ * środek: ⌈L_śr / s⌉ − 1 strzemion równo między granicami stref.
+ * Bok krótszy niż 2 strefy: cały co s_n.
  */
-export function computeRebarElement(name: string, lineLength: number, p: RebarElementParams): RebarElementResult {
-  assertPositive('Długość linii', lineLength)
+export function sideStirrupPositions(sideLength: number, p: RebarElementParams): number[] {
+  const L = sideLength
+  const z = p.cornerZoneLength
+  const sz = p.cornerZoneSpacing
+  const s = p.stirrupSpacing
+  const out: number[] = []
+  if (L <= 2 * z + 1e-9) {
+    const n = ceilSafe(L / sz) - 1
+    for (let k = 1; k <= n; k++) out.push(clean((L * k) / (n + 1)))
+    return out
+  }
+  const m = ceilSafe(z / sz)
+  for (let k = 1; k <= m; k++) out.push(clean((z * k) / m))
+  const mid = L - 2 * z
+  const nm = ceilSafe(mid / s) - 1
+  for (let k = 1; k <= nm; k++) out.push(clean(z + (mid * k) / (nm + 1)))
+  for (let k = m; k >= 1; k--) out.push(clean(L - (z * k) / m))
+  return out
+}
+
+/**
+ * Zbrojenie elementu liniowego biegnącego po zamkniętym obrysie o bokach `sides` (długości w osi).
+ * Liczba naroży = liczba boków.
+ */
+export function computeRebarElement(name: string, sides: number[], p: RebarElementParams): RebarElementResult {
+  if (sides.length < 3) throw new Error('Obrys musi mieć co najmniej 3 boki.')
+  sides.forEach((L) => assertPositive('Długość boku', L))
   assertPositive('Długość pręta handlowego', p.barLength)
   assertPositive('Rozstaw strzemion', p.stirrupSpacing)
-  if (!(p.lapLength >= 0 && p.lapLength < p.barLength)) {
-    throw new Error(`Zakład musi być mniejszy od długości pręta (podano ${p.lapLength}).`)
-  }
+  assertPositive('Rozstaw strzemion w narożu', p.cornerZoneSpacing)
   const trace: TraceStep[] = []
   const D = p.longitudinalDiameter
   const d = p.stirrupDiameter
+  const lap = lapLength(p)
+  if (!(lap < p.barLength)) throw new Error('Zakład musi być krótszy od pręta handlowego.')
 
-  // 1. Pręty podłużne
-  const effective = clean(p.barLength - p.lapLength)
-  const segmentsPerLine = ceilSafe(lineLength / effective)
   trace.push({
-    label: `Pręty Ø${D} na jedną linię`,
-    formula: 'n = ⌈L / (l_pręta − zakład)⌉',
-    values: `⌈${fmt(lineLength)} / (${fmt(p.barLength)} − ${fmt(p.lapLength)})⌉ = ⌈${fmt(lineLength / effective)}⌉`,
-    result: segmentsPerLine,
-    unit: 'szt',
-    ref: GEOMETRY_REFS.axisPerimeter,
-  })
-  const longitudinalBars = segmentsPerLine * p.longitudinalCount
-  trace.push({
-    label: `Pręty podłużne Ø${D}`,
-    formula: 'n_podł = n × liczba linii',
-    values: `${segmentsPerLine} × ${p.longitudinalCount}`,
-    result: longitudinalBars,
-    unit: 'szt',
-  })
-  // Linia zamknięta (obwód): liczba zakładów = liczba odcinków.
-  const longitudinalNet = clean(p.longitudinalCount * (lineLength + segmentsPerLine * p.lapLength))
-  trace.push({
-    label: `Długość prętów podłużnych Ø${D} (wbudowana, z zakładami)`,
-    formula: 'liczba linii × (L + n × zakład)',
-    values: `${p.longitudinalCount} × (${fmt(lineLength)} + ${segmentsPerLine} × ${fmt(p.lapLength)})`,
-    result: longitudinalNet,
+    label: `Zakład / zakotwienie / ramię eLki Ø${D}`,
+    formula: `${fmt(p.lapFactor)}d`,
+    values: `${fmt(p.lapFactor)} × ${D} mm`,
+    result: lap,
     unit: 'm',
   })
 
-  // 2. Pręty narożne „L”
-  const cornerPieces = p.corners * p.cornerBarsPerCorner
-  let cornerBars = 0
-  const cornerNet = clean(cornerPieces * p.cornerBarLength)
-  if (cornerPieces > 0) {
-    assertPositive('Długość pręta narożnego', p.cornerBarLength)
-    const perBar = floorSafe(p.barLength / p.cornerBarLength)
-    if (perBar < 1) throw new Error('Pręt narożny dłuższy niż pręt handlowy.')
-    cornerBars = ceilSafe(cornerPieces / perBar)
+  // 1. Pręty główne — po bokach
+  const corners = sides.length
+  const sideResults: RebarSide[] = sides.map((L, i) => {
+    const laps = ceilSafe(L / p.barLength) - 1
+    const lineLength = clean(L + laps * lap + 2 * lap)
     trace.push({
-      label: `Pręty narożne „L” Ø${D}`,
-      formula: 'k = naroża × szt/naroże; pręty = ⌈k / ⌊l_pręta / l_L⌋⌉',
-      values: `${p.corners} × ${p.cornerBarsPerCorner} = ${cornerPieces} szt po ${fmt(p.cornerBarLength)} m; ⌈${cornerPieces} / ⌊${fmt(p.barLength)} / ${fmt(p.cornerBarLength)}⌋⌉ = ⌈${cornerPieces} / ${perBar}⌉`,
-      result: cornerBars,
-      unit: 'szt',
+      label: `Bok ${i + 1}: jedna linia Ø${D}`,
+      formula: 'l = L + n_zakł × zakład + 2 × zakotwienie;  n_zakł = ⌈L / l_pręta⌉ − 1',
+      values: `${fmt(L)} + ${laps} × ${fmt(lap)} + 2 × ${fmt(lap)}  (n_zakł = ⌈${fmt(L)} / ${fmt(p.barLength)}⌉ − 1 = ${laps})`,
+      result: lineLength,
+      unit: 'm',
+      ref: GEOMETRY_REFS.axisPerimeter,
     })
-  }
+    return { length: L, laps, lineLength, stirrupPositions: sideStirrupPositions(L, p) }
+  })
+  const perLine = clean(sideResults.reduce((a, s) => a + s.lineLength, 0))
+  const longitudinalNetMeters = clean(perLine * p.longitudinalCount)
+  trace.push({
+    label: `Pręty główne Ø${D} — razem`,
+    formula: 'Σ l_boków × liczba prętów',
+    values: `${fmt(perLine)} × ${p.longitudinalCount}`,
+    result: longitudinalNetMeters,
+    unit: 'm',
+  })
+
+  // 2. eLki
+  const cornerPieces = corners * p.cornerBarsPerCorner
+  const cornerPieceLength = clean(2 * lap)
+  const cornerNetMeters = clean(cornerPieces * cornerPieceLength)
+  trace.push({
+    label: `eLki narożne Ø${D}`,
+    formula: 'naroża × szt/róg × 2 × 50d',
+    values: `${corners} × ${p.cornerBarsPerCorner} × 2 × ${fmt(lap)}`,
+    result: cornerNetMeters,
+    unit: 'm',
+  })
 
   // 3. Strzemiona
   const inW = clean(p.width - 2 * p.cover)
   const inH = clean(p.height - 2 * p.cover)
   if (!(inW > 0 && inH > 0)) throw new Error('Otulina za duża w stosunku do przekroju elementu.')
-  const stirrupLength = clean(2 * inW + 2 * inH + 2 * p.stirrupHook)
+  const stirrupLength = clean(2 * inW + 2 * inH + p.stirrupHookAllowance)
   trace.push({
     label: `Długość strzemienia Ø${d}`,
-    formula: 'l_s = 2·(b − 2c) + 2·(h − 2c) + 2 × hak',
-    values: `2 × (${fmt(p.width)} − 2 × ${fmt(p.cover)}) + 2 × (${fmt(p.height)} − 2 × ${fmt(p.cover)}) + 2 × ${fmt(p.stirrupHook)}`,
+    formula: 'l_s = 2·(b − 2c) + 2·(h − 2c) + zapas na haki',
+    values: `2 × (${fmt(p.width)} − 2 × ${fmt(p.cover)}) + 2 × (${fmt(p.height)} − 2 × ${fmt(p.cover)}) + ${fmt(p.stirrupHookAllowance)}`,
     result: stirrupLength,
     unit: 'm',
   })
-  const stirrupCount = ceilSafe(lineLength / p.stirrupSpacing) + 1
+  sideResults.forEach((s, i) => {
+    const zoneCount = s.length <= 2 * p.cornerZoneLength + 1e-9 ? 0 : ceilSafe(p.cornerZoneLength / p.cornerZoneSpacing)
+    trace.push({
+      label: `Bok ${i + 1}: strzemiona`,
+      formula: zoneCount
+        ? '2 × ⌈z / s_n⌉ + (⌈(L − 2z) / s⌉ − 1)'
+        : '⌈L / s_n⌉ − 1 (bok krótszy niż 2 strefy naroży)',
+      values: zoneCount
+        ? `2 × ⌈${fmt(p.cornerZoneLength)} / ${fmt(p.cornerZoneSpacing)}⌉ + (⌈${fmt(s.length - 2 * p.cornerZoneLength)} / ${fmt(p.stirrupSpacing)}⌉ − 1)`
+        : `⌈${fmt(s.length)} / ${fmt(p.cornerZoneSpacing)}⌉ − 1`,
+      result: s.stirrupPositions.length,
+      unit: 'szt',
+    })
+  })
+  const stirrupCount = sideResults.reduce((a, s) => a + s.stirrupPositions.length, 0) + corners
   trace.push({
     label: 'Liczba strzemion',
-    formula: 'n_s = ⌈L / rozstaw⌉ + 1',
-    values: `⌈${fmt(lineLength)} / ${fmt(p.stirrupSpacing)}⌉ + 1 = ⌈${fmt(lineLength / p.stirrupSpacing)}⌉ + 1`,
+    formula: 'Σ boki + 1 w każdym narożu',
+    values: `${sideResults.map((s) => s.stirrupPositions.length).join(' + ')} + ${corners}`,
     result: stirrupCount,
     unit: 'szt',
+    note: `strefy ${fmt(p.cornerZoneLength)} m od rogów co ${fmt(p.cornerZoneSpacing * 100)} cm, poza nimi co ${fmt(p.stirrupSpacing * 100)} cm`,
   })
   const stirrupNetMeters = clean(stirrupCount * stirrupLength)
   trace.push({
-    label: 'Długość strzemion (netto)',
+    label: `Strzemiona Ø${d} — razem`,
     formula: 'n_s × l_s',
     values: `${stirrupCount} × ${fmt(stirrupLength)}`,
     result: stirrupNetMeters,
     unit: 'm',
   })
-  const stirrupsPerBar = floorSafe(p.barLength / stirrupLength)
-  if (stirrupsPerBar < 1) throw new Error('Strzemię dłuższe niż pręt handlowy.')
-  const stirrupBars = ceilSafe(stirrupCount / stirrupsPerBar)
-  trace.push({
-    label: `Pręty Ø${d} na strzemiona`,
-    formula: '⌈n_s / ⌊l_pręta / l_s⌋⌉',
-    values: `⌈${stirrupCount} / ⌊${fmt(p.barLength)} / ${fmt(stirrupLength)}⌋⌉ = ⌈${stirrupCount} / ${stirrupsPerBar}⌉`,
-    result: stirrupBars,
-    unit: 'szt',
-    note: 'reszty z prętów (krótsze niż strzemię) traktowane jako odpad',
-  })
 
-  // 4. Zestawienie wg średnic + masa
-  const counts = new Map<number, { bars: number; net: number }>()
-  const add = (dia: number, bars: number, net: number) => {
-    const cur = counts.get(dia) ?? { bars: 0, net: 0 }
-    counts.set(dia, { bars: cur.bars + bars, net: clean(cur.net + net) })
-  }
-  add(D, longitudinalBars + cornerBars, longitudinalNet + cornerNet)
-  add(d, stirrupBars, stirrupNetMeters)
-  const byDiameter: RebarByDiameter[] = [...counts.entries()]
+  // 4. Zakup wg średnic: ⌈mb / l_pręta⌉
+  const nets = new Map<number, number>()
+  nets.set(D, clean(longitudinalNetMeters + cornerNetMeters))
+  nets.set(d, clean((nets.get(d) ?? 0) + stirrupNetMeters))
+  const byDiameter = [...nets.entries()]
     .sort((a, b) => b[0] - a[0])
-    .map(([diameter, { bars, net: netMeters }]) => {
-      const meters = clean(bars * p.barLength)
-      trace.push({
-        label: `Ø${diameter} — metry wbudowane / do kupienia`,
-        formula: 'zużycie; zakup = pręty × l_pręta',
-        values: `${fmt(netMeters)} m; ${bars} × ${fmt(p.barLength)} m`,
-        result: meters,
-        unit: 'm',
-        note: `odpad z cięcia ${fmt(clean(meters - netMeters))} m`,
-      })
-      const kgPerM = massOf(p, diameter)
-      const massKg = clean(meters * kgPerM)
-      trace.push({
-        label: `Masa Ø${diameter}`,
-        formula: 'm = pręty × l_pręta × kg/m',
-        values: `${bars} × ${fmt(p.barLength)} × ${fmt(kgPerM)}`,
-        result: massKg,
-        unit: 'kg',
-      })
-      return { diameter, bars, netMeters, meters, massKg }
+    .map(([diameter, net]) => {
+      const x = purchase(diameter, net, p.barLength, massOf(p, diameter))
+      trace.push(...x.trace)
+      return x.value
     })
   const totalMassKg = clean(byDiameter.reduce((s, x) => s + x.massKg, 0))
   trace.push({
@@ -256,18 +294,50 @@ export function computeRebarElement(name: string, lineLength: number, p: RebarEl
 
   return {
     name,
-    lineLength,
-    segmentsPerLine,
-    longitudinalBars,
+    barLength: p.barLength,
+    lap,
+    sides: sideResults,
+    corners,
+    longitudinalNetMeters,
     cornerPieces,
-    cornerBars,
+    cornerPieceLength,
+    cornerNetMeters,
     stirrupLength,
     stirrupCount,
     stirrupNetMeters,
-    stirrupBars,
     byDiameter,
     totalMassKg,
     trace,
+  }
+}
+
+function purchase(
+  diameter: number,
+  netMeters: number,
+  barLength: number,
+  kgPerM: number,
+): { value: RebarByDiameter; trace: TraceStep[] } {
+  const bars = ceilSafe(netMeters / barLength)
+  const meters = clean(bars * barLength)
+  const massKg = clean(meters * kgPerM)
+  return {
+    value: { diameter, netMeters, bars, meters, massKg },
+    trace: [
+      {
+        label: `Ø${diameter} — pręty do kupienia`,
+        formula: '⌈mb / l_pręta⌉',
+        values: `⌈${fmt(netMeters)} / ${fmt(barLength)}⌉ = ⌈${fmt(netMeters / barLength)}⌉`,
+        result: bars,
+        unit: 'szt',
+      },
+      {
+        label: `Masa Ø${diameter}`,
+        formula: 'm = pręty × l_pręta × kg/m',
+        values: `${bars} × ${fmt(barLength)} × ${fmt(kgPerM)}`,
+        result: massKg,
+        unit: 'kg',
+      },
+    ],
   }
 }
 
@@ -279,34 +349,31 @@ export interface RebarSummary {
   trace: TraceStep[]
 }
 
-/** Suma metrów wbudowanych, prętów, metrów do kupienia i masy wg średnic ze wszystkich elementów. */
-export function summarizeRebar(elements: RebarElementResult[]): RebarSummary {
-  const acc = new Map<number, RebarByDiameter>()
-  for (const el of elements) {
-    for (const x of el.byDiameter) {
-      const cur = acc.get(x.diameter) ?? { diameter: x.diameter, bars: 0, netMeters: 0, meters: 0, massKg: 0 }
-      acc.set(x.diameter, {
-        diameter: x.diameter,
-        bars: cur.bars + x.bars,
-        netMeters: clean(cur.netMeters + x.netMeters),
-        meters: clean(cur.meters + x.meters),
-        massKg: clean(cur.massKg + x.massKg),
+/** Suma mb wg średnic ze wszystkich elementów, a z niej pręty do kupienia: ⌈Σ mb / l_pręta⌉. */
+export function summarizeRebar(elements: RebarElementResult[], massPerMeter = DEFAULT_REBAR_MASS): RebarSummary {
+  if (elements.length === 0) return { byDiameter: [], totalMassKg: 0, trace: [] }
+  const barLength = elements[0].barLength
+  if (elements.some((e) => e.barLength !== barLength)) throw new Error('Elementy mają różne długości prętów handlowych.')
+  const nets = new Map<number, number[]>()
+  for (const el of elements) for (const x of el.byDiameter) nets.set(x.diameter, [...(nets.get(x.diameter) ?? []), x.netMeters])
+  const trace: TraceStep[] = []
+  const byDiameter = [...nets.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([diameter, parts]) => {
+      const net = clean(parts.reduce((a, b) => a + b, 0))
+      trace.push({
+        label: `Ø${diameter} — mb razem`,
+        formula: 'Σ mb elementów',
+        values: parts.map((x) => fmt(x)).join(' + '),
+        result: net,
+        unit: 'm',
       })
-    }
-  }
-  const byDiameter = [...acc.values()].sort((a, b) => b.diameter - a.diameter)
-  const trace: TraceStep[] = byDiameter.map((x) => {
-    const parts = elements
-      .map((el) => el.byDiameter.find((y) => y.diameter === x.diameter))
-      .filter((y): y is RebarByDiameter => y !== undefined)
-    return {
-      label: `Ø${x.diameter} — razem`,
-      formula: 'Σ wbudowane; Σ pręty',
-      values: `${parts.map((y) => fmt(y.netMeters)).join(' + ')} m; ${parts.map((y) => y.bars).join(' + ')} prętów`,
-      result: `${fmt(x.netMeters)} m wbudowane, ${x.bars} prętów = ${fmt(x.meters)} m do kupienia, ${fmt(x.massKg)} kg`,
-      unit: '',
-    }
-  })
+      const kg = massPerMeter[diameter]
+      if (!(kg > 0)) throw new Error(`Brak masy 1 mb dla pręta Ø${diameter}.`)
+      const x = purchase(diameter, net, barLength, kg)
+      trace.push(...x.trace)
+      return x.value
+    })
   const totalMassKg = clean(byDiameter.reduce((s, x) => s + x.massKg, 0))
   return { byDiameter, totalMassKg, trace }
 }
@@ -331,7 +398,10 @@ export interface RebarCostResult {
   complete: boolean
 }
 
-export function computeRebarCost(r: RebarElementResult, pricing: RebarPricing): RebarCostResult {
+export function computeRebarCost(
+  r: { name: string; byDiameter: RebarByDiameter[]; totalMassKg: number },
+  pricing: RebarPricing,
+): RebarCostResult {
   const lines: CostLine[] = r.byDiameter.map((x) => {
     const price = pricing.prices[x.diameter] ?? null
     const label = `Stal Ø${x.diameter} — ${r.name}`

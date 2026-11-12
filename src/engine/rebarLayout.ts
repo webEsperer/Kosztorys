@@ -1,5 +1,5 @@
 // Rozłożenie zbrojenia na rzucie (do rysunku). Czyste dane — bez three.js.
-// Liczby (pręty na linię, narożne, strzemiona) pochodzą z computeRebarElement,
+// Liczby (zakłady na bokach, zakotwienia, eLki, strzemiona) pochodzą z computeRebarElement,
 // tu tylko ustawiamy je w przestrzeni, żeby rysunek pokazywał dokładnie to, co policzono.
 //
 // Układ współrzędnych rzutu [m]: początek w lewym dolnym narożniku prostokąta osi ścian,
@@ -24,6 +24,11 @@ export interface AxisRect {
 
 export function loopPerimeter(r: AxisRect): number {
   return clean(2 * (r.length + r.width))
+}
+
+/** Boki prostokąta w kolejności obwodu: lewy, górny, prawy, dolny. */
+export function rectSides(r: AxisRect): number[] {
+  return [r.width, r.length, r.width, r.length]
 }
 
 /** Odległości narożników po obwodzie: LD, LG, PG, PD (start = 0). */
@@ -72,7 +77,7 @@ export function pointOnLoop(r: AxisRect, s: number, offset = 0): Pt2 {
   return { x: clean(a.x + (b.x - a.x) * u + n.x * offset), y: clean(a.y + (b.y - a.y) * u + n.y * offset) }
 }
 
-/** Narożnik i odsunięty narożnik (przecięcie boków odsuniętych o offset). */
+/** Narożnik odsunięty o offset (przecięcie boków odsuniętych). */
 function cornerPoint(r: AxisRect, i: number, offset: number): Pt2 {
   const c = CORNERS(r)[i]
   const nPrev = SIDE_NORMALS[(i + 3) % 4]
@@ -80,7 +85,7 @@ function cornerPoint(r: AxisRect, i: number, offset: number): Pt2 {
   return { x: clean(c.x + (nPrev.x + nNext.x) * offset), y: clean(c.y + (nPrev.y + nNext.y) * offset) }
 }
 
-/** Łamana wzdłuż obwodu od s0 do s1 (s1 > s0, może przekraczać obwód), z narożnikami po drodze. */
+/** Łamana wzdłuż obwodu od s0 do s1 (s1 > s0, może wychodzić poza [0, P]), z narożnikami po drodze. */
 export function loopPolyline(r: AxisRect, s0: number, s1: number, offset = 0): Pt2[] {
   const P = loopPerimeter(r)
   const pts: Pt2[] = [pointOnLoop(r, s0, offset)]
@@ -103,21 +108,22 @@ export function loopPolyline(r: AxisRect, s0: number, s1: number, offset = 0): P
 // ─── Rozłożenie prętów ──────────────────────────────────────────────────────
 
 export interface LaidBar {
-  /** Numer linii (1…n) i numer pręta w linii (1…k). */
+  /** Numer linii (1…n), boku (1…4) i pręta na boku (1…k). */
   line: number
+  side: number
   index: number
-  /** Początek i koniec po obwodzie [m] (koniec może przekraczać obwód — zawinięcie). */
+  /** Początek i koniec po obwodzie [m]. */
   s0: number
   s1: number
-  /** Długość pręta [m] (ostatni w linii może być docięty). */
   length: number
-  /** Czy pręt jest docięty (krótszy niż handlowy). */
-  isCut: boolean
+  /** Kawałek dłuższy niż pręt handlowy (reguła zakładów nie wystarcza — trzeba dodatkowego łączenia). */
+  exceedsBar: boolean
   points: Pt2[]
 }
 
-export interface LapZone {
+export interface LoopZone {
   line: number
+  side: number
   s0: number
   s1: number
   points: Pt2[]
@@ -125,16 +131,16 @@ export interface LapZone {
 
 export interface BarLine {
   line: number
-  /** 'dolny' | 'górny' — położenie w przekroju. */
+  /** Położenie w przekroju. */
   level: 'dolny' | 'górny'
-  /** 'zewnętrzny' | 'wewnętrzny' — strona względem osi. */
+  /** Strona względem osi. */
   side: 'zewnętrzny' | 'wewnętrzny'
   /** Odsunięcie od osi w rzucie [m] (+ na zewnątrz). */
   offset: number
-  /** Przesunięcie początku linii po obwodzie [m] — zakłady sąsiednich linii nie w jednym miejscu. */
-  start: number
   bars: LaidBar[]
-  laps: LapZone[]
+  laps: LoopZone[]
+  /** Zakotwienia 50d za narożem (zagięta końcówka pręta). */
+  anchors: LoopZone[]
 }
 
 export interface CornerBar {
@@ -146,120 +152,118 @@ export interface CornerBar {
 
 export interface StirrupMark {
   index: number
+  /** Strzemię w narożu / w strefie zagęszczenia / na odcinku prostym. */
+  zone: 'naroże' | 'strefa' | 'prosty'
   s: number
   points: [Pt2, Pt2]
 }
 
 export interface RebarPlanLayout {
   perimeter: number
-  /** Krok pręta po obwodzie: l_pręta − zakład. */
-  step: number
   lines: BarLine[]
   cornerBars: CornerBar[]
   stirrups: StirrupMark[]
-  /** Rzeczywisty rozstaw strzemion na zamkniętym obwodzie. */
-  stirrupActualSpacing: number
-  /** Strzemiona „zapasowe” wynikające z wzoru ⌈L/s⌉ + 1 na obwodzie zamkniętym. */
-  stirrupSpare: number
   /** Obrys elementu (lico zewnętrzne i wewnętrzne). */
   outline: { outer: Pt2[]; inner: Pt2[] }
 }
 
-/** Odsunięcie osi pręta podłużnego od lica: otulina (oś strzemienia) + ½Ø strzemienia + ½Ø pręta. */
+/** Odsunięcie osi pręta głównego od lica: otulina (oś strzemienia) + ½Ø strzemienia + ½Ø pręta. */
 export function barInset(p: RebarElementParams): number {
   return clean(p.cover + p.stirrupDiameter / 2000 + p.longitudinalDiameter / 2000)
 }
 
 /**
- * Rozkłada zbrojenie elementu liniowego na obwodzie prostokąta osi.
- * 4 linie prętów: dolne i górne, zewnętrzne i wewnętrzne. Linie 1…n mają początki przesunięte
- * o krok/n, żeby zakłady nie wypadały w jednym przekroju.
+ * Rozkłada zbrojenie na obwodzie prostokąta osi.
+ * Na każdym boku linia pręta biegnie od zakotwienia za narożem początkowym do zakotwienia za narożem
+ * końcowym i jest dzielona na (n_zakł + 1) równych kawałków zachodzących na siebie o zakład.
  */
 export function layoutRebarPlan(r: AxisRect, p: RebarElementParams, res: RebarElementResult): RebarPlanLayout {
-  const P = loopPerimeter(r)
-  if (Math.abs(P - res.lineLength) > 1e-6) {
-    throw new Error(`Obwód prostokąta osi (${P}) różni się od długości linii zbrojenia (${res.lineLength}).`)
+  const sides = rectSides(r)
+  if (res.sides.length !== 4 || res.sides.some((s, i) => Math.abs(s.length - sides[i]) > 1e-6)) {
+    throw new Error('Boki obrysu nie zgadzają się z bokami użytymi w obliczeniu zbrojenia.')
   }
-  const step = clean(p.barLength - p.lapLength)
-  const n = res.segmentsPerLine
+  const P = loopPerimeter(r)
+  const cd = cornerDistances(r)
+  const lap = res.lap
   const off = clean(p.width / 2 - barInset(p))
 
-  const lineDefs: Omit<BarLine, 'start' | 'bars' | 'laps' | 'line'>[] = []
-  const levels: ('dolny' | 'górny')[] = ['dolny', 'górny']
   const perLevel = Math.max(1, Math.round(p.longitudinalCount / 2))
+  const lines: BarLine[] = []
   for (let k = 0; k < p.longitudinalCount; k++) {
-    const level = levels[Math.floor(k / perLevel)] ?? 'górny'
+    const level: 'dolny' | 'górny' = k < perLevel ? 'dolny' : 'górny'
     const j = k % perLevel
-    // przy 2 prętach na poziom: zewnętrzny i wewnętrzny; przy więcej — rozłożone równo
-    const o = perLevel === 1 ? 0 : off - (2 * off * j) / (perLevel - 1)
-    lineDefs.push({ level, side: o >= 0 ? 'zewnętrzny' : 'wewnętrzny', offset: clean(o) })
-  }
-
-  const lines: BarLine[] = lineDefs.map((d, k) => {
-    const start = clean((k * step) / p.longitudinalCount)
+    const o = clean(perLevel === 1 ? 0 : off - (2 * off * j) / (perLevel - 1))
     const bars: LaidBar[] = []
-    const laps: LapZone[] = []
-    for (let i = 0; i < n; i++) {
-      const s0 = start + i * step
-      const isLast = i === n - 1
-      // Ostatni pręt zamyka obwód: kończy się zakładem na pierwszym pręcie.
-      const s1 = isLast ? start + P + p.lapLength : s0 + p.barLength
-      const length = clean(s1 - s0)
-      bars.push({
+    const laps: LoopZone[] = []
+    const anchors: LoopZone[] = []
+    res.sides.forEach((sd, i) => {
+      const runStart = cd[i] - lap
+      const runEnd = cd[i] + sd.length + lap
+      const pieces = sd.laps + 1
+      const pl = clean(sd.lineLength / pieces)
+      for (let q = 0; q < pieces; q++) {
+        const s0 = runStart + q * (pl - lap)
+        const s1 = q === pieces - 1 ? runEnd : s0 + pl
+        bars.push({
+          line: k + 1,
+          side: i + 1,
+          index: q + 1,
+          s0: clean(s0),
+          s1: clean(s1),
+          length: clean(s1 - s0),
+          exceedsBar: s1 - s0 > p.barLength + 1e-9,
+          points: loopPolyline(r, s0, s1, o),
+        })
+        if (q > 0) {
+          const z0 = s0
+          const z1 = s0 + lap
+          laps.push({ line: k + 1, side: i + 1, s0: clean(z0), s1: clean(z1), points: loopPolyline(r, z0, z1, o) })
+        }
+      }
+      anchors.push({ line: k + 1, side: i + 1, s0: clean(runStart), s1: cd[i], points: loopPolyline(r, runStart, cd[i], o) })
+      anchors.push({
         line: k + 1,
-        index: i + 1,
-        s0: clean(s0),
-        s1: clean(s1),
-        length,
-        isCut: length < p.barLength - 1e-9,
-        points: loopPolyline(r, s0, s1, d.offset),
+        side: i + 1,
+        s0: cd[i] + sd.length,
+        s1: clean(runEnd),
+        points: loopPolyline(r, cd[i] + sd.length, runEnd, o),
       })
-      // zakład na końcu pręta (z następnym lub — dla ostatniego — z pierwszym)
-      const l0 = s1 - p.lapLength
-      laps.push({ line: k + 1, s0: clean(l0), s1: clean(s1), points: loopPolyline(r, l0, s1, d.offset) })
-    }
-    return { line: k + 1, ...d, start, bars, laps }
-  })
+    })
+    lines.push({ line: k + 1, level, side: o >= 0 ? 'zewnętrzny' : 'wewnętrzny', offset: o, bars, laps, anchors })
+  }
 
-  // Pręty narożne „L”: po jednym na każdą linię (gdy szt/naroże = liczba linii), ramiona po ½ długości.
+  // eLki: po jednej na każdą linię w każdym narożu, ramiona po 50d.
   const cornerBars: CornerBar[] = []
-  const cd = cornerDistances(r)
-  const leg = p.cornerBarLength / 2
-  for (let c = 0; c < p.corners && c < 4; c++) {
+  for (let c = 0; c < 4; c++) {
     for (let m = 0; m < p.cornerBarsPerCorner; m++) {
-      const lineDef = lines[m % lines.length]
-      cornerBars.push({
-        corner: c + 1,
-        line: lineDef.line,
-        length: p.cornerBarLength,
-        points: loopPolyline(r, cd[c] - leg + (c === 0 ? P : 0), cd[c] + leg + (c === 0 ? P : 0), lineDef.offset),
-      })
+      const ln = lines[m % lines.length]
+      const sc = c === 0 ? P : cd[c]
+      cornerBars.push({ corner: c + 1, line: ln.line, length: res.cornerPieceLength, points: loopPolyline(r, sc - lap, sc + lap, ln.offset) })
     }
   }
 
-  // Strzemiona: na obwodzie zamkniętym ⌈L/s⌉ sztuk wystarcza; wzór daje +1 — pokazujemy jako zapas.
-  const placed = Math.max(1, res.stirrupCount - 1)
-  const actual = clean(P / placed)
+  // Strzemiona: 1 w każdym narożu (po przekątnej) + położenia z obliczenia na bokach.
   const half = clean(p.width / 2 - p.cover)
   const stirrups: StirrupMark[] = []
-  for (let i = 0; i < placed; i++) {
-    const s = (i + 0.5) * actual
-    stirrups.push({ index: i + 1, s: clean(s), points: [pointOnLoop(r, s, half), pointOnLoop(r, s, -half)] })
-  }
+  let idx = 0
+  res.sides.forEach((sd, i) => {
+    stirrups.push({ index: ++idx, zone: 'naroże', s: cd[i], points: [cornerPoint(r, i, half), cornerPoint(r, i, -half)] })
+    for (const pos of sd.stirrupPositions) {
+      const inZone = pos <= p.cornerZoneLength + 1e-9 || pos >= sd.length - p.cornerZoneLength - 1e-9
+      const s = cd[i] + pos
+      stirrups.push({
+        index: ++idx,
+        zone: inZone ? 'strefa' : 'prosty',
+        s: clean(s),
+        points: [pointOnLoop(r, s, half), pointOnLoop(r, s, -half)],
+      })
+    }
+  })
 
   const outline = {
     outer: [0, 1, 2, 3].map((i) => cornerPoint(r, i, p.width / 2)),
     inner: [0, 1, 2, 3].map((i) => cornerPoint(r, i, -p.width / 2)),
   }
 
-  return {
-    perimeter: P,
-    step,
-    lines,
-    cornerBars,
-    stirrups,
-    stirrupActualSpacing: actual,
-    stirrupSpare: res.stirrupCount - placed,
-    outline,
-  }
+  return { perimeter: P, lines, cornerBars, stirrups, outline }
 }

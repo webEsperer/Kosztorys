@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { computeRebarElement, defaultFootingRebar, defaultRingBeamRebar } from '../../src/engine/rebar'
-import { barInset, layoutRebarPlan, loopPolyline, pointOnLoop, type AxisRect } from '../../src/engine/rebarLayout'
+import { barInset, layoutRebarPlan, loopPolyline, pointOnLoop, rectSides, type AxisRect } from '../../src/engine/rebarLayout'
 import { buildFoundationSection } from '../../src/engine/foundationSection'
 import { computeLevels, DEFAULT_LEVELS } from '../../src/engine/levels'
 
@@ -42,26 +42,39 @@ describe('rebarLayout — obwód', () => {
 
 describe('rebarLayout — ławy: rozłożenie zgodne z obliczeniem', () => {
   const p = defaultFootingRebar(0.6, 0.4)
-  const res = computeRebarElement('Ławy', P_OS, p)
+  const res = computeRebarElement('Ławy', rectSides(AXIS), p)
   const lay = layoutRebarPlan(AXIS, p, res)
 
-  it('4 linie × 8 prętów = 32 = liczba z kosztorysu', () => {
-    expect(lay.lines).toHaveLength(4)
-    expect(lay.lines.reduce((s, l) => s + l.bars.length, 0)).toBe(res.longitudinalBars)
+  it('boki prostokąta w kolejności obwodu: lewy, górny, prawy, dolny', () => {
+    expect(rectSides(AXIS)).toEqual([9.24, 12.24, 9.24, 12.24])
   })
 
-  it('w każdej linii 7 prętów po 6 m i ostatni docięty: 42,96 + 0,6 − 7 × 5,4 = 5,76 m', () => {
+  it('na linię: bok 9,24 → 2 kawałki, bok 12,24 → 3 kawałki; razem 10, ×4 linie = 40', () => {
     for (const l of lay.lines) {
-      expect(l.bars.slice(0, 7).every((b) => b.length === 6 && !b.isCut)).toBe(true)
-      expect(l.bars[7].length).toBe(5.76)
-      expect(l.bars[7].isCut).toBe(true)
-      expect(l.laps).toHaveLength(8)
+      expect(l.bars.filter((b) => b.side === 1)).toHaveLength(2)
+      expect(l.bars.filter((b) => b.side === 2)).toHaveLength(3)
+      expect(l.bars).toHaveLength(10)
+      expect(l.laps).toHaveLength(6)
+      expect(l.anchors).toHaveLength(8)
     }
   })
 
-  it('długość wbudowana z rozłożenia = metry wbudowane z kosztorysu (bez narożnych)', () => {
+  it('kawałki: 11,04 / 2 = 5,52 m i 14,64 / 3 = 4,88 m — żaden nie przekracza 6 m', () => {
+    const l = lay.lines[0]
+    expect(l.bars.filter((b) => b.side === 1).map((b) => b.length)).toEqual([5.52, 5.52])
+    expect(l.bars.filter((b) => b.side === 2).map((b) => b.length)).toEqual([4.88, 4.88, 4.88])
+    expect(l.bars.some((b) => b.exceedsBar)).toBe(false)
+  })
+
+  it('suma długości kawałków = mb prętów głównych z kosztorysu (205,44 m)', () => {
     const laid = lay.lines.reduce((s, l) => s + l.bars.reduce((a, b) => a + b.length, 0), 0)
-    expect(laid).toBeCloseTo(4 * (P_OS + 8 * 0.6), 9) // 191,04 m
+    expect(laid).toBeCloseTo(res.longitudinalNetMeters, 9)
+  })
+
+  it('pręt boku zaczyna się 60 cm przed narożem (zakotwienie zagięte na sąsiedni bok)', () => {
+    const first = lay.lines[0].bars[0]
+    expect(first.s0).toBe(-0.6)
+    expect(first.points[1]).toEqual({ x: -0.241, y: -0.241 }) // narożnik linii zewnętrznej
   })
 
   it('linie: dolne/górne, zewnętrzne/wewnętrzne, odsunięte o b/2 − (c + ½Ø6 + ½Ø12) = 0,241 m', () => {
@@ -74,18 +87,15 @@ describe('rebarLayout — ławy: rozłożenie zgodne z obliczeniem', () => {
     ])
   })
 
-  it('zakłady linii przesunięte o krok/4 = 1,35 m', () => {
-    expect(lay.lines.map((l) => l.start)).toEqual([0, 1.35, 2.7, 4.05])
-  })
-
-  it('16 prętów narożnych, strzemiona: 144 rozłożone + 1 zapas wg wzoru', () => {
+  it('16 eLek po 1,2 m; strzemiona: 220 = liczba z kosztorysu, w tym 4 w narożach', () => {
     expect(lay.cornerBars).toHaveLength(res.cornerPieces)
-    expect(lay.stirrups).toHaveLength(144)
-    expect(lay.stirrupSpare).toBe(1)
-    expect(lay.stirrupActualSpacing).toBeCloseTo(0.298333, 6)
+    expect(lay.cornerBars.every((c) => Math.abs(pathLength(c.points) - 1.2) < 0.5)).toBe(true)
+    expect(lay.stirrups).toHaveLength(res.stirrupCount)
+    expect(lay.stirrups.filter((s) => s.zone === 'naroże')).toHaveLength(4)
+    expect(lay.stirrups.filter((s) => s.zone === 'strefa')).toHaveLength(80)
   })
 
-  it('odrzuca prostokąt niezgodny z długością linii', () => {
+  it('odrzuca prostokąt niezgodny z bokami obliczenia', () => {
     expect(() => layoutRebarPlan({ length: 12, width: 9 }, p, res)).toThrow()
   })
 })

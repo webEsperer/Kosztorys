@@ -11,7 +11,7 @@ import {
   summarizeRebar,
   type RebarElementResult,
 } from '../../engine/rebar'
-import { layoutRebarPlan, type AxisRect } from '../../engine/rebarLayout'
+import { layoutRebarPlan, rectSides, type AxisRect } from '../../engine/rebarLayout'
 import { buildFoundationSection } from '../../engine/foundationSection'
 import { SectionScene } from './SectionScene'
 import { PlanScene, type PlanElement } from './PlanScene'
@@ -88,8 +88,9 @@ export function FoundationViewer() {
       const pOs = geo.axisPerimeter.value
       const footP = defaultFootingRebar(m(form.footingWidth), m(form.footingHeight))
       const ringP = defaultRingBeamRebar(m(form.fwThickness), m(form.ringBeamHeight))
-      const footR = computeRebarElement('Ławy', pOs, footP)
-      const ringR = computeRebarElement('Wieniec fundamentowy', pOs, ringP)
+      const sides = rectSides(axis)
+      const footR = computeRebarElement('Ławy', sides, footP)
+      const ringR = computeRebarElement('Wieniec fundamentowy', sides, ringP)
       const section = buildFoundationSection({
         wallThickness: t,
         facadeInsulation: 0.2,
@@ -207,14 +208,20 @@ function ElementSummary({ r }: { r: RebarElementResult }) {
   return (
     <details className="fv-el">
       <summary>
-        {r.name}: {r.longitudinalBars + r.cornerBars} × Ø12, {r.stirrupBars} × Ø6
+        {r.name}: {r.byDiameter.map((d) => `${d.bars} × Ø${d.diameter}`).join(', ')}
       </summary>
       <ul>
-        <li>Obwód w osi: {pl(r.lineLength)} m</li>
-        <li>Pręty na linię: {r.segmentsPerLine} (× 4 linie = {r.longitudinalBars})</li>
-        <li>Pręty narożne „L”: {r.cornerPieces} szt → {r.cornerBars} prętów 6 m</li>
+        {r.sides.map((s, i) => (
+          <li key={i}>
+            Bok {i + 1} ({pl(s.length)} m): {s.laps} zakł., linia {pl(s.lineLength)} m, {s.stirrupPositions.length} strzemion
+          </li>
+        ))}
+        <li>Pręty główne: {pl(r.longitudinalNetMeters)} m</li>
         <li>
-          Strzemiona: {r.stirrupCount} szt × {pl(r.stirrupLength)} m = {pl(r.stirrupNetMeters)} m → {r.stirrupBars} prętów 6 m
+          eLki: {r.cornerPieces} × {pl(r.cornerPieceLength)} m = {pl(r.cornerNetMeters)} m
+        </li>
+        <li>
+          Strzemiona: {r.stirrupCount} szt × {pl(r.stirrupLength)} m = {pl(r.stirrupNetMeters)} m
         </li>
       </ul>
     </details>

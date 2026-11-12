@@ -19,7 +19,9 @@ import {
 const BAR_COLORS = ['#1c7ed6', '#2b8a3e']
 const LAP_COLOR = '#e03131'
 const CORNER_COLOR = '#9c36b5'
+const ANCHOR_COLOR = '#f59f00'
 const STIRRUP_COLOR = '#9aa0a6'
+const STIRRUP_DENSE_COLOR = '#495057'
 
 type V3 = [number, number, number]
 const v = (p: Pt2, z = 0): V3 => [p.x, p.y, z]
@@ -72,7 +74,8 @@ export function PlanScene({ axis, elements }: { axis: AxisRect; elements: PlanEl
 
   const barInfo = (b: LaidBar) => {
     const l = lay.lines[b.line - 1]
-    return `Linia ${b.line} (${l.level}, ${l.side}) — pręt ${b.index}/${l.bars.length}: od ${pl(b.s0)} m do ${pl(b.s1)} m po obwodzie, długość ${pl(b.length)} m${b.isCut ? ' (docięty)' : ''}`
+    const onSide = l.bars.filter((x) => x.side === b.side).length
+    return `Linia ${b.line} (${l.level}, ${l.side}), bok ${b.side} — kawałek ${b.index}/${onSide}: długość ${pl(b.length)} m${b.exceedsBar ? ' — UWAGA: dłuższy niż pręt handlowy' : ''}`
   }
 
   const labels: SceneLabel[] = useMemo(() => {
@@ -87,10 +90,10 @@ export function PlanScene({ axis, elements }: { axis: AxisRect; elements: PlanEl
       for (const l of lines) {
         for (const b of l.bars) {
           out.push({
-            id: `n-${l.line}-${b.index}`,
+            id: `n-${l.line}-${b.side}-${b.index}`,
             pos: v(midOf(b.points), 0.03),
             className: `fv-tag${l.offset < 0 ? ' fv-tag-in' : ''}`,
-            content: `${l.line}.${b.index}`,
+            content: `${l.line}.${b.side}.${b.index}`,
           })
         }
       }
@@ -144,13 +147,18 @@ export function PlanScene({ axis, elements }: { axis: AxisRect; elements: PlanEl
 
           {showStirrups &&
             lay.stirrups.map((s) => (
-              <Line key={`s-${s.index}`} points={s.points.map((p) => v(p, -0.01))} color={STIRRUP_COLOR} lineWidth={0.8} />
+              <Line
+                key={`s-${s.index}`}
+                points={s.points.map((p) => v(p, -0.01))}
+                color={s.zone === 'prosty' ? STIRRUP_COLOR : STIRRUP_DENSE_COLOR}
+                lineWidth={s.zone === 'prosty' ? 0.8 : 1}
+              />
             ))}
 
           {lines.flatMap((l) =>
             l.bars.map((b) => (
               <Line
-                key={`b-${l.line}-${b.index}`}
+                key={`b-${l.line}-${b.side}-${b.index}`}
                 points={b.points.map((p) => v(p, 0))}
                 color={BAR_COLORS[(b.index - 1) % 2]}
                 lineWidth={3}
@@ -175,6 +183,21 @@ export function PlanScene({ axis, elements }: { axis: AxisRect; elements: PlanEl
             )),
           )}
 
+          {lines.flatMap((l) =>
+            l.anchors.map((a, i) => (
+              <Line
+                key={`a-${l.line}-${i}`}
+                points={a.points.map((p) => v(p, 0.015))}
+                color={ANCHOR_COLOR}
+                lineWidth={6}
+                transparent
+                opacity={0.85}
+                onPointerOver={(e) => { e.stopPropagation(); setHover(`Zakotwienie pręta z boku ${a.side} (linia ${l.line}): ${pl((a.s1 - a.s0) * 100, 0)} cm zagięte za narożem`) }}
+                onPointerOut={() => setHover(null)}
+              />
+            )),
+          )}
+
           {corners.map((c, i) => (
             <Line
               key={`c-${i}`}
@@ -193,23 +216,28 @@ export function PlanScene({ axis, elements }: { axis: AxisRect; elements: PlanEl
         <li>
           <span className="fv-swatch" style={{ background: BAR_COLORS[0] }} />
           <span className="fv-swatch" style={{ background: BAR_COLORS[1] }} />
-          kolejne pręty 6 m (numer: linia.pręt)
+          kolejne kawałki pręta
         </li>
         <li>
           <span className="fv-swatch" style={{ background: LAP_COLOR }} />
-          zakład {pl((lay.lines[0].laps[0].s1 - lay.lines[0].laps[0].s0) * 100, 0)} cm
+          zakład 50d
+        </li>
+        <li>
+          <span className="fv-swatch" style={{ background: ANCHOR_COLOR }} />
+          zakotwienie 50d za narożem
         </li>
         <li>
           <span className="fv-swatch" style={{ background: CORNER_COLOR }} />
-          pręt narożny „L”
+          eLka 2 × 50d
         </li>
         <li>
+          <span className="fv-swatch" style={{ background: STIRRUP_DENSE_COLOR }} />
           <span className="fv-swatch" style={{ background: STIRRUP_COLOR }} />
-          strzemię (co {pl(lay.stirrupActualSpacing * 100, 1)} cm, {lay.stirrups.length} szt + {lay.stirrupSpare} zapas)
+          strzemiona: naroża i strefy 1 m / odcinki proste ({lay.stirrups.length} szt)
         </li>
       </ul>
       <p className="fv-hint">
-        Linie: zewnętrzna (numery nad prętem) i wewnętrzna (pod prętem). Najedź na pręt, zakład lub pręt narożny — szczegóły. Kółko/szczypanie — zoom, przeciąganie — przesuwanie.
+        Numer: linia.bok.kawałek; linia zewnętrzna — numery nad prętem, wewnętrzna — pod prętem. Najedź na pręt, zakład lub pręt narożny — szczegóły. Kółko/szczypanie — zoom, przeciąganie — przesuwanie.
       </p>
     </div>
   )

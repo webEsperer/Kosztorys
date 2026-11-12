@@ -44,8 +44,9 @@ export interface SectionStirrup {
   /** Oś strzemienia (zamknięty prostokąt) + haki. */
   loop: Pt2[]
   hooks: [Pt2, Pt2][]
-  /** Rozstaw wzdłuż elementu [m]. */
+  /** Rozstaw na odcinkach prostych i w strefie naroża [m]. */
   spacing: number
+  cornerSpacing: number
 }
 
 export interface SectionDim {
@@ -132,8 +133,8 @@ function rebarInRect(
     { x: xL + c, y: z0 + h - c },
     { x: xL + c, y: z0 + c },
   ]
-  // Haki 135° w górnym zewnętrznym narożniku, zagięte do wnętrza przekroju.
-  const hk = p.stirrupHook / Math.SQRT2
+  // Haki (zamek) w górnym zewnętrznym narożniku, zagięte do wnętrza przekroju — po połowie zapasu na haki.
+  const hk = p.stirrupHookAllowance / 2 / Math.SQRT2
   const corner = { x: xL + c, y: z0 + h - c }
   const hooks: [Pt2, Pt2][] = [
     [corner, { x: corner.x + hk, y: corner.y - hk }],
@@ -144,7 +145,14 @@ function rebarInRect(
   ]
   return {
     bars,
-    stirrup: { element, diameter: p.stirrupDiameter, loop, hooks, spacing: p.stirrupSpacing },
+    stirrup: {
+      element,
+      diameter: p.stirrupDiameter,
+      loop,
+      hooks,
+      spacing: p.stirrupSpacing,
+      cornerSpacing: p.cornerZoneSpacing,
+    },
   }
 }
 
