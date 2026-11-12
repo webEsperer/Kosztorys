@@ -9,11 +9,12 @@ import { deleteProject, exportJson, importJson, listProjects, newId, saveProject
 import { StageView } from './estimate/StageView'
 import { Summary, TodoList } from './estimate/Summary'
 import { ProjectForm } from './project-form/ProjectForm'
+import { ExportView } from './export/ExportView'
 import './app.css'
 
 const FoundationViewer = lazy(() => import('./foundation-view/FoundationViewer').then((m) => ({ default: m.FoundationViewer })))
 
-type Tab = 'dane' | Stage | 'podsumowanie' | 'braki' | 'fundament'
+type Tab = 'dane' | Stage | 'podsumowanie' | 'braki' | 'eksport' | 'fundament'
 
 const TAB_LABEL: Record<Tab, string> = {
   dane: 'Dane projektu',
@@ -23,6 +24,7 @@ const TAB_LABEL: Record<Tab, string> = {
   OGOLNE: 'Ogólne',
   podsumowanie: 'Podsumowanie',
   braki: 'Do uzupełnienia',
+  eksport: 'Eksport',
   fundament: 'Fundament 3D',
 }
 
@@ -186,7 +188,7 @@ export function AppShell() {
       )}
 
       <nav className="tabs" role="tablist">
-        {(['dane', ...STAGES, 'podsumowanie', 'braki', 'fundament'] as Tab[]).map((t) => (
+        {(['dane', ...STAGES, 'podsumowanie', 'braki', 'eksport', 'fundament'] as Tab[]).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => { setTab(t); setSelected(null) }}>
             {TAB_LABEL[t]}
             {!(estimate instanceof Error) && STAGES.includes(t as Stage) && (
@@ -217,6 +219,8 @@ export function AppShell() {
               setSelected(iid)
             }}
           />
+        ) : tab === 'eksport' ? (
+          <ExportView estimate={estimate} project={project} />
         ) : (
           <Suspense fallback={<p className="loading">Ładowanie wizualizacji…</p>}>
             <FoundationViewer />

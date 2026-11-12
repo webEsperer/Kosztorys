@@ -682,3 +682,72 @@
     z-index: 10;
   }
 }
+
+/* ── Wydruk ───────────────────────────────────── */
+.print-area {
+  display: none;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+  }
+  body > *:not(.print-area) {
+    display: none !important;
+  }
+  .print-area {
+    display: block;
+    color: #000;
+    background: #fff;
+    font: 10pt/1.35 system-ui, 'Segoe UI', Roboto, sans-serif;
+  }
+  .print-area h1 {
+    font-size: 15pt;
+    margin-bottom: 4pt;
+  }
+  .print-area h2 {
+    font-size: 12pt;
+    margin: 12pt 0 4pt;
+  }
+  .print-area table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6pt 0;
+  }
+  .print-area th,
+  .print-area td {
+    border-bottom: 0.5pt solid #999;
+    padding: 2pt 4pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  .print-area .num {
+    text-align: right;
+    white-space: nowrap;
+  }
+  .print-area .grand th,
+  .print-area .grand td {
+    font-weight: 700;
+    font-size: 11pt;
+  }
+  .print-area .pc {
+    font-size: 7.5pt;
+    color: #555;
+  }
+  .print-area .pm {
+    font-size: 8pt;
+    color: #a15c00;
+  }
+  .print-area .pt {
+    margin: 2pt 0 0 12pt;
+    font-size: 7.5pt;
+    color: #333;
+  }
+  .print-area tr {
+    break-inside: avoid;
+  }
+  .print-stage {
+    break-before: page;
+  }
+}
