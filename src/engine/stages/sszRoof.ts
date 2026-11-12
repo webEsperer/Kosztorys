@@ -312,7 +312,9 @@ export function roofItems(b: Builder, project: ProjectInput): ItemSpec[] {
     out.push(item({ id: 'ssz-tasma-koszowa', category: C5, kind: 'material', name: 'Taśma / uszczelka koszowa', unit: 'mb', quantity: vq2 }))
   }
   out.push(lumpItem(b, 'ssz-klamry', C5, 'Wkręty/klamry do dachówek', false))
-  out.push(lumpItem(b, 'ssz-lawy-kominiarskie', C5, 'Ławy kominiarskie', false))
+  // Komunikacja kominiarska: ławy (podesty) przy kominie i stopnie na połaci — liczby podaje użytkownik
+  out.push(manualItem(b, 'ssz-lawy-kominiarskie', C5, 'material', 'Ławy kominiarskie (podesty) z mocowaniami', 'szt', 'Liczba ław kominiarskich'))
+  out.push(manualItem(b, 'ssz-stopnie-kominiarskie', C5, 'material', 'Stopnie kominiarskie z mocowaniami', 'szt', 'Liczba stopni kominiarskich'))
   out.push(lumpItem(b, 'ssz-okna-dachowe', C5, 'Okna dachowe', false))
   return out
 }
