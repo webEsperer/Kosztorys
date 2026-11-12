@@ -12,12 +12,14 @@ function cm(m: number): string {
 export function CuttingPlan({
   result,
   variant,
+  chosen = false,
   sheet,
   stripWidth,
   segments,
 }: {
   result: CuttingResult
   variant: CuttingVariant
+  chosen?: boolean
   sheet: { width: number; length: number }
   stripWidth: number
   segments: CutSegment[]
@@ -37,7 +39,8 @@ export function CuttingPlan({
         <b>Wariant {variant.key}:</b> {variant.instruction}.{' '}
         {variant.sheets} szt, łączeń {variant.joints}, odpad {variant.wasteArea.toLocaleString('pl-PL')} m² (
         {variant.wastePercent.toLocaleString('pl-PL', { maximumFractionDigits: 1 })}%)
-        {result.best.key === variant.key && <span className="cp-best">wybrany — mniej arkuszy</span>}
+        {chosen && <span className="cp-best">wybrany</span>}
+        {result.cheaper === variant.key && <span className="cp-best cp-cheap">tańszy</span>}
       </p>
       <div className="cp-grid">
         {sheets.map((strips, si) => (

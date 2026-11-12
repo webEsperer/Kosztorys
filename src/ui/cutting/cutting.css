@@ -87,3 +87,7 @@
 .cp-legend .cp-waste {
   background: repeating-linear-gradient(45deg, var(--muted) 0 1px, transparent 1px 4px);
 }
+
+.cp-cheap {
+  background: #2b8a3e;
+}

@@ -35,6 +35,10 @@ export interface CuttingInput {
 
 export const DEFAULT_MIN_PIECE = 0.3
 
+/** Zakład papy na łączeniu pasów: 30 cm (± 10 cm — wg użytkownika; edytowalny w zakresie 20–40 cm). */
+export const DEFAULT_FELT_OVERLAP = 0.3
+export const FELT_OVERLAP_RANGE = { min: 0.2, max: 0.4 } as const
+
 export interface CutPiece {
   segmentId: string
   /** Kawałek liczony od początku pasa [m]. */
@@ -78,8 +82,30 @@ export interface CuttingResult {
   totalSegmentLength: number
   A: CuttingVariant | null
   B: CuttingVariant | null
+  /** Wariant z mniejszą liczbą arkuszy (przy remisie — mniej łączeń). Dla OSB wariant wybiera użytkownik. */
   best: CuttingVariant
+  /** Wariant tańszy (mniej arkuszy); null — remis albo tylko jeden wariant możliwy. */
+  cheaper: 'A' | 'B' | null
+  /** Ostrzeżenie, gdy tańszy wariant ma więcej łączeń. */
+  jointsWarning: string | null
   trace: TraceStep[]
+}
+
+/** Ostrzeżenie: tańszy wariant (mniej arkuszy) ma więcej łączeń niż droższy. */
+export function jointsWarningText(cheap: CuttingVariant, other: CuttingVariant, unit: string): string | null {
+  if (cheap.joints <= other.joints) return null
+  const ratio = other.joints > 0 ? cheap.joints / other.joints : Infinity
+  const times =
+    ratio === Infinity
+      ? 'łączenia tam, gdzie drugi wariant ich nie ma'
+      : ratio >= 1.95
+        ? `ok. ${fmt(Math.round(ratio * 10) / 10, 1)} × więcej łączeń`
+        : `o ${cheap.joints - other.joints} łączeń więcej`
+  return (
+    `Wariant ${cheap.key} jest tańszy (${cheap.sheets} zamiast ${other.sheets} ${unit}), ale ma ${cheap.joints} łączeń ` +
+    `zamiast ${other.joints} (${times}). Każde łączenie to słabe miejsce — przy betonowaniu szalunek może się ` +
+    `rozejść w wielu miejscach. Wybierz świadomie.`
+  )
 }
 
 const EPS = 1e-9
@@ -245,6 +271,13 @@ export function computeCutting(input: CuttingInput): CuttingResult {
   if (candidates.length === 0) throw new Error('Pas jest szerszy niż arkusz — nie da się go wyciąć.')
   const best = candidates.reduce((x, y) => (y.sheets < x.sheets || (y.sheets === x.sheets && y.joints < x.joints) ? y : x))
   const totalSegmentLength = clean(input.segments.reduce((a, s) => a + s.length, 0))
+  let cheaper: 'A' | 'B' | null = null
+  let jointsWarning: string | null = null
+  if (A && B && A.sheets !== B.sheets) {
+    const [cheap, other] = A.sheets < B.sheets ? [A, B] : [B, A]
+    cheaper = cheap.key
+    jointsWarning = jointsWarningText(cheap, other, input.sheetUnit)
+  }
 
   const trace: TraceStep[] = [
     {
@@ -265,7 +298,7 @@ export function computeCutting(input: CuttingInput): CuttingResult {
     },
   ]
 
-  return { totalSegmentLength, A, B, best, trace }
+  return { totalSegmentLength, A, B, best, cheaper, jointsWarning, trace }
 }
 
 /** Liczba arkuszy z samej powierzchni (gdy rolka podana tylko jako m², bez wymiarów): ⌈A_potrz / A_arkusza⌉. */

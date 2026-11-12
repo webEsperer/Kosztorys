@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   computeCutting,
+  DEFAULT_FELT_OVERLAP,
   DEFAULT_MIN_PIECE,
+  FELT_OVERLAP_RANGE,
   formworkSegmentsRect,
   sheetsFromArea,
   type CuttingInput,
@@ -51,8 +53,12 @@ describe('cutting — OSB 250 × 125, pas 35 cm', () => {
     expect(r.B!.wasteArea).toBe(1.178) // 31,25 − 30,072
   })
 
-  it('wybrany wariant B (mniej płyt)', () => {
+  it('B tańszy (mniej płyt), ale ~2× więcej łączeń → ostrzeżenie', () => {
     expect(r.best.key).toBe('B')
+    expect(r.cheaper).toBe('B')
+    expect(r.B!.joints).toBeGreaterThan(r.A!.joints)
+    expect(r.jointsWarning).toContain('Wariant B jest tańszy (10 zamiast 12 płyt)')
+    expect(r.jointsWarning).toContain('2 × więcej łączeń')
     expect(renderTrace(r.trace)).toContain('A: 12 płyt')
   })
 
@@ -124,6 +130,17 @@ describe('cutting — przypadki brzegowe', () => {
     expect(r.A!.sheets).toBe(1)
     expect(r.B!.sheets).toBe(1)
     expect(r.best.key).toBe('A')
+  })
+
+  it('remis → brak „tańszego” i brak ostrzeżenia', () => {
+    const r = computeCutting({ ...OSB, segments: [{ id: 'x', label: 'x', length: 2 }] })
+    expect(r.cheaper).toBeNull()
+    expect(r.jointsWarning).toBeNull()
+  })
+
+  it('zakład papy domyślnie 30 cm (zakres 20–40 cm)', () => {
+    expect(DEFAULT_FELT_OVERLAP).toBe(0.3)
+    expect(FELT_OVERLAP_RANGE).toEqual({ min: 0.2, max: 0.4 })
   })
 
   it('liczba rolek z samej powierzchni: ⌈17,18 / 10⌉ = 2', () => {

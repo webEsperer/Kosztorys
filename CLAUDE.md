@@ -240,11 +240,16 @@ Jedna funkcja dla OSB, papy itp.: dane `arkusz/rolka (szer × dł)`, `szerokoś�
 - Odcinki ścian pokrywane pasami; reszty wykorzystywane na kolejne odcinki (first-fit decreasing).
 - Algorytm: odcinki od najdłuższego; dla brakującego kawałka najpierw najmniejsza resztka, która go zmieści,
   potem całe pasy, potem największa resztka ≥ **min. kawałka** (parametr, domyślnie 30 cm — założenie,
-  do potwierdzenia), na końcu nowy pas. **Zakład na łączeniu** kawałków w odcinku — parametr (OSB 0; papa wg
-  producenta, `null` = uzupełnij w pozycji).
-- Wybór wariantu z mniejszą liczbą arkuszy (przy remisie — mniej łączeń); UI pokazuje oba warianty
-  (np. OSB 12 × 9 m: A = 12 płyt / 32 łączenia, B = 10 płyt / 65 łączeń);
-  wynik: liczba arkuszy, odpad m² i %, **rysunek SVG planu cięcia**
+  do potwierdzenia), na końcu nowy pas. **Zakład na łączeniu** kawałków w odcinku — parametr:
+  OSB 0; **papa 30 cm (± 10 cm, edytowalny 20–40 cm)** — wg użytkownika.
+- **Wymiar płyty OSB / rolki podaje zawsze użytkownik** (taki, jaki kupuje) — brak wartości domyślnej,
+  pozycja „uzupełnij”, dopóki nie poda.
+- **OSB: użytkownik wybiera wariant** (A lub B) — aplikacja liczy oba i nie wybiera sama; do kosztorysu trafia
+  dopiero wybrany. Przy wariancie tańszym (mniej płyt), który ma więcej łączeń, ostrzeżenie: „Wariant X jest
+  tańszy (…), ale ma N łączeń zamiast M (ok. 2 × więcej) — szalunek może się rozejść w wielu miejscach”.
+  (np. OSB 250 × 125, 12 × 9 m: A = 12 płyt / 32 łączenia, B = 10 płyt / 65 łączeń).
+  Papa: wariant z mniejszą liczbą rolek (przy remisie — mniej łączeń) jako domyślny, do zmiany.
+- Wynik: liczba arkuszy, odpad m² i %, **rysunek SVG planu cięcia**
   („tnij płytę 250×125 na 3 pasy po 35 cm wzdłuż, reszta 20 cm – odpad”).
 
 ## Poziomy i warstwy (levels.ts)
