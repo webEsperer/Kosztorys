@@ -12,6 +12,8 @@ describe('szablon nowego projektu — dane domu użytkownika', () => {
     expect(p.wall).toMatchObject({ blockLength: 0.59, blockHeight: 0.24 })
     expect(p.partitionBlock).toMatchObject({ blockLength: 0.59, blockHeight: 0.24 })
     expect(p.foundation.jointThickness).toBe(0.015)
+    expect(p.foundation).toMatchObject({ footingWidth: 0.5, footingHeight: 0.4, layers: 6, ringBeamHeight: 0.25 })
+    expect(p.slabThickness).toBe(0.1)
     expect(p.floorLayers).toEqual({ insulation: 0.15, screed: 0.07, finish: 0.02 })
   })
 
@@ -77,5 +79,17 @@ describe('otwory — wyszczególnienie odejmowania', () => {
     const r = interiorDoors(p.openings, DEFAULT_DOOR_MAP)
     expect(r.unmapped).toEqual([])
     expect(r.groups.map((g) => [g.leaf, g.count])).toEqual([[0.6, 1], [0.7, 6]])
+  })
+})
+
+describe('dom użytkownika — poziomy fundamentu', () => {
+  it('ściana fund. 6 × (12 + 1,5) + 25 = 106 cm; góra ławy −24 − 106 = −130 cm; dno wykopu −142 cm; spód ławy −170 cm', async () => {
+    const { projectBase } = await import('../../src/engine/stages/common')
+    const p = applyTemplate(newProject(), builtInTemplate(newProject()))
+    const L = projectBase(p).levels!.foundation.value
+    expect(L.wallHeight).toBeCloseTo(1.06, 9)
+    expect(L.footingTop).toBeCloseTo(-1.3, 9)
+    expect(L.excavationBottom).toBeCloseTo(-1.42, 9)
+    expect(L.footingBottom).toBeCloseTo(-1.7, 9)
   })
 })

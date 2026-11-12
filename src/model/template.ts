@@ -8,6 +8,8 @@ import type { FloorLayersInput, ProjectInput, WallBlockInput } from './project'
 export interface ProjectTemplate {
   /** Bloczek fundamentowy [m] (null = uzupełnij). */
   foundationBlock: { blockLength: number | null; blockWidth: number | null; blockHeight: number | null; jointThickness: number | null }
+  /** Fundament: ława (szer. × wys.), liczba warstw bloczków, wieniec fund.; chudziak (góra = góra wieńca fund.) [m]. */
+  foundation: { footingWidth: number | null; footingHeight: number | null; layers: number | null; ringBeamHeight: number; slabThickness: number }
   /** Bloczek ścian nośnych i działowych [m]. */
   wallBlock: WallBlockInput
   partitionBlock: WallBlockInput
@@ -56,6 +58,8 @@ export const USER_OPENINGS: Opening[] = [
 export function builtInTemplate(base: ProjectInput): ProjectTemplate {
   return {
     foundationBlock: { blockLength: 0.38, blockWidth: 0.24, blockHeight: 0.12, jointThickness: 0.015 },
+    // ława 50 × 40 cm, 6 warstw bloczków, wieniec fund. 25 cm, chudziak 10 cm na równo z wieńcem (wg użytkownika)
+    foundation: { footingWidth: 0.5, footingHeight: 0.4, layers: 6, ringBeamHeight: 0.25, slabThickness: 0.1 },
     wallBlock: { blockLength: 0.59, blockHeight: 0.24, jointThickness: base.wall.jointThickness },
     partitionBlock: { blockLength: 0.59, blockHeight: 0.24, jointThickness: base.partitionBlock.jointThickness },
     wallHeight: 2.8,
@@ -73,6 +77,7 @@ export function templateFrom(p: ProjectInput): ProjectTemplate {
   const f = p.foundation
   return {
     foundationBlock: { blockLength: f.blockLength, blockWidth: f.blockWidth, blockHeight: f.blockHeight, jointThickness: f.jointThickness },
+    foundation: { footingWidth: f.footingWidth, footingHeight: f.footingHeight, layers: f.layers, ringBeamHeight: f.ringBeamHeight, slabThickness: p.slabThickness },
     wallBlock: { blockLength: p.wall.blockLength, blockHeight: p.wall.blockHeight, jointThickness: p.wall.jointThickness },
     partitionBlock: { ...p.partitionBlock },
     wallHeight: p.wallHeight,
@@ -94,6 +99,7 @@ export function mergeTemplate(builtIn: ProjectTemplate, saved: Partial<ProjectTe
   }
   return {
     foundationBlock: m(builtIn.foundationBlock, saved.foundationBlock),
+    foundation: m(builtIn.foundation, saved.foundation),
     wallBlock: m(builtIn.wallBlock, saved.wallBlock),
     partitionBlock: m(builtIn.partitionBlock, saved.partitionBlock),
     wallHeight: saved.wallHeight ?? builtIn.wallHeight,
@@ -108,7 +114,9 @@ export function mergeTemplate(builtIn: ProjectTemplate, saved: Partial<ProjectTe
 /** Nowy projekt z wpisanymi ustawieniami szablonu (kopia — projekt można dalej dowolnie zmieniać). */
 export function applyTemplate(p: ProjectInput, t: ProjectTemplate): ProjectInput {
   const next = structuredClone(p)
-  next.foundation = { ...next.foundation, ...t.foundationBlock }
+  const { slabThickness, ...fnd } = t.foundation
+  next.foundation = { ...next.foundation, ...t.foundationBlock, ...fnd }
+  next.slabThickness = slabThickness
   next.wall = { ...next.wall, ...t.wallBlock }
   next.partitionBlock = { ...t.partitionBlock }
   next.wallHeight = t.wallHeight
@@ -130,6 +138,7 @@ export function describeTemplate(t: ProjectTemplate): string[] {
   const nInt = t.openings.filter((o) => o.wall === 'działowa').reduce((s, o) => s + o.count, 0)
   return [
     `bloczek fundamentowy ${cm(b.blockLength)} × ${cm(b.blockWidth)} × ${cm(b.blockHeight)} cm, spoina ${cm(b.jointThickness)} cm`,
+    `ława ${cm(t.foundation.footingWidth)} × ${cm(t.foundation.footingHeight)} cm, ${t.foundation.layers ?? '—'} warstw bloczków fund., wieniec fund. ${cm(t.foundation.ringBeamHeight)} cm, chudziak ${cm(t.foundation.slabThickness)} cm`,
     `bloczek nośny dł. ${cm(t.wallBlock.blockLength)} × wys. ${cm(t.wallBlock.blockHeight)} cm, działowy dł. ${cm(t.partitionBlock.blockLength)} × wys. ${cm(t.partitionBlock.blockHeight)} cm`,
     `ściany nośne ${cm(t.wallHeight)} cm od posadzki; działowe ${t.partitions.length === null ? '—' : String(t.partitions.length).replace('.', ',')} mb, wysokość ${t.partitions.heightAboveFloor === null ? `ponad stelaż GK + ${cm(t.partitions.topMargin)} cm` : `${cm(t.partitions.heightAboveFloor)} cm`}`,
     `warstwy podłogi: izolacja ${cm(fl.insulation)} + wylewka ${cm(fl.screed)} + wykończenie ${cm(fl.finish)} cm`,
