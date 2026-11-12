@@ -35,6 +35,8 @@ wzór, podstawione dane, kroki pośrednie, naddatek, zaokrąglenie, koszt.
 - **PWA**: React + TypeScript + Vite — jedna aplikacja w przeglądarce na komputerze i telefonie,
   instalowalna na ekranie głównym, działająca offline.
 - Zapisy: IndexedDB (Dexie). Brak backendu.
+- PWA bez dodatkowych bibliotek: `pwa-plugin.ts` generuje przy buildzie `sw.js` (precache wszystkich plików,
+  wersja z hasha listy plików), `public/manifest.webmanifest` + ikony; SW rejestrowany tylko w produkcji.
 - Testy: Vitest (silnik), Testing Library (UI).
 - Eksport/import projektu: JSON. Eksport zestawień: CSV i PDF/druk. Eksport zestawienia otworów dla producenta stolarki.
 - Rysunki pomocnicze (plan cięcia płyt OSB i pasów papy, schemat poziomów): SVG generowane w aplikacji.
