@@ -398,7 +398,32 @@ export function computeFoundationLevels(
 }
 
 /**
- * Ściany działowe: murowane do `h_dz_p` od gotowej posadzki (domyślnie 2,80 m), pierwsza warstwa na chudziaku:
+ * Ściany działowe kończą się ponad górną krawędzią stelaża sufitu GK (wg użytkownika), ale nie wyżej niż wieniec:
+ *   h_dz_p = h_światło + GK + stelaż + zapas (domyślnie 2 cm; 1–2 cm)
+ */
+export function partitionHeightAboveFloor(clearHeight: number, c: CeilingBuildUp, margin: number, wallRingBeamTop: number | null): Computed {
+  const value = clean(clearHeight + c.board + c.grid + margin)
+  const over = wallRingBeamTop !== null && value > wallRingBeamTop + 1e-9
+  return {
+    value,
+    unit: 'm',
+    trace: [
+      {
+        label: 'Ściany działowe — wysokość od gotowej posadzki',
+        formula: 'h_światło + GK + stelaż + zapas',
+        values: `${fmt(clearHeight)} + ${fmt(c.board)} + ${fmt(c.grid)} + ${fmt(margin)}`,
+        result: value,
+        unit: 'm',
+        note: over
+          ? `UWAGA: wyżej niż góra wieńca ścian nośnych (${fmt(wallRingBeamTop!)} m)`
+          : 'ponad górną krawędź stelaża GK' + (wallRingBeamTop !== null ? `, poniżej góry wieńca (${fmt(wallRingBeamTop)} m)` : ''),
+      },
+    ],
+  }
+}
+
+/**
+ * Ściany działowe: murowane do `h_dz_p` od gotowej posadzki, pierwsza warstwa na chudziaku:
  *   h_dz = h_dz_p + g_p
  */
 export function partitionWallHeight(heightAboveFloor: number, floorBuild: Computed): Computed {

@@ -161,20 +161,31 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
 
       <Section title="4. Ściany działowe">
         <NumField positive label="Długość ścian działowych" unit="m" required value={project.partitions.length} onChange={(v) => update((p) => { p.partitions.length = v })} />
-        <NumField positive allowEmpty={false} label="Murowane do wysokości (od gotowej posadzki)" {...CM} value={project.partitions.heightAboveFloor} onChange={(v) => update((p) => { p.partitions.heightAboveFloor = v ?? 2.8 })} />
-        <NumField positive label="Wysokość muru ręcznie (puste = liczona)" {...CM} value={project.partitions.height} onChange={(v) => update((p) => { p.partitions.height = v })} />
-        <p className="calc">
-          {project.partitions.height !== null ? (
-            <>Wysokość muru podana ręcznie: <b>{fmtQty(project.partitions.height * 100, 1)} cm</b></>
-          ) : base?.partitionHeight ? (
-            <>
-              Pierwsza warstwa na chudziaku: {fmtQty(project.partitions.heightAboveFloor * 100, 1)} + {fmtQty(base.floorBuild!.value * 100, 1)} ={' '}
-              <b>{fmtQty(base.partitionHeight.value * 100, 1)} cm</b> muru
-            </>
-          ) : (
-            <span className="todo-inline">Wysokość muru: uzupełnij warstwy podłogi</span>
-          )}
-        </p>
+        <NumField allowEmpty={false} label="Zapas ponad stelaż GK" {...CM} value={project.partitions.topMargin} onChange={(v) => update((p) => { p.partitions.topMargin = v ?? 0.02 })} />
+        <NumField positive label="Wysokość od posadzki ręcznie (puste = sufit + GK + stelaż + zapas)" {...CM} value={project.partitions.heightAboveFloor} onChange={(v) => update((p) => { p.partitions.heightAboveFloor = v })} />
+        <NumField positive label="Wysokość muru od chudziaka ręcznie (puste = liczona)" {...CM} value={project.partitions.height} onChange={(v) => update((p) => { p.partitions.height = v })} />
+        {base && (
+          <p className="calc">
+            {project.partitions.heightAboveFloor === null ? (
+              <>
+                Od posadzki: {fmtQty(project.clearHeight * 100, 1)} + GK {fmtQty(project.ceiling.board * 100, 1)} + stelaż {fmtQty(project.ceiling.grid * 100, 1)} + zapas{' '}
+                {fmtQty(project.partitions.topMargin * 100, 1)} = <b>{fmtQty(base.partitionAbove.value * 100, 1)} cm</b>
+              </>
+            ) : (
+              <>Od posadzki (ręcznie): <b>{fmtQty(base.partitionAbove.value * 100, 1)} cm</b></>
+            )}
+            {base.wallHeightMissing.length === 0 && base.partitionAbove.value > base.ringTop.value + 1e-9 && (
+              <span className="todo-inline"> — wyżej niż góra wieńca (+{fmtQty(base.ringTop.value * 100, 1)} cm)!</span>
+            )}
+            {project.partitions.height !== null ? (
+              <>; mur podany ręcznie: <b>{fmtQty(project.partitions.height * 100, 1)} cm</b></>
+            ) : base.partitionHeight ? (
+              <>; mur od chudziaka: + podłoga {fmtQty(base.floorBuild!.value * 100, 1)} = <b>{fmtQty(base.partitionHeight.value * 100, 1)} cm</b></>
+            ) : (
+              <span className="todo-inline">; mur od chudziaka: uzupełnij warstwy podłogi</span>
+            )}
+          </p>
+        )}
         <NumField positive label="Bloczek — długość" {...CM} required value={project.partitionBlock.blockLength} onChange={(v) => update((p) => { p.partitionBlock.blockLength = v })} />
         <NumField positive label="Bloczek — wysokość" {...CM} required value={project.partitionBlock.blockHeight} onChange={(v) => update((p) => { p.partitionBlock.blockHeight = v })} />
         <NumField allowEmpty={false} label="Spoina" {...CM} value={project.partitionBlock.jointThickness} onChange={(v) => update((p) => { p.partitionBlock.jointThickness = v ?? 0 })} />

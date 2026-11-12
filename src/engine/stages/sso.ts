@@ -47,9 +47,9 @@ export function buildSSO(project: ProjectInput): { items: ItemSpec[]; context: S
   {
     const id = 'sso-lawy-deski'
     const params = {
-      boardWidth: P(id, 'boardWidth', 'Szerokość deski', null, 'm', '≥ 0,12 m (górne 12 cm ławy w szalunku)'),
+      boardWidth: P(id, 'boardWidth', 'Szerokość deski', 0.12, 'm', 'jedna warstwa deski 12 cm (górne 12 cm ławy w szalunku) — wg użytkownika'),
       boardThickness: P(id, 'boardThickness', 'Grubość deski', 0.025, 'm'),
-      boardLength: P(id, 'boardLength', 'Długość handlowa deski', 4, 'm'),
+      boardLength: P(id, 'boardLength', 'Długość handlowa deski', 2, 'm', 'wg użytkownika: deski 2 m'),
     }
     const missing = [...footMissing]
     const bw = need(params, 'boardWidth', missing)
@@ -75,21 +75,84 @@ export function buildSSO(project: ProjectInput): { items: ItemSpec[]; context: S
         ],
       }
     }
-    items.push(item({ id, category: C1, kind: 'material', name: 'Deski szalunkowe — górne 12 cm ławy', unit: 'szt', params, missing, quantity }))
+    items.push(item({ id, category: C1, kind: 'material', name: 'Deski szalunkowe ław (zewn. i wewn. obwód)', unit: 'szt', params, missing, quantity }))
+  }
+  // Paliki zabezpieczające: co 1 m po 2 szt. (para) na obwodzie zewnętrznym i wewnętrznym ław;
+  // każda para spięta deseczką 40 × 12 × 2,5 cm (wg użytkownika).
+  const stakeParams = {
+    spacing: P('sso-lawy-paliki', 'spacing', 'Rozstaw par palików', 1.0, 'm'),
+    perPoint: P('sso-lawy-paliki', 'perPoint', 'Palików w punkcie (para)', 2, 'szt'),
+    stakeLength: P('sso-lawy-paliki', 'stakeLength', 'Długość palika', 0.5, 'm'),
+    stakeWidth: P('sso-lawy-paliki', 'stakeWidth', 'Szerokość palika', 0.05, 'm'),
+  }
+  const stakeMissing = [...footMissing]
+  const stSp = need(stakeParams, 'spacing', stakeMissing)
+  const stPer = need(stakeParams, 'perPoint', stakeMissing)
+  const stLen = stakeParams.stakeLength.value
+  const stW = stakeParams.stakeWidth.value
+  const stakePoints: Computed | null =
+    fb !== null && stSp !== null
+      ? (() => {
+          const faces = footingFacePerimeters(pOs.value, fb)
+          const no = ceilSafe(clean(faces.value.outer / stSp))
+          const ni = ceilSafe(clean(faces.value.inner / stSp))
+          return {
+            value: no + ni,
+            unit: 'szt',
+            trace: [
+              ...faces.trace,
+              { label: 'Punkty (pary palików) — obwód zewnętrzny', formula: '⌈P_zew. ławy / rozstaw⌉', values: `⌈${fmt(faces.value.outer)} / ${fmt(stSp)}⌉`, result: no, unit: 'szt' },
+              { label: 'Punkty (pary palików) — obwód wewnętrzny', formula: '⌈P_wew. ławy / rozstaw⌉', values: `⌈${fmt(faces.value.inner)} / ${fmt(stSp)}⌉`, result: ni, unit: 'szt' },
+              { label: 'Punkty razem', formula: 'zewn. + wewn.', values: `${no} + ${ni}`, result: no + ni, unit: 'szt' },
+            ],
+          }
+        })()
+      : null
+  {
+    const quantity: Computed | null =
+      stakePoints && stPer !== null
+        ? {
+            value: stakePoints.value * stPer,
+            unit: 'szt',
+            trace: [
+              ...stakePoints.trace,
+              { label: 'Paliki', formula: 'punkty × palików w punkcie', values: `${stakePoints.value} × ${stPer}`, result: stakePoints.value * stPer, unit: 'szt' },
+              ...(stLen !== null
+                ? [{ label: 'Paliki — informacyjnie', formula: 'szt × długość', values: `${stakePoints.value * stPer} × ${fmt(stLen)}${stW !== null ? ` (palik ${fmt(stW * 100, 1)} cm szer.)` : ''}`, result: clean(stakePoints.value * stPer * stLen), unit: 'mb' }]
+                : []),
+            ],
+          }
+        : null
+    items.push(item({ id: 'sso-lawy-paliki', category: C1, kind: 'material', name: 'Paliki zabezpieczające szalunek ław (50 cm)', unit: 'szt', params: stakeParams, missing: stakeMissing, quantity }))
   }
   {
-    const id = 'sso-lawy-paliki'
-    const params = { spacing: P(id, 'spacing', 'Rozstaw palików', 1.0, 'm') }
-    const missing = [...footMissing]
-    const sp = need(params, 'spacing', missing)
-    let quantity: Computed | null = null
-    if (fb !== null && sp !== null) {
-      const faces = footingFacePerimeters(pOs.value, fb)
-      const total = clean(faces.value.outer + faces.value.inner)
-      const n = ceilSafe(total / sp)
-      quantity = computed('Paliki / kołki', '⌈L_szalunku / rozstaw⌉', `⌈${fmt(total)} / ${fmt(sp)}⌉`, n, 'szt')
+    const id = 'sso-lawy-deseczki'
+    const params = {
+      perPoint: P(id, 'perPoint', 'Deseczek na parę palików', 1, 'szt'),
+      cleatLength: P(id, 'cleatLength', 'Długość deseczki', 0.4, 'm', 'deseczka 40 × 12 × 2,5 cm'),
+      boardLength: P(id, 'boardLength', 'Docinane z deski o długości', 2, 'm', 'ta sama deska 12 × 2,5 cm co szalunek'),
     }
-    items.push(item({ id, category: C1, kind: 'material', name: 'Paliki / kołki do szalunku ław', unit: 'szt', params, missing, quantity }))
+    const missing = [...stakeMissing]
+    const per = need(params, 'perPoint', missing)
+    const cl = need(params, 'cleatLength', missing)
+    const bl = need(params, 'boardLength', missing)
+    let quantity: Computed | null = null
+    if (stakePoints && per !== null && cl !== null && bl !== null) {
+      const n = stakePoints.value * per
+      const fromBoard = Math.floor(clean(bl / cl))
+      const boards = fromBoard > 0 ? ceilSafe(n / fromBoard) : 0
+      quantity = {
+        value: boards,
+        unit: 'szt',
+        trace: [
+          ...stakePoints.trace,
+          { label: 'Deseczki 40 cm', formula: 'punkty × deseczek na parę', values: `${stakePoints.value} × ${per}`, result: n, unit: 'szt' },
+          { label: 'Deseczek z jednej deski', formula: '⌊dł. deski / dł. deseczki⌋', values: `⌊${fmt(bl)} / ${fmt(cl)}⌋`, result: fromBoard, unit: 'szt' },
+          { label: 'Deski na deseczki', formula: '⌈deseczki / z jednej deski⌉', values: `⌈${n} / ${fromBoard}⌉`, result: boards, unit: 'szt' },
+        ],
+      }
+    }
+    items.push(item({ id, category: C1, kind: 'material', name: 'Deski na deseczki łączące paliki (docinane na 40 cm)', unit: 'szt', params, missing, quantity }))
   }
   const footRebar = fb !== null && fh !== null ? computeRebarElement('ławy', sides, defaultFootingRebar(fb, fh)) : null
   const fp = defaultFootingRebar(1, 1)

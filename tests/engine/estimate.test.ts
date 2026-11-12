@@ -7,7 +7,7 @@ import { buildGeneral } from '../../src/engine/stages/general'
 function example(): ProjectInput {
   const p = newProject('Przykład')
   p.floorLayers = { insulation: 0.15, screed: 0.065, finish: 0.015 }
-  p.partitions = { length: 30, height: null, heightAboveFloor: 2.8 }
+  p.partitions = { length: 30, height: null, heightAboveFloor: 2.8, topMargin: 0.02 }
   p.wallHeight = 2.922
   p.openings = [
     { id: 'o1', mark: 'O1', type: 'okno', width: 1.5, height: 1.5, count: 4, wall: 'zewnętrzna' },

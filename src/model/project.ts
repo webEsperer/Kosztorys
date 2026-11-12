@@ -114,11 +114,11 @@ export interface ProjectInput {
   /** Zasady rozmieszczenia profili i wieszaków sufitu. */
   ceilingRules: CeilingRules
   /**
-   * Ściany działowe: suma mb; murowane do `heightAboveFloor` od gotowej posadzki (domyślnie 2,80 m),
-   * pierwsza warstwa na chudziaku → wysokość muru = heightAboveFloor + warstwy podłogi.
-   * `height` — ręczne nadpisanie całej wysokości muru (null = liczona).
+   * Ściany działowe: suma mb; pierwsza warstwa na chudziaku. Wysokość od gotowej posadzki (wg użytkownika):
+   * ponad górną krawędź stelaża GK = h_światło + GK + stelaż + `topMargin` (1–2 cm), nie wyżej niż wieniec.
+   * `heightAboveFloor` — ręcznie (null = liczona); `height` — ręcznie cała wysokość muru od chudziaka (null = liczona).
    */
-  partitions: { length: number | null; height: number | null; heightAboveFloor: number }
+  partitions: { length: number | null; height: number | null; heightAboveFloor: number | null; topMargin: number }
   /** Wybory użytkownika (np. wariant cięcia OSB). */
   choices: {
     /** Wariant cięcia OSB szalunku wieńca fundamentowego — wybiera użytkownik. */
@@ -185,7 +185,7 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
     planRules: { minPier: 0.25 },
     rooms: [],
     ceilingRules: DEFAULT_CEILING_RULES,
-    partitions: { length: null, height: null, heightAboveFloor: 2.8 },
+    partitions: { length: null, height: null, heightAboveFloor: null, topMargin: 0.02 },
     choices: { foundationRingBeamOsbVariant: null, wallRingBeamOsbVariant: null, foundationFeltVariant: null, wallFeltVariant: null },
     itemParams: {},
     prices: {},

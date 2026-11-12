@@ -12,6 +12,7 @@ import {
   type FloorLayers,
   floorBuildUp,
   type LevelsResult,
+  partitionHeightAboveFloor,
   partitionWallHeight,
   wallRingBeamTopFromCeiling,
   wallRingBeamTopFromInput,
@@ -294,6 +295,8 @@ export interface ProjectBase {
   /** Podpowiedź: wysokość w świetle + GK + stelaż + pustka. */
   ringTopHint: Computed
   wallHeightMissing: string[]
+  /** Wysokość ścian działowych od gotowej posadzki (z sufitu GK + zapas albo ręcznie). */
+  partitionAbove: Computed
   /** Wysokość muru ścian działowych od chudziaka (null — brak warstw podłogi). */
   partitionHeight: Computed | null
   /** Warstwy bloczków ścian nośnych i wieniec ścian. */
@@ -334,7 +337,17 @@ export function projectBase(project: ProjectInput): ProjectBase {
   if (wh === null || wh === undefined) wallHeightMissing.push('wysokość ścian nośnych (posadzka → góra wieńca)')
   else if (!(wh > project.clearHeight)) wallHeightMissing.push('wysokość ścian nośnych większa niż wysokość w świetle')
   const ringTop = wallHeightMissing.length ? ringTopHint : wallRingBeamTopFromInput(wh!, project.clearHeight, project.ceiling)
-  const partitionHeight = floorBuild ? partitionWallHeight(project.partitions.heightAboveFloor ?? 2.8, floorBuild) : null
+  const pp = project.partitions
+  const partitionAbove: Computed =
+    pp.heightAboveFloor !== null && pp.heightAboveFloor !== undefined
+      ? computed('Ściany działowe — wysokość od gotowej posadzki', 'podana ręcznie', fmt(pp.heightAboveFloor), pp.heightAboveFloor, 'm')
+      : partitionHeightAboveFloor(project.clearHeight, project.ceiling, pp.topMargin ?? 0.02, wallHeightMissing.length ? null : ringTop.value)
+  const partitionHeight: Computed | null = floorBuild
+    ? (() => {
+        const h = partitionWallHeight(partitionAbove.value, floorBuild)
+        return { ...h, trace: [...partitionAbove.trace, ...h.trace] }
+      })()
+    : null
   const w = project.wall
   const wallMissing = [...floorMissing, ...wallHeightMissing]
   if (w.blockHeight === null) wallMissing.push('wysokość bloczka ściany nośnej')
@@ -359,7 +372,7 @@ export function projectBase(project: ProjectInput): ProjectBase {
           ...DEFAULT_LEVELS,
           clearHeight: project.clearHeight,
           wallRingBeamTop: ringTop.value,
-          partitionHeightAboveFloor: project.partitions.heightAboveFloor ?? 2.8,
+          partitionHeightAboveFloor: partitionAbove.value,
           floorLayers: floor!,
           slabThickness: project.slabThickness,
           wall: wallParams!,
@@ -373,7 +386,7 @@ export function projectBase(project: ProjectInput): ProjectBase {
           },
         })
       : null
-  return { geo, pOs: geo.axisPerimeter, aWew: geo.interiorArea, axis, sides: rectSides(axis), floor, floorMissing, floorBuild, slabTop, ringTop, ringTopHint, wallHeightMissing, partitionHeight, wallLayers, wallMissing, levels, levelsMissing }
+  return { geo, pOs: geo.axisPerimeter, aWew: geo.interiorArea, axis, sides: rectSides(axis), floor, floorMissing, floorBuild, slabTop, ringTop, ringTopHint, wallHeightMissing, partitionAbove, partitionHeight, wallLayers, wallMissing, levels, levelsMissing }
 }
 
 /** Rozpiętość wewnętrzna pod ścianami szczytowymi (bok prostopadły do kalenicy) [m]. */

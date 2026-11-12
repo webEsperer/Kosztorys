@@ -94,7 +94,7 @@ Zasady:
 | Góra chudziaka = góra wieńca fundamentowego | − suma warstw podłogi (np. −23 cm) |
 | Sufit podwieszany: płyta GK 1,2 + stelaż krzyżowy 2 × 3 cm + pustka 15 cm (dojście wkrętarką do wieszaków) | 22,2 cm |
 | **Wysokość ścian nośnych: gotowa posadzka → góra wieńca** (konstrukcja dachu na wieńcu, sufit pod nią) | **podaje użytkownik** (podpowiedź: w świetle + warstwy sufitu, np. 270 + 22,2 = +292,2 cm; ostrzeżenie, gdy nad sufitem mniej miejsca niż GK + stelaż + pustka) |
-| Ściany działowe murowane do wysokości od gotowej posadzki (pierwsza warstwa na chudziaku) | 280 cm (+ warstwy podłogi, np. 280 + 23 = 303 cm muru) |
+| Ściany działowe od gotowej posadzki (pierwsza warstwa na chudziaku): ponad stelaż GK, nie wyżej niż wieniec | w świetle + GK + stelaż + zapas 2 cm = 279,2 cm (+ warstwy podłogi) |
 | Wieniec ścian minimalny | 25 cm |
 | Grubość chudziaka | 10 cm |
 | Kąt nachylenia dachu | podaje użytkownik |
@@ -296,8 +296,11 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
 - Parametry: szerokość `b`, wysokość `h` ławy; opcjonalnie ławy pod ścianami wewnętrznymi (mb).
 - Beton ław [licz]: `P_oś × b × h` → moduł betonowania.
 - Deski szalunkowe [licz]: górne 12 cm ławy po obu stronach; długość = `(P_oś + 4b) + (P_oś − 4b)`;
-  parametry deski: szerokość (≥12 cm), grubość 25 mm, długość handlowa (np. 4 m); wynik w szt., mb i m³;
-  paliki/kołki co 1 m [licz].
+  **wg użytkownika: jedna warstwa, deska 12 × 2,5 cm, dł. 2 m** (parametry); wynik w szt., mb i m³.
+- **Paliki zabezpieczające** [licz] (wg użytkownika): 50 × 5 cm, **co 1 m po 2 szt. (para)** osobno na obwodzie
+  zewnętrznym i wewnętrznym ław: `pary = ⌈P_ł,zew / 1⌉ + ⌈P_ł,wew / 1⌉`, paliki = 2 × pary.
+- **Deseczki 40 × 12 × 2,5 cm** przykręcane do każdej pary palików [licz]: 1 na parę, docinane z desek 2 m
+  (5 z deski) → liczba desek.
 - Zbrojenie ław [licz] — patrz moduł zbrojenia.
 
 ### Ściany fundamentowe
@@ -375,8 +378,10 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
 - Parapety zewnętrzne [licz: mb = szerokości okien + 2 × 3 cm].
 
 ### Ściany działowe
-- Dane: mb ścian, wysokość murowania od gotowej posadzki (domyślnie **2,80 m** — wg użytkownika); pierwsza warstwa
-  stoi na chudziaku, więc mur = 2,80 + warstwy podłogi (np. 303 cm); opcjonalnie wysokość muru ręcznie; otwory drzwiowe.
+- Dane: mb ścian; pierwsza warstwa stoi na chudziaku. **Wysokość od gotowej posadzki (wg użytkownika): ponad górną
+  krawędź stelaża GK, ale nie wyżej niż wieniec** — `h_światło + GK + stelaż + zapas` (zapas 1–2 cm, domyślnie 2 cm):
+  270 + 1,2 + 6 + 2 = 279,2 cm; mur od chudziaka = to + warstwy podłogi (np. 302,2 cm). Ostrzeżenie, gdy wyżej niż
+  góra wieńca. Wysokość od posadzki lub cały mur można podać ręcznie; otwory drzwiowe.
 - Bloczki (np. **H+H Gold 590 × 120 × 240 mm**; wymiary od użytkownika → szt/m²) [licz] (netto po odjęciu
   otworów i nadproży).
 - Klej [licz] — zużycie `null`.
@@ -622,7 +627,7 @@ Układ: profile główne wzdłuż dłuższego boku pomieszczenia, nośne krzyżo
 9. **Ustawienia domyślne nowych projektów** (`model/template.ts`, zapis w IndexedDB): przycisk „Ustaw jako domyślne”
    zapamiętuje z bieżącego projektu bloczek fundamentowy, warstwy podłogi, sufit, kąt dachu i okapy; „Nowy” je wpisuje.
    Szablon wbudowany = **dom użytkownika** (`builtInTemplate`): bloczek fund. 38 × 24 × 12, nośny 59 × 24 (ściana 24),
-   działowy 59 × 24 (ściana 12), ściany nośne 2,80 m od gotowej posadzki, działowe 47 mb, dach 30°, okapy 60 cm
+   działowy 59 × 24 (ściana 12), ściany nośne 2,80 m od gotowej posadzki, działowe 47 mb (wysokość ponad stelaż GK + 2 cm), dach 30°, okapy 60 cm
    (poziomo od lica elewacji), otwory: 9 okien, 3 drzwi zewn., 7 drzwi wewn. (`USER_OPENINGS`).
    „Wczytaj domyślne” wpisuje szablon do bieżącego projektu. Wartości w projekcie zawsze edytowalne.
 

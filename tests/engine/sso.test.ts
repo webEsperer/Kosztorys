@@ -56,16 +56,25 @@ describe('SSO — przykład z danymi fundamentu', () => {
     expect(byId(items, 'sso-lawy-pompa').enabled).toBe(false)
   })
 
-  it('deski: szer. null → uzupełnij; po podaniu 15 cm: 1 rząd × ⌈85,92 / 4⌉ = 22 szt', () => {
-    expect(byId(items, 'sso-lawy-deski').missing).toContain('Szerokość deski')
-    const q = buildSSO({ ...p, itemParams: { 'sso-lawy-deski': { boardWidth: 0.15 } } }).items
-    const d = byId(q, 'sso-lawy-deski')
-    expect(d.quantity?.value).toBe(22)
-    expect(renderTrace(d.quantity!.trace)).toContain('0,33 m³') // 22 × 4 × 0,15 × 0,025
+  it('deski 12 × 2,5 cm, dł. 2 m, jedna warstwa: 1 rząd × ⌈(45,36 + 40,56) / 2⌉ = 43 szt', () => {
+    const d = byId(items, 'sso-lawy-deski')
+    expect(d.missing).toEqual([])
+    expect(d.quantity?.value).toBe(43)
+    expect(renderTrace(d.quantity!.trace)).toContain('0,258 m³') // 43 × 2 × 0,12 × 0,025
+    const q = buildSSO({ ...p, itemParams: { 'sso-lawy-deski': { boardLength: 4 } } }).items
+    expect(byId(q, 'sso-lawy-deski').quantity?.value).toBe(22) // parametr edytowalny
   })
 
-  it('paliki co 1 m: ⌈85,92⌉ = 86', () => {
-    expect(byId(items, 'sso-lawy-paliki').quantity?.value).toBe(86)
+  it('paliki 50 cm co 1 m po 2 szt.: zewn. ⌈45,36⌉ = 46 + wewn. ⌈40,56⌉ = 41 → 87 par → 174 szt (87 m)', () => {
+    const it = byId(items, 'sso-lawy-paliki')
+    expect(it.quantity?.value).toBe(174)
+    expect(renderTrace(it.quantity!.trace)).toContain('87 m')
+  })
+
+  it('deseczki 40 cm: 87 szt (1 na parę), z deski 2 m po 5 → 18 desek', () => {
+    const it = byId(items, 'sso-lawy-deseczki')
+    expect(it.quantity?.value).toBe(18)
+    expect(renderTrace(it.quantity!.trace)).toContain('Deseczki 40 cm')
   })
 
   it('stal ław Ø12: 224,64 mb × 0,888 = 199,48 kg → 38 prętów 6 m; Ø6: 382,8 mb → 64 pręty', () => {

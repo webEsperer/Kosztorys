@@ -16,7 +16,7 @@ describe('szablon nowego projektu — dane domu użytkownika', () => {
 
   it('ściany nośne 2,80 od posadzki, działowe 47 mb, dach 30°, okapy 60 cm', () => {
     expect(p.wallHeight).toBe(2.8)
-    expect(p.partitions).toMatchObject({ length: 47, heightAboveFloor: 2.8 })
+    expect(p.partitions).toMatchObject({ length: 47, heightAboveFloor: null, topMargin: 0.02 })
     expect(p.roof).toMatchObject({ pitchDeg: 30, eaveOverhang: 0.6, gableOverhang: 0.6 })
   })
 

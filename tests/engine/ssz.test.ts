@@ -20,7 +20,7 @@ function example(): ProjectInput {
     { id: 'd3', mark: 'D3', type: 'drzwi wewnętrzne', width: 0.8, height: 2.07, count: 2, wall: 'działowa' },
     { id: 'd4', mark: 'D4', type: 'drzwi wewnętrzne', width: 1.1, height: 2.07, count: 1, wall: 'działowa' },
   ]
-  p.partitions = { length: 30, height: null, heightAboveFloor: 2.8 }
+  p.partitions = { length: 30, height: null, heightAboveFloor: 2.8, topMargin: 0.02 }
   p.wallHeight = 2.922
   p.roof = { ...p.roof, pitchDeg: 35 }
   return p
@@ -141,7 +141,16 @@ describe('SSZ — ściany działowe i drzwi', () => {
   const p = example()
   const { items } = buildSSZ(p)
 
-  it('działowe: 30 × (2,80 + 0,23) − 11,178 − 1,86 = 77,862 m² × 7,0621 (murowane do 2,80 od posadzki, start na chudziaku)', () => {
+  it('działowe ponad stelaż GK: 2,70 + 0,012 + 0,06 + 0,02 = 2,792 od posadzki; mur 2,792 + 0,23 = 3,022 m', () => {
+    const q = buildSSZ({ ...p, partitions: { ...p.partitions, heightAboveFloor: null }, itemParams: { 'ssz-dz-bloczki': { lintelHeight: 0.24 } } }).items
+    expect(byId(q, 'ssz-dz-bloczki').quantity?.value).toBeCloseTo((30 * 3.022 - 11.178 - 1.86) * 7.062147, 4)
+    const t = renderTrace(byId(q, 'ssz-dz-bloczki').quantity!.trace)
+    expect(t).toContain('ponad górną krawędź stelaża GK')
+    const r = buildSSZ({ ...p, partitions: { ...p.partitions, heightAboveFloor: null, topMargin: 0.01 }, itemParams: { 'ssz-dz-bloczki': { lintelHeight: 0.24 } } }).items
+    expect(byId(r, 'ssz-dz-bloczki').quantity?.value).toBeCloseTo((30 * 3.012 - 11.178 - 1.86) * 7.062147, 4)
+  })
+
+  it('działowe ręcznie: 30 × (2,80 + 0,23) − 11,178 − 1,86 = 77,862 m² × 7,0621 (murowane do 2,80 od posadzki, start na chudziaku)', () => {
     const q = buildSSZ({ ...p, itemParams: { 'ssz-dz-bloczki': { lintelHeight: 0.24 } } }).items
     expect(byId(q, 'ssz-dz-bloczki').quantity?.value).toBeCloseTo(77.862 * 7.062147, 4)
     expect(renderTrace(byId(q, 'ssz-dz-bloczki').quantity!.trace)).toContain('Wysokość muru ścian działowych')
@@ -162,7 +171,7 @@ describe('SSZ — ściany działowe i drzwi', () => {
   })
 
   it('brak długości działowych → uzupełnij', () => {
-    const q = buildSSZ({ ...p, partitions: { length: null, height: null, heightAboveFloor: 2.8 } }).items
+    const q = buildSSZ({ ...p, partitions: { length: null, height: null, heightAboveFloor: 2.8, topMargin: 0.02 } }).items
     expect(byId(q, 'ssz-dz-bloczki').missing).toContain('długość ścian działowych (mb)')
   })
 

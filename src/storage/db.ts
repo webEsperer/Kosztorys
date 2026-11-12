@@ -61,6 +61,8 @@ export function upgradeProject(data: Partial<ProjectInput>): ProjectInput {
   merged.ceilingRules = { ...base.ceilingRules, ...(data.ceilingRules ?? {}) }
   merged.planRules = { ...base.planRules, ...(data.planRules ?? {}) }
   merged.gables = { ...base.gables, ...(data.gables ?? {}) }
+  // 2,80 m było stałą domyślną (2026-11-12); teraz wysokość działowych liczona z sufitu GK + zapas.
+  if (data.partitions?.heightAboveFloor === 2.8) merged.partitions.heightAboveFloor = null
   // Starsze zapisy: szczyt daszku „boazeria” oznaczał wełnę + boazerię.
   merged.roof.dormers = merged.roof.dormers.map((d) => (d.gableInsulation === undefined && d.gableFinish === 'boazeria' ? { ...d, gableInsulation: true } : d))
   // Starsze zapisy liczyły górę wieńca z wysokości w świetle + warstw sufitu — zachowaj tę wartość.

@@ -11,7 +11,7 @@ function example(): ProjectInput {
   p.wall = { ...p.wall, blockLength: 0.59, blockHeight: 0.24 }
   p.partitionBlock = { blockLength: 0.59, blockHeight: 0.24, jointThickness: 0 }
   p.roof = { ...p.roof, pitchDeg: 35, eaveOverhang: 0.6, gableOverhang: 0.6 }
-  p.partitions = { length: 30, height: null, heightAboveFloor: 2.8 }
+  p.partitions = { length: 30, height: null, heightAboveFloor: 2.8, topMargin: 0.02 }
   p.wallHeight = 2.922
   p.openings = [
     { id: 'o1', mark: 'O1', type: 'okno', width: 1.5, height: 1.5, count: 4, wall: 'zewnętrzna' },

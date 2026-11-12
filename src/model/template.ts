@@ -14,7 +14,7 @@ export interface ProjectTemplate {
   /** Wysokość ścian nośnych: gotowa posadzka → góra wieńca [m]. */
   wallHeight: number | null
   /** Ściany działowe: mb i wysokość murowania od gotowej posadzki [m]. */
-  partitions: { length: number | null; heightAboveFloor: number }
+  partitions: { length: number | null; heightAboveFloor: number | null; topMargin: number }
   floorLayers: FloorLayersInput
   ceiling: CeilingBuildUp
   roof: { pitchDeg: number | null; eaveOverhang: number | null; gableOverhang: number | null }
@@ -59,7 +59,7 @@ export function builtInTemplate(base: ProjectInput): ProjectTemplate {
     wallBlock: { blockLength: 0.59, blockHeight: 0.24, jointThickness: base.wall.jointThickness },
     partitionBlock: { blockLength: 0.59, blockHeight: 0.24, jointThickness: base.partitionBlock.jointThickness },
     wallHeight: 2.8,
-    partitions: { length: 47, heightAboveFloor: base.partitions.heightAboveFloor },
+    partitions: { length: 47, heightAboveFloor: null, topMargin: base.partitions.topMargin },
     floorLayers: { ...base.floorLayers },
     ceiling: { ...base.ceiling },
     roof: { pitchDeg: 30, eaveOverhang: 0.6, gableOverhang: 0.6 },
@@ -75,7 +75,7 @@ export function templateFrom(p: ProjectInput): ProjectTemplate {
     wallBlock: { blockLength: p.wall.blockLength, blockHeight: p.wall.blockHeight, jointThickness: p.wall.jointThickness },
     partitionBlock: { ...p.partitionBlock },
     wallHeight: p.wallHeight,
-    partitions: { length: p.partitions.length, heightAboveFloor: p.partitions.heightAboveFloor },
+    partitions: { length: p.partitions.length, heightAboveFloor: p.partitions.heightAboveFloor, topMargin: p.partitions.topMargin },
     floorLayers: { ...p.floorLayers },
     ceiling: { ...p.ceiling },
     roof: { pitchDeg: p.roof.pitchDeg, eaveOverhang: p.roof.eaveOverhang, gableOverhang: p.roof.gableOverhang },
@@ -130,7 +130,7 @@ export function describeTemplate(t: ProjectTemplate): string[] {
   return [
     `bloczek fundamentowy ${cm(b.blockLength)} × ${cm(b.blockWidth)} × ${cm(b.blockHeight)} cm, spoina ${cm(b.jointThickness)} cm`,
     `bloczek nośny dł. ${cm(t.wallBlock.blockLength)} × wys. ${cm(t.wallBlock.blockHeight)} cm, działowy dł. ${cm(t.partitionBlock.blockLength)} × wys. ${cm(t.partitionBlock.blockHeight)} cm`,
-    `ściany nośne ${cm(t.wallHeight)} cm od posadzki; działowe ${t.partitions.length === null ? '—' : String(t.partitions.length).replace('.', ',')} mb do ${cm(t.partitions.heightAboveFloor)} cm`,
+    `ściany nośne ${cm(t.wallHeight)} cm od posadzki; działowe ${t.partitions.length === null ? '—' : String(t.partitions.length).replace('.', ',')} mb, wysokość ${t.partitions.heightAboveFloor === null ? `ponad stelaż GK + ${cm(t.partitions.topMargin)} cm` : `${cm(t.partitions.heightAboveFloor)} cm`}`,
     `warstwy podłogi: izolacja ${cm(fl.insulation)} + wylewka ${cm(fl.screed)} + wykończenie ${cm(fl.finish)} cm`,
     `sufit: GK ${cm(c.board)} + stelaż ${cm(c.grid)} + pustka ${cm(c.voidAbove)} cm`,
     `dach: kąt ${t.roof.pitchDeg === null ? '—' : String(t.roof.pitchDeg).replace('.', ',')}°, okap boczny ${cm(t.roof.eaveOverhang)} cm, okap szczytowy ${cm(t.roof.gableOverhang)} cm`,
