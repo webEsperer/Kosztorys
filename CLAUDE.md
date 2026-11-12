@@ -492,7 +492,7 @@ Cel: prawie realistyczny model domu w przeglądarce, **budowany w całości z pa
 (czyste dane: bryły, otwory, połacie — bez three.js), a komponenty tylko je renderują.
 
 **Etapy:**
-1. **Bryła z obliczeń:** ściany z grubością muru + EPS, otwory w ścianach (wycięcia), wieniec, dach z połaciami
+1. ✅ (zrobione — zakładka „Dom 3D”, `engine/model3d.ts`) **Bryła z obliczeń:** ściany z grubością muru + EPS, otwory w ścianach (wycięcia), wieniec, dach z połaciami
    i daszkami (z `roof.ts`), szczyty, okapy, podbitka. Proste kolory. Kamera orbitująca, zoom, widoki: z przodu,
    z boku, z góry, z lotu ptaka.
 2. **Materiały PBR:** tynk elewacyjny, dachówka (tekstura z mapą normalnych, kierunek zgodny ze spadkiem połaci),

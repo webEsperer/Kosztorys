@@ -1,0 +1,19 @@
+.house3d {
+  display: grid;
+  gap: 10px;
+}
+
+.house3d-canvas {
+  height: min(72vh, 720px);
+  min-height: 380px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  touch-action: none;
+}
+
+@media (max-width: 600px) {
+  .house3d-canvas {
+    height: 60vh;
+  }
+}

@@ -15,9 +15,10 @@ import { PlanEditor } from './plan-editor/PlanEditor'
 import type { RoofElementKind } from './roof-view/links'
 import './app.css'
 
+const House3D = lazy(() => import('./house-3d/House3D').then((m) => ({ default: m.House3D })))
 const FoundationViewer = lazy(() => import('./foundation-view/FoundationViewer').then((m) => ({ default: m.FoundationViewer })))
 
-type Tab = 'dane' | 'rzut' | Stage | 'podsumowanie' | 'braki' | 'dach' | 'eksport' | 'fundament'
+type Tab = 'dane' | 'rzut' | Stage | 'podsumowanie' | 'braki' | 'dach' | 'dom3d' | 'eksport' | 'fundament'
 
 const TAB_LABEL: Record<Tab, string> = {
   dane: 'Dane projektu',
@@ -29,6 +30,7 @@ const TAB_LABEL: Record<Tab, string> = {
   podsumowanie: 'Podsumowanie',
   braki: 'Do uzupełnienia',
   dach: 'Dach',
+  dom3d: 'Dom 3D',
   eksport: 'Eksport',
   fundament: 'Fundament 3D',
 }
@@ -194,7 +196,7 @@ export function AppShell() {
       )}
 
       <nav className="tabs" role="tablist">
-        {(['dane', 'rzut', ...STAGES, 'podsumowanie', 'braki', 'dach', 'eksport', 'fundament'] as Tab[]).map((t) => (
+        {(['dane', 'rzut', ...STAGES, 'podsumowanie', 'braki', 'dach', 'dom3d', 'eksport', 'fundament'] as Tab[]).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => { setTab(t); setSelected(null); setRoofHighlight(null) }}>
             {TAB_LABEL[t]}
             {!(estimate instanceof Error) && STAGES.includes(t as Stage) && (
@@ -248,6 +250,17 @@ export function AppShell() {
               setSelected(iid)
             }}
           />
+        ) : tab === 'dom3d' ? (
+          <Suspense fallback={<p className="loading">Ładowanie modelu 3D…</p>}>
+            <House3D
+              project={project}
+              estimate={estimate}
+              onOpenItem={(st, iid) => {
+                setTab(st)
+                setSelected(iid)
+              }}
+            />
+          </Suspense>
         ) : tab === 'eksport' ? (
           <ExportView estimate={estimate} project={project} />
         ) : (

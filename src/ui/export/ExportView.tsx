@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { STAGE_LABEL, STAGES, type Estimate } from '../../engine/estimate'
 import { estimateCsv, OPENING_COLUMNS, openingSchedule, openingsCsv } from '../../engine/exportData'
-import { UNIT_LABEL } from '../../engine/items'
 import { formatPLN } from '../../engine/money'
 import type { ProjectInput } from '../../model/project'
 import { Check, fmtQty } from '../common/fields'
+import { itemQtyText } from '../common/itemText'
 
 function download(name: string, text: string, type = 'text/csv;charset=utf-8') {
   const a = document.createElement('a')
@@ -119,15 +119,6 @@ export function ExportView({ estimate, project }: { estimate: Estimate; project:
   )
 }
 
-/** Ilość w jednostce pozycji (z odpadem; sztuki zaokrąglone) — opakowania osobno. */
-function printQty(r: Estimate['items'][number]): string {
-  const s = r.spec
-  if (s.priceBasis === 'lumpSum') return 'ryczałt'
-  if (!s.quantity) return '—'
-  const q = !s.packaging && r.chargedQuantity !== null ? r.chargedQuantity : (r.quantityWithWaste ?? s.quantity.value)
-  return `${fmtQty(q)} ${UNIT_LABEL[s.unit]}`
-}
-
 function PrintEstimate({ estimate, project, date, withTrace }: { estimate: Estimate; project: ProjectInput; date: string; withTrace: boolean }) {
   return (
     <>
@@ -188,7 +179,7 @@ function PrintEstimate({ estimate, project, date, withTrace }: { estimate: Estim
                         </ol>
                       )}
                     </td>
-                    <td className="num">{printQty(r)}</td>
+                    <td className="num">{itemQtyText(r).replace(/ \(.*\)$/, '')}</td>
                     <td>{r.spec.packaging && r.packs !== null ? `${r.packs} × ${r.spec.packaging.packLabel}` : ''}</td>
                     <td className="num">{r.unitPriceGrosze === null ? '—' : formatPLN(r.unitPriceGrosze)}</td>
                     <td className="num">{r.costGrosze === null ? '—' : formatPLN(r.costGrosze)}</td>

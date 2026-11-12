@@ -9,6 +9,7 @@ import { roofOf } from '../../engine/stages/sszRoof'
 import type { Stage } from '../../engine/items'
 import type { ProjectInput } from '../../model/project'
 import { fmtQty } from '../common/fields'
+import { itemQtyText } from '../common/itemText'
 import { ELEMENT_ITEMS, ELEMENT_LABEL, type RoofElementKind } from './links'
 import './roof-view.css'
 
@@ -432,7 +433,7 @@ export function RoofView({
                 </button>
                 <span className="muted small">
                   {' '}
-                  — {r!.spec.quantity ? `${fmtQty(r!.chargedQuantity ?? r!.quantityWithWaste)} ${r!.chargedUnit}` : 'uzupełnij'}
+                  — {itemQtyText(r!)}
                   {r!.costGrosze !== null && `, ${formatPLN(r!.costGrosze)}`}
                 </span>
               </li>
