@@ -239,7 +239,7 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
 
       <section className="card wide">
         <h2>8. Otwory</h2>
-        <OpeningsEditor openings={project.openings} update={update} />
+        <OpeningsEditor project={project} update={update} />
       </section>
 
       <section className="card wide">

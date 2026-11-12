@@ -4,6 +4,7 @@ import type { ProjectInput } from '../../model/project'
 import { type ItemSpec, need } from '../items'
 import { type Computed, clean, fmt } from '../trace'
 import { computed, makeBuilder, projectBase } from './common'
+import { openingsArea } from '../openings'
 
 export function buildSD(project: ProjectInput): { items: ItemSpec[] } {
   const b = makeBuilder(project, 'SD')
@@ -44,7 +45,9 @@ export function buildSD(project: ProjectInput): { items: ItemSpec[] } {
         value: total,
         unit: 'm²',
         trace: [
+          ...openingsArea('Otwory w ścianach zewnętrznych razem (tynk 1 strona)', ext).trace,
           { label: 'Ściany zewnętrzne od środka', formula: 'P_wew × h − otwory', values: `${fmt(pWew)} × ${fmt(h)} − ${fmt(area(ext))}`, result: extWalls, unit: 'm²' },
+          ...openingsArea('Otwory w ścianach działowych razem (tynk 2 strony)', part).trace,
           { label: 'Ściany działowe obustronnie', formula: '2 × mb × h − 2 × otwory', values: `2 × ${fmt(project.partitions.length)} × ${fmt(h)} − 2 × ${fmt(area(part))}`, result: partWalls, unit: 'm²' },
           ...(withReveals ? [{ label: 'Ościeża', formula: 'Σ (2h + w) × liczba × głębokość', values: fmt(rev), result: rev, unit: 'm²' }] : []),
           { label: 'Tynki razem', formula: 'suma', values: `${fmt(extWalls)} + ${fmt(partWalls)}${withReveals ? ` + ${fmt(rev)}` : ''}`, result: total, unit: 'm²' },

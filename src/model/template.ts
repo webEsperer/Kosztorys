@@ -45,13 +45,13 @@ export const USER_OPENINGS: Opening[] = [
   int('t-d7', 'D7', 0.8, 'Łazienka'),
   int('t-d8', 'D8', 0.8, 'Gabinet'),
   int('t-d9', 'D9', 0.8, 'Wiatrołap → korytarz'),
-  int('t-d10', 'D10', 0.6, 'Schowek'),
+  int('t-d10', 'D10', 0.7, 'Schowek'), // powiększony z 60 do 70 cm (wg użytkownika) → drzwi 60
 ]
 
 /**
  * Szablon wbudowany — dane domu użytkownika: bloczek fund. 38 × 24 × 12, nośny 59 × 24 (ściana 24),
  * działowy 59 × 24 (ściana 12), ściany nośne 2,80 m od posadzki, działowe 47 mb, dach 30°, okapy 60 cm, otwory.
- * Spoina fund. 1,5 cm, podłoga: EPS 15 cm (3 × 5) + wylewka 7 cm; wykończenie podłogi — null (uzupełnij).
+ * Spoina fund. 1,5 cm, podłoga: EPS 15 cm (3 × 5) + wylewka 7 cm + płytka z klejem 2 cm (razem 24 cm).
  */
 export function builtInTemplate(base: ProjectInput): ProjectTemplate {
   return {
@@ -60,8 +60,8 @@ export function builtInTemplate(base: ProjectInput): ProjectTemplate {
     partitionBlock: { blockLength: 0.59, blockHeight: 0.24, jointThickness: base.partitionBlock.jointThickness },
     wallHeight: 2.8,
     partitions: { length: 47, heightAboveFloor: null, topMargin: base.partitions.topMargin },
-    // podłoga: EPS 3 × 5 cm = 15 cm, wylewka 7 cm; wykończenie (płytka/panel) — jeszcze nie podane
-    floorLayers: { ...base.floorLayers, insulation: 0.15, screed: 0.07 },
+    // podłoga: EPS 3 × 5 cm = 15 cm, wylewka 7 cm, płytka z klejem 2 cm
+    floorLayers: { insulation: 0.15, screed: 0.07, finish: 0.02 },
     ceiling: { ...base.ceiling },
     roof: { pitchDeg: 30, eaveOverhang: 0.6, gableOverhang: 0.6 },
     openings: structuredClone(USER_OPENINGS),

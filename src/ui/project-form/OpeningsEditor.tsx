@@ -1,6 +1,7 @@
 // Lista typów otworów: typ, wymiary, liczba, ściana, oznaczenie.
 
-import type { Opening, OpeningType, OpeningWall } from '../../engine/openings'
+import type { ProjectInput } from '../../model/project'
+import { type Opening, type OpeningType, type OpeningWall, OPENING_DEDUCTIONS, openingDeductions } from '../../engine/openings'
 import { NumField, fmtQty } from '../common/fields'
 import type { Update } from './ProjectForm'
 
@@ -14,7 +15,8 @@ function nextMark(openings: Opening[], type: OpeningType): string {
   return `${prefix}${n}`
 }
 
-export function OpeningsEditor({ openings, update }: { openings: Opening[]; update: Update }) {
+export function OpeningsEditor({ project, update }: { project: ProjectInput; update: Update }) {
+  const openings = project.openings
   const add = (type: OpeningType) =>
     update((p) => {
       p.openings.push({
@@ -32,7 +34,9 @@ export function OpeningsEditor({ openings, update }: { openings: Opening[]; upda
       const o = p.openings.find((x) => x.id === id)
       if (o) fn(o)
     })
-  const total = openings.filter((o) => o.wall === 'zewnętrzna').reduce((a, o) => a + o.width * o.height * o.count, 0)
+  const perExt = project.itemParams['ssz-nadproza-zew']?.perOpening ?? 2
+  const perPart = project.itemParams['ssz-nadproza-dz']?.perOpening ?? 1
+  const ded = openingDeductions(openings, project.lintels, { exterior: perExt, partition: perPart })
 
   return (
     <div className="openings">
@@ -86,7 +90,72 @@ export function OpeningsEditor({ openings, update }: { openings: Opening[]; upda
           </button>
         ))}
       </div>
-      <p className="calc">Otwory w ścianach zewnętrznych: {fmtQty(total)} m²</p>
+      {openings.length > 0 && <OpeningsSummary rows={ded.rows} totals={ded.totals} />}
+    </div>
+  )
+}
+
+const WALL_TITLE: Record<OpeningWall, string> = {
+  zewnętrzna: 'Ściany zewnętrzne (nośne)',
+  szczyt: 'Ściany szczytowe',
+  działowa: 'Ściany działowe',
+}
+
+/** Zestawienie: każdy otwór, pole, nadproże i od czego jest odejmowany. */
+function OpeningsSummary({ rows, totals }: { rows: ReturnType<typeof openingDeductions>['rows']; totals: Record<OpeningWall, number> }) {
+  return (
+    <div className="openings-summary">
+      <h3>Zestawienie otworów — co odejmujemy i od czego</h3>
+      {WALLS.filter((w) => rows.some((r) => r.opening.wall === w)).map((w) => {
+        const rs = rows.filter((r) => r.opening.wall === w)
+        return (
+          <div key={w} className="os-group">
+            <table className="sum-table">
+              <thead>
+                <tr>
+                  <th>{WALL_TITLE[w]}</th>
+                  <th>Pomieszczenie</th>
+                  <th>Szer. × wys.</th>
+                  <th>Szt</th>
+                  <th>Pole</th>
+                  <th>Nadproże</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rs.map((r) => (
+                  <tr key={r.opening.id}>
+                    <th>
+                      {r.opening.mark} {r.opening.type}
+                    </th>
+                    <td className="os-room">{r.opening.room ?? ''}</td>
+                    <td>
+                      {fmtQty(r.opening.width * 100, 0)} × {fmtQty(r.opening.height * 100, 0)} cm
+                    </td>
+                    <td>{r.opening.count}</td>
+                    <td>{fmtQty(r.area)} m²</td>
+                    <td>{r.lintel ? `${fmtQty(r.lintel.length * 100, 0)} cm × ${r.lintel.pieces} szt` : <span className="todo-inline">indywidualne</span>}</td>
+                  </tr>
+                ))}
+                <tr className="os-total">
+                  <th>Razem</th>
+                  <td />
+                  <td />
+                  <td>{rs.reduce((s, r) => s + r.opening.count, 0)}</td>
+                  <td>
+                    <b>{fmtQty(totals[w])} m²</b>
+                  </td>
+                  <td />
+                </tr>
+              </tbody>
+            </table>
+            <p className="muted small">Odejmowane od: {OPENING_DEDUCTIONS[w].join('; ')}.</p>
+          </div>
+        )
+      })}
+      <p className="muted small">
+        Pole otworu = szerokość × wysokość × liczba. Od muru odejmowane są też nadproża (dł. × wysokość nadproża z parametru pozycji bloczków).
+        Szczegóły każdego odejmowania — w „Jak to policzono” danej pozycji.
+      </p>
     </div>
   )
 }

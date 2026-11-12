@@ -1,7 +1,7 @@
 // Elewacja: EPS do linii podbitki, szczyty z wełną i boazerią, podbitka (CLAUDE.md „Elewacja”).
 // Wymiary w metrach.
 
-import type { Opening } from './openings'
+import { type Opening, openingsArea } from './openings'
 import type { RoofResult } from './roof'
 import { type Computed, type TraceStep, clean, fmt } from './trace'
 
@@ -50,7 +50,7 @@ export function computeFacade(i: FacadeInput): FacadeResult {
     unit: 'm²',
     trace: [
       ...grossArea.trace,
-      st('Otwory', 'Σ szer × wys × liczba', i.wallOpenings.map((o) => `${o.mark}: ${fmt(o.width)} × ${fmt(o.height)} × ${o.count}`).join(' + ') || '0', op, 'm²'),
+      ...openingsArea('Otwory razem (do odjęcia od EPS)', i.wallOpenings).trace,
       st('Powierzchnia EPS netto', 'brutto − otwory', `${fmt(gross)} − ${fmt(op)}`, net, 'm²'),
     ],
   }
@@ -58,9 +58,9 @@ export function computeFacade(i: FacadeInput): FacadeResult {
   const startRail: Computed = { value: outer, unit: 'm', trace: [st('Listwa startowa', 'P_wew + 8·t (lico zewn. ściany)', `${fmt(i.interiorPerimeter)} + 8 × ${fmt(i.wallThickness)}`, outer, 'm')] }
   const reveals = clean(i.wallOpenings.reduce((a, o) => a + (2 * o.height + o.width) * o.count, 0))
   const cb = clean(4 * h + reveals)
-  const cornerBeads: Computed = { value: cb, unit: 'm', trace: [st('Narożniki z siatką', '4 × wysokość + Σ (2h + w) × liczba', `4 × ${fmt(h)} + ${fmt(reveals)}`, cb, 'm')] }
+  const cornerBeads: Computed = { value: cb, unit: 'm', trace: [st('Ościeża otworów (narożniki)', 'Σ (2h + w) × liczba', i.wallOpenings.map((o) => `${o.mark}: (2 × ${fmt(o.height)} + ${fmt(o.width)}) × ${o.count}`).join(' + ') || '0', reveals, 'm'), st('Narożniki z siatką', '4 × wysokość + ościeża', `4 × ${fmt(h)} + ${fmt(reveals)}`, cb, 'm')] }
   const perims = clean(i.wallOpenings.reduce((a, o) => a + 2 * (o.width + o.height) * o.count, 0))
-  const apu: Computed = { value: perims, unit: 'm', trace: [st('Listwy APU', 'Σ 2 × (w + h) × liczba', i.wallOpenings.map((o) => `2 × (${fmt(o.width)} + ${fmt(o.height)}) × ${o.count}`).join(' + ') || '0', perims, 'm')] }
+  const apu: Computed = { value: perims, unit: 'm', trace: [st('Listwy APU', 'Σ 2 × (w + h) × liczba', i.wallOpenings.map((o) => `${o.mark}: 2 × (${fmt(o.width)} + ${fmt(o.height)}) × ${o.count}`).join(' + ') || '0', perims, 'm')] }
   return { height, midPerimeter, grossArea, openingsArea: op, netArea, startRail, cornerBeads, apu, openingPerimeters: perims }
 }
 
@@ -122,13 +122,15 @@ export function gableFacade(i: GableFacadeInput): GableFacadeResult {
   const base = clean(i.interiorSpan + 2 * i.wallThickness + 2 * w)
   const tan = Math.tan((i.pitchDeg * Math.PI) / 180)
   const one = clean(((base * base) / 4) * tan)
-  const op = clean(i.gableOpenings.reduce((a, o) => a + o.width * o.height * o.count, 0))
+  const gop = openingsArea('Okna w szczytach razem (do odjęcia od elewacji szczytu)', i.gableOpenings)
+  const op = gop.value
   const main = clean(2 * one - op)
   const mainTrace: TraceStep[] = [
     i.insulated
       ? st('Szczyt — podstawa (lico wełny)', 'b = B_wew + 2·t + 2·g_wełny', `${fmt(i.interiorSpan)} + 2 × ${fmt(i.wallThickness)} + 2 × ${fmt(w)}`, base, 'm')
       : st('Szczyt — podstawa (lico muru, bez ocieplenia)', 'b = B_wew + 2·t', `${fmt(i.interiorSpan)} + 2 × ${fmt(i.wallThickness)}`, base, 'm'),
     st('Szczyt (jeden) nad linią okapu', 'b² / 4 × tan α', `${fmt(base)}² / 4 × tan ${fmt(i.pitchDeg)}°`, one, 'm²'),
+    ...(i.gableOpenings.length ? gop.trace : []),
     {
       ...st('Szczyty główne netto', '2 × szczyt − okna w szczytach', `2 × ${fmt(one)} − ${fmt(op)}`, main, 'm²'),
       note: `poniżej linii okapu EPS jak na ścianach; powyżej ${i.insulated ? `wełna skalna ${fmt(w * 100, 1)} cm + boazeria` : 'sama boazeria (bez ocieplenia)'}`,

@@ -114,7 +114,9 @@ Aplikacja rysuje **schemat poziomów** (przekrój) z wyliczonymi rzędnymi i pok
 Lista typów otworów: `typ (okno / drzwi zewnętrzne / brama / drzwi wewnętrzne), szerokość, wysokość, liczba,
 ściana (zewnętrzna / szczyt / działowa), oznaczenie (O1, D1…)`.
 
-Do kosztorysu wystarczy typ + liczba. Do wizualizacji każdy egzemplarz otworu ma dodatkowo **położenie**:
+Do kosztorysu wystarczy typ + liczba. **Każdy otwór jest wyszczególniony** (wg użytkownika): w trace każdej pozycji, od której się odejmuje
+(mur nośny, szczyt, działowy, EPS, tynk) osobny krok na otwór (oznaczenie, typ, pomieszczenie, wymiary, pole) i na jego
+nadproże, potem suma; pod listą otworów tabela „co odejmujemy i od czego” (`openingDeductions`). Do wizualizacji każdy egzemplarz otworu ma dodatkowo **położenie**:
 - `wallId` — która ściana (ściany obrysu numerowane od narożnika lewego dolnego, zgodnie z ruchem wskazówek zegara;
   ściany działowe — własne id),
 - `offset` — odległość od wewnętrznego narożnika ściany do krawędzi otworu (cm),
@@ -627,7 +629,7 @@ Układ: profile główne wzdłuż dłuższego boku pomieszczenia, nośne krzyżo
 9. **Ustawienia domyślne nowych projektów** (`model/template.ts`, zapis w IndexedDB): przycisk „Ustaw jako domyślne”
    zapamiętuje z bieżącego projektu bloczek fundamentowy, warstwy podłogi, sufit, kąt dachu i okapy; „Nowy” je wpisuje.
    Szablon wbudowany = **dom użytkownika** (`builtInTemplate`): bloczek fund. 38 × 24 × 12, nośny 59 × 24 (ściana 24),
-   działowy 59 × 24 (ściana 12), spoina fund. 1,5 cm, podłoga EPS 3 × 5 = 15 cm + wylewka 7 cm (wykończenie — uzupełnij),
+   działowy 59 × 24 (ściana 12), spoina fund. 1,5 cm, podłoga EPS 3 × 5 = 15 cm + wylewka 7 cm + płytka z klejem 2 cm = 24 cm,
    ściany nośne 2,80 m od gotowej posadzki, działowe 47 mb (wysokość ponad stelaż GK + 2 cm), dach 30°, okapy 60 cm
    (poziomo od lica elewacji), otwory: 9 okien, 3 drzwi zewn., 7 drzwi wewn. (`USER_OPENINGS`).
    „Wczytaj domyślne” wpisuje szablon do bieżącego projektu. Wartości w projekcie zawsze edytowalne.

@@ -64,22 +64,77 @@ function cm(m: number): string {
   return fmt(clean(m * 100), 1)
 }
 
-/** Pole otworów (Σ szer × wys × liczba). */
-export function openingsArea(label: string, openings: Opening[]): Computed {
+/** Opis otworu do trace: „O1 okno — Sypialnia 1”. */
+export function openingLabel(o: Opening): string {
+  return `${o.mark} ${o.type}${o.room ? ` — ${o.room}` : ''}`
+}
+
+/** Pole jednego wiersza otworów: szer × wys × liczba. */
+export function openingArea(o: Opening): number {
+  return clean(o.width * o.height * o.count)
+}
+
+/**
+ * Pole otworów (Σ szer × wys × liczba) — każdy otwór w osobnym kroku (oznaczenie, typ, pomieszczenie),
+ * potem suma, żeby było widać, co dokładnie jest odejmowane.
+ */
+export function openingsArea(label: string, openings: Opening[], deductedFrom?: string): Computed {
   const value = clean(openings.reduce((a, o) => a + o.width * o.height * o.count, 0))
+  if (!openings.length) return { value: 0, unit: 'm²', trace: [{ label, formula: 'Σ szer × wys × liczba', values: 'brak otworów', result: 0, unit: 'm²' }] }
+  const rows: TraceStep[] = openings.map((o) => ({
+    label: `  ${openingLabel(o)}`,
+    formula: 'szer × wys × liczba',
+    values: `${fmt(o.width)} × ${fmt(o.height)} × ${o.count}`,
+    result: openingArea(o),
+    unit: 'm²',
+  }))
   return {
     value,
     unit: 'm²',
     trace: [
+      ...rows,
       {
         label,
         formula: 'Σ szer × wys × liczba',
-        values: openings.length ? openings.map((o) => `${o.mark}: ${fmt(o.width)} × ${fmt(o.height)} × ${o.count}`).join(' + ') : 'brak otworów',
+        values: openings.map((o) => `${o.mark} ${fmt(openingArea(o))}`).join(' + '),
         result: value,
         unit: 'm²',
+        ...(deductedFrom ? { note: `odejmowane od: ${deductedFrom}` } : {}),
       },
     ],
   }
+}
+
+/** Gdzie odejmujemy otwór danej ściany — opis dla użytkownika. */
+export const OPENING_DEDUCTIONS: Record<OpeningWall, string[]> = {
+  zewnętrzna: ['mur ścian nośnych (bloczki, klej) + nadproże', 'EPS elewacji (klej, siatka, kołki, tynk)', 'tynk wewnętrzny (1 strona)'],
+  szczyt: ['mur ściany szczytowej (bloczki, klej) + nadproże', 'elewacja szczytu (wełna, membrana, boazeria)'],
+  działowa: ['mur ścian działowych (bloczki, klej) + nadproże', 'tynk wewnętrzny (2 strony)'],
+}
+
+export interface OpeningDeductionRow {
+  opening: Opening
+  area: number
+  /** Nadproże systemowe (null — za szeroki otwór). */
+  lintel: { length: number; pieces: number } | null
+  deductedFrom: string[]
+}
+
+/** Zestawienie: każdy otwór, jego pole, nadproże i od czego jest odejmowany. */
+export function openingDeductions(
+  openings: Opening[],
+  lintels: { exterior: LintelSize[]; partition: LintelSize[] },
+  perOpening: { exterior: number; partition: number },
+): { rows: OpeningDeductionRow[]; totals: Record<OpeningWall, number> } {
+  const totals: Record<OpeningWall, number> = { zewnętrzna: 0, szczyt: 0, działowa: 0 }
+  const rows = openings.map((o) => {
+    const part = o.wall === 'działowa'
+    const l = selectLintel(o.width, part ? lintels.partition : lintels.exterior)
+    const area = openingArea(o)
+    totals[o.wall] = clean(totals[o.wall] + area)
+    return { opening: o, area, lintel: l ? { length: l.length, pieces: o.count * (part ? perOpening.partition : perOpening.exterior) } : null, deductedFrom: OPENING_DEDUCTIONS[o.wall] }
+  })
+  return { rows, totals }
 }
 
 /** Najkrótsze nadproże, którego „maks. otwór” ≥ szerokość otworu; null — otwór za szeroki. */
@@ -96,6 +151,8 @@ export interface LintelSchedule {
   /** Pole nadproży do odjęcia od muru (długość × wysokość, raz na otwór); null — brak wysokości nadproża. */
   area: number | null
   trace: TraceStep[]
+  /** Pole nadproża osobno dla każdego otworu (gdy znana wysokość nadproża). */
+  areaTrace: TraceStep[]
 }
 
 /**
@@ -106,6 +163,7 @@ export function lintelSchedule(openings: Opening[], table: LintelSize[], perOpen
   const counts = new Map<number, number>()
   const tooWide: Opening[] = []
   const trace: TraceStep[] = []
+  const areaTrace: TraceStep[] = []
   let area = 0
   for (const o of openings) {
     const l = selectLintel(o.width, table)
@@ -122,7 +180,16 @@ export function lintelSchedule(openings: Opening[], table: LintelSize[], perOpen
     }
     const n = o.count * perOpening
     counts.set(l.length, (counts.get(l.length) ?? 0) + n)
-    if (lintelHeight !== null) area += l.length * lintelHeight * o.count
+    if (lintelHeight !== null) {
+      area += l.length * lintelHeight * o.count
+      areaTrace.push({
+        label: `  Nadproże ${openingLabel(o)}`,
+        formula: 'dł. nadproża × wys. × liczba otworów',
+        values: `${fmt(l.length)} × ${fmt(lintelHeight)} × ${o.count}`,
+        result: clean(l.length * lintelHeight * o.count),
+        unit: 'm²',
+      })
+    }
     trace.push({
       label: `Nadproże ${o.mark}`,
       formula: 'najkrótsze z maks. otworem ≥ szer.; szt = liczba × na otwór',
@@ -132,7 +199,7 @@ export function lintelSchedule(openings: Opening[], table: LintelSize[], perOpen
     })
   }
   const byLength = [...counts.entries()].sort((a, b) => a[0] - b[0]).map(([length, count]) => ({ length, count }))
-  return { byLength, tooWide, area: lintelHeight === null ? null : clean(area), trace }
+  return { byLength, tooWide, area: lintelHeight === null ? null : clean(area), trace, areaTrace }
 }
 
 export interface InteriorDoorGroup {

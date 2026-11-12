@@ -60,10 +60,10 @@ function wallBlocksItem(
   let netArea: Computed | null = null
   let quantity: Computed | null = null
   if (gross && perM2 !== null && ls.area !== null) {
-    const op = openingsArea('Otwory w ścianie', openings)
+    const op = openingsArea('Otwory razem (do odjęcia od muru)', openings)
     const net = clean(gross.value - op.value - ls.area)
     const lintelStep: TraceStep = {
-      label: 'Nadproża (do odjęcia)',
+      label: 'Nadproża razem (do odjęcia od muru)',
       formula: 'Σ dł. nadproża × wys. × liczba otworów',
       values: `${fmt(ls.area)} m² (wys. ${fmt(lh!)} m; nadproża obok siebie na grubości ściany liczone raz)`,
       result: ls.area,
@@ -75,6 +75,7 @@ function wallBlocksItem(
       trace: [
         ...gross.trace,
         ...op.trace,
+        ...ls.areaTrace,
         lintelStep,
         { label: 'Powierzchnia netto', formula: 'brutto − otwory − nadproża', values: `${fmt(gross.value)} − ${fmt(op.value)} − ${fmt(ls.area)}`, result: net, unit: 'm²' },
       ],

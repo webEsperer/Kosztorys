@@ -12,7 +12,7 @@ describe('szablon nowego projektu — dane domu użytkownika', () => {
     expect(p.wall).toMatchObject({ blockLength: 0.59, blockHeight: 0.24 })
     expect(p.partitionBlock).toMatchObject({ blockLength: 0.59, blockHeight: 0.24 })
     expect(p.foundation.jointThickness).toBe(0.015)
-    expect(p.floorLayers).toEqual({ insulation: 0.15, screed: 0.07, finish: null }) // wykończenie — uzupełnia użytkownik
+    expect(p.floorLayers).toEqual({ insulation: 0.15, screed: 0.07, finish: 0.02 })
   })
 
   it('ściany nośne 2,80 od posadzki, działowe 47 mb, dach 30°, okapy 60 cm', () => {
@@ -21,11 +21,11 @@ describe('szablon nowego projektu — dane domu użytkownika', () => {
     expect(p.roof).toMatchObject({ pitchDeg: 30, eaveOverhang: 0.6, gableOverhang: 0.6 })
   })
 
-  it('otwory: okna 18,25 m², drzwi zewn. 1,0 × 2,3 × 2 + 1,8 × 2,3 = 8,74 m², drzwi wewn. 6 × 0,8 × 2 + 0,6 × 2 = 10,8 m²', () => {
+  it('otwory: okna 18,25 m², drzwi zewn. 1,0 × 2,3 × 2 + 1,8 × 2,3 = 8,74 m², drzwi wewn. 6 × 0,8 × 2 + 0,7 × 2 = 11,0 m²', () => {
     const area = (f: (o: (typeof USER_OPENINGS)[number]) => boolean) => openingsArea('x', USER_OPENINGS.filter(f)).value
     expect(area((o) => o.type === 'okno')).toBeCloseTo(18.25, 6)
     expect(area((o) => o.type === 'drzwi zewnętrzne')).toBeCloseTo(8.74, 6)
-    expect(area((o) => o.type === 'drzwi wewnętrzne')).toBeCloseTo(10.8, 6)
+    expect(area((o) => o.type === 'drzwi wewnętrzne')).toBeCloseTo(11.0, 6)
   })
 
   it('projekt z szablonu jest edytowalny i niezależny od szablonu', () => {
@@ -46,5 +46,36 @@ describe('szablon nowego projektu — dane domu użytkownika', () => {
     expect(t.roof).toMatchObject({ pitchDeg: 30, eaveOverhang: 0.5, gableOverhang: 0.6 })
     expect(t.wallBlock.blockLength).toBe(0.59)
     expect(describeTemplate(t)[0]).toBe('bloczek fundamentowy 38 × 24 × 12 cm, spoina 1,5 cm')
+  })
+})
+
+describe('otwory — wyszczególnienie odejmowania', () => {
+  const p = applyTemplate(newProject(), builtInTemplate(newProject()))
+
+  it('każdy otwór osobno w „Jak to policzono” bloczków ścian nośnych, z pomieszczeniem i nadprożem', async () => {
+    const { renderTrace } = await import('../../src/engine/trace')
+    const it = buildSSZ({ ...p, itemParams: { 'ssz-hh-bloczki': { lintelHeight: 0.24 } } }).items.find((i) => i.id === 'ssz-hh-bloczki')!
+    const t = renderTrace(it.quantity!.trace)
+    expect(t).toContain('O1 okno — Sypialnia 1')
+    expect(t).toContain('D2 drzwi zewnętrzne — Drzwi tarasowe (jadalnia)')
+    expect(t).toContain('Nadproże O5 okno — Salon')
+    expect(t).not.toContain('D4 drzwi wewnętrzne') // drzwi wewnętrzne nie odejmują się od muru nośnego
+  })
+
+  it('zestawienie: pola wg ścian; schowek 70 → nadproże 1,25 m; od czego odejmowane', async () => {
+    const { openingDeductions, DEFAULT_LINTEL_TABLE } = await import('../../src/engine/openings')
+    const d = openingDeductions(p.openings, { exterior: DEFAULT_LINTEL_TABLE, partition: DEFAULT_LINTEL_TABLE }, { exterior: 2, partition: 1 })
+    expect(d.totals['zewnętrzna']).toBeCloseTo(18.25 + 8.74, 6)
+    expect(d.totals['działowa']).toBeCloseTo(11.0, 6)
+    const schowek = d.rows.find((r) => r.opening.mark === 'D10')!
+    expect(schowek.lintel).toEqual({ length: 1.25, pieces: 1 })
+    expect(schowek.deductedFrom.join(' ')).toContain('tynk wewnętrzny (2 strony)')
+  })
+
+  it('schowek 70 → drzwi 60; wszystkie drzwi wewnętrzne przypisane', async () => {
+    const { interiorDoors, DEFAULT_DOOR_MAP } = await import('../../src/engine/openings')
+    const r = interiorDoors(p.openings, DEFAULT_DOOR_MAP)
+    expect(r.unmapped).toEqual([])
+    expect(r.groups.map((g) => [g.leaf, g.count])).toEqual([[0.6, 1], [0.7, 6]])
   })
 })
