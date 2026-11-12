@@ -93,7 +93,8 @@ Zasady:
 | Warstwy podłogi na chudziaku: izolacja + wylewka + płytka/panel | **podaje użytkownik** (np. 15 + 6,5 + 1,5 = 23 cm) |
 | Góra chudziaka = góra wieńca fundamentowego | − suma warstw podłogi (np. −23 cm) |
 | Sufit podwieszany: płyta GK 1,2 + stelaż krzyżowy 2 × 3 cm + pustka 15 cm (dojście wkrętarką do wieszaków) | 22,2 cm |
-| Góra wieńca ścian nośnych = gotowy sufit + warstwy sufitu (konstrukcja dachu na wieńcu, sufit pod nią) | np. 270 + 22,2 = +292,2 cm |
+| **Wysokość ścian nośnych: gotowa posadzka → góra wieńca** (konstrukcja dachu na wieńcu, sufit pod nią) | **podaje użytkownik** (podpowiedź: w świetle + warstwy sufitu, np. 270 + 22,2 = +292,2 cm; ostrzeżenie, gdy nad sufitem mniej miejsca niż GK + stelaż + pustka) |
+| Ściany działowe murowane do wysokości od gotowej posadzki (pierwsza warstwa na chudziaku) | 280 cm (+ warstwy podłogi, np. 280 + 23 = 303 cm muru) |
 | Wieniec ścian minimalny | 25 cm |
 | Grubość chudziaka | 10 cm |
 | Kąt nachylenia dachu | podaje użytkownik |
@@ -267,7 +268,7 @@ Jedna funkcja dla OSB, papy itp.: dane `arkusz/rolka (szer × dł)`, `szerokoś�
 Góra ławy = −23 cm − h_ściany_fund. Dno wykopu = góra ławy − 12 cm (górne 12 cm ławy w szalunku z desek).
 
 **Ściany nośne:** liczone od dołu (wg użytkownika): góra chudziaka = −(izolacja + wylewka + wykończenie);
-góra wieńca ścian = wysokość w świetle + GK 1,2 + stelaż 2 × 3 + pustka 15 cm.
+góra wieńca ścian = wysokość ścian nośnych podana przez użytkownika (od gotowej posadzki).
 Przykład: od −23 do +292,2 = 315,2 cm.
 - `H = (góra wieńca − góra chudziaka) − warstwa wyrównawcza pierwszej warstwy (parametr, domyślnie 0)`
 - `n = floor((H − wieniec_min) / h_warstwy)`, gdzie `h_warstwy` = wys. bloczka (+ spoina), `wieniec_min` = 25 cm
@@ -341,7 +342,11 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
 - Papa pod ściany nośne [licz]: pas szer. 40 cm (parametr) × `P_oś` → moduł cięcia z rolki → liczba rolek.
 - Warstwa wyrównawcza pierwszej warstwy: zaprawa cementowa [licz] — zużycie `null` (uzupełnij).
 - Bloczki ścian nośnych (np. **H+H Gold 590 × 240 × 240 mm**; wymiary od użytkownika → szt/m²) [licz]:
-  `P_oś × (n·h_warstwy + docinka) − otwory − nadproża`.
+  `P_oś × (n·h_warstwy + docinka) + ściany szczytowe − otwory (także okna w szczytach) − nadproża`.
+- **Ściany szczytowe główne (2 szt.)** — murowane na wieńcu ścian nośnych (wg użytkownika): trójkąt o podstawie
+  `b = B_wew + 2t` (lico zewnętrzne muru, ściany prostopadłe do kalenicy) i wysokości `b/2 · tan α`;
+  `A = 2 × b² / 4 · tan α` (bez odliczenia wieńca skośnego). Doliczane do bloczków i kleju ścian nośnych;
+  okna w szczytach odejmowane razem z nadprożami. Elewacja szczytów (wełna, boazeria) — z `B_z` (lico EPS).
 - Klej do cienkich spoin [licz] — zużycie `null` (uzupełnij z karty kleju).
 
 ### Wieniec ścian nośnych
@@ -370,8 +375,8 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
 - Parapety zewnętrzne [licz: mb = szerokości okien + 2 × 3 cm].
 
 ### Ściany działowe
-- Dane: mb ścian, wysokość (domyślnie od chudziaka do gotowego sufitu: wysokość w świetle + warstwy podłogi,
-  np. 293 cm — parametr), otwory drzwiowe.
+- Dane: mb ścian, wysokość murowania od gotowej posadzki (domyślnie **2,80 m** — wg użytkownika); pierwsza warstwa
+  stoi na chudziaku, więc mur = 2,80 + warstwy podłogi (np. 303 cm); opcjonalnie wysokość muru ręcznie; otwory drzwiowe.
 - Bloczki (np. **H+H Gold 590 × 120 × 240 mm**; wymiary od użytkownika → szt/m²) [licz] (netto po odjęciu
   otworów i nadproży).
 - Klej [licz] — zużycie `null`.
@@ -541,7 +546,13 @@ Układ: profile główne wzdłuż dłuższego boku pomieszczenia, nośne krzyżo
 - Klej do EPS, klej do siatki, siatka (`× 1,1`), kołki (dł. pod 20 cm), grunt, tynk cienkowarstwowy
   — zużycia `null` (uzupełnij); listwa startowa [licz: obwód], narożniki z siatką [licz: naroża budynku + ościeża],
   listwy APU [licz: obwody okien], ościeża — XPS/EPS cienki [licz: obwody otworów × głębokość].
-- Szczyty (2 szt.) nad linią okapu: `pow_szczytu = B_z² / 4 × tan α` każdy (minus okna w szczytach):
+- **Wg użytkownika:** EPS 20 cm na ścianach na całej wysokości, na ścianach szczytowych **tylko do linii okapu**;
+  powyżej szczyty główne: **wełna skalna 20 cm + boazeria** (przełącznik „szczyty ocieplone”, grubość wełny — parametr).
+  **Szczyty daszków: domyślnie sama boazeria bez ocieplenia**; przy daszku wybór: sama boazeria / wełna + boazeria / EPS
+  (EPS doliczany do EPS elewacji).
+- Szczyty (2 szt.) nad linią okapu: `pow_szczytu = b² / 4 × tan α`, `b = B_wew + 2t + 2·g_wełny` (bez ocieplenia:
+  `B_wew + 2t`), minus okna w szczytach. Wełna, łączniki, wsporniki, membrana — tylko powierzchnia ocieplona
+  (bez ocieplenia pozycje wyłączone); boazeria, łaty, wkręty, impregnat — wszystkie szczyty w boazerii:
   - wsporniki elewacyjne [licz: siatka rozstawów, parametr] + łączniki mocujące [licz],
   - wełna skalna fasadowa [licz] + łączniki talerzykowe [licz],
   - membrana wiatroizolacyjna fasadowa (odporna na UV) [licz: `× 1,1`] + taśma,

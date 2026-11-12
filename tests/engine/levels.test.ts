@@ -29,12 +29,12 @@ describe('levels — posadzka i chudziak', () => {
     expect(floorBuildUp(DEFAULT_LEVELS.floorLayers).value).toBe(0.23)
   })
 
-  it('rzędne domyślne: chudziak −0,23 / −0,33, sufit +2,70, działowe 2,93 m', () => {
+  it('rzędne domyślne: chudziak −0,23 / −0,33, sufit +2,70, działowe 2,80 + 0,23 = 3,03 m', () => {
     const r = computeLevels(REF_INPUT)
     expect(r.slabTop.value).toBe(-0.23)
     expect(r.slabBottom.value).toBe(-0.33)
     expect(r.ceiling.value).toBe(2.7)
-    expect(r.partitionWallHeight.value).toBe(2.93)
+    expect(r.partitionWallHeight.value).toBe(3.03)
   })
 })
 

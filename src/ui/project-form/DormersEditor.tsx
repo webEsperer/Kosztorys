@@ -66,9 +66,19 @@ export function DormersEditor({ project, update }: { project: ProjectInput; upda
             <label className="nf">
               <span className="nf-label">Szczyt daszku</span>
               <span className="nf-box">
-                <select value={d.gableFinish} onChange={(e) => set(d.id, (x) => { x.gableFinish = e.target.value as Dormer['gableFinish'] })}>
+                <select
+                  value={d.gableFinish === 'EPS' ? 'EPS' : d.gableInsulation ? 'welna' : 'boazeria'}
+                  onChange={(e) =>
+                    set(d.id, (x) => {
+                      const v = e.target.value
+                      x.gableFinish = v === 'EPS' ? 'EPS' : 'boazeria'
+                      x.gableInsulation = v === 'welna'
+                    })
+                  }
+                >
+                  <option value="boazeria">sama boazeria (bez ocieplenia)</option>
+                  <option value="welna">wełna + boazeria</option>
                   <option value="EPS">EPS jak ściany</option>
-                  <option value="boazeria">wełna + boazeria</option>
                 </select>
               </span>
             </label>
@@ -98,7 +108,7 @@ export function DormersEditor({ project, update }: { project: ProjectInput; upda
           className="btn"
           onClick={() =>
             update((p) => {
-              p.roof.dormers.push({ id: nextId(), b: 4, w: 2, betaDeg: p.roof.pitchDeg ?? 35, dh: 0, side: 'przód', position: 1, gableFinish: 'EPS' })
+              p.roof.dormers.push({ id: nextId(), b: 4, w: 2, betaDeg: p.roof.pitchDeg ?? 35, dh: 0, side: 'przód', position: 1, gableFinish: 'boazeria', gableInsulation: false })
             })
           }
         >

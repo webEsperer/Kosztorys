@@ -2,8 +2,9 @@
 
 import type { ProjectInput } from '../../model/project'
 import type { ConcretePourParams } from '../../engine/concrete'
-import { projectBase } from '../../engine/stages/common'
+import { gableSpanInterior, projectBase } from '../../engine/stages/common'
 import { roofOf } from '../../engine/stages/sszRoof'
+import { gableWallsGross } from '../../engine/facade'
 import { Check, NumField, Section, Select, TextField, fmtQty } from '../common/fields'
 import { OpeningsEditor } from './OpeningsEditor'
 import { ErrorBoundary } from '../common/ErrorBoundary'
@@ -63,6 +64,10 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
   const roof = base ? roofOf(project).roof : null
   const wl = base?.wallLayers?.value
   const f = project.foundation
+  const gableSpan = gableSpanInterior(project)
+  const gables = project.roof.pitchDeg !== null && project.roof.pitchDeg > 0 && project.roof.pitchDeg < 90 ? gableWallsGross(gableSpan, project.wallThickness, project.roof.pitchDeg) : null
+  const gableBase = gableSpan + 2 * project.wallThickness
+  const gableHeight = project.roof.pitchDeg !== null ? (gableBase / 2) * Math.tan((project.roof.pitchDeg * Math.PI) / 180) : 0
 
   return (
     <div className="form-grid">
@@ -85,7 +90,11 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
         <NumField positive allowEmpty={false} label="Długość wewnętrzna" {...CM} required value={project.footprint.length} onChange={(v) => update((p) => { p.footprint.length = v ?? p.footprint.length })} />
         <NumField positive allowEmpty={false} label="Szerokość wewnętrzna" {...CM} required value={project.footprint.width} onChange={(v) => update((p) => { p.footprint.width = v ?? p.footprint.width })} />
         <NumField positive allowEmpty={false} label="Ściana nośna — grubość" {...CM} value={project.wallThickness} onChange={(v) => update((p) => { p.wallThickness = v ?? 0.24 })} />
-        <NumField allowEmpty={false} label="EPS elewacja" {...CM} value={project.facadeInsulation} onChange={(v) => update((p) => { p.facadeInsulation = v ?? 0 })} />
+        <NumField allowEmpty={false} label="EPS elewacja (ściany; szczyty do linii okapu)" {...CM} value={project.facadeInsulation} onChange={(v) => update((p) => { p.facadeInsulation = v ?? 0 })} />
+        <Check label="Szczyty nad okapem ocieplone wełną skalną (pod boazerią)" checked={project.gables.insulated} onChange={(v) => update((p) => { p.gables.insulated = v })} />
+        {project.gables.insulated && (
+          <NumField positive allowEmpty={false} label="Wełna na szczytach — grubość" {...CM} value={project.gables.woolThickness} onChange={(v) => update((p) => { p.gables.woolThickness = v ?? 0.2 })} />
+        )}
         <NumField allowEmpty={false} label="XPS fundament" {...CM} value={project.foundationInsulation} onChange={(v) => update((p) => { p.foundationInsulation = v ?? 0 })} />
         {base ? (
           <p className="calc">
@@ -99,8 +108,18 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
         )}
       </Section>
 
-      <Section title="2. Wysokości (±0 = gotowa posadzka)" note="Warstwy podłogi podajesz Ty — od nich liczona jest wysokość ścian.">
+      <Section title="2. Wysokości (±0 = gotowa posadzka)" note="Wysokość ścian nośnych i warstwy podłogi podajesz Ty — mur ścian stoi na chudziaku.">
         <NumField positive allowEmpty={false} label="Wysokość w świetle (posadzka → sufit)" {...CM} value={project.clearHeight} onChange={(v) => update((p) => { p.clearHeight = v ?? 2.7 })} />
+        <NumField positive label="Wysokość ścian nośnych (posadzka → góra wieńca)" {...CM} required value={project.wallHeight} onChange={(v) => update((p) => { p.wallHeight = v })} />
+        {base && (
+          <p className="calc">
+            Podpowiedź z sufitu podwieszanego: w świetle + GK + stelaż + pustka = <b>{fmtQty(base.ringTopHint.value * 100, 1)} cm</b>
+            {project.wallHeight !== null && project.wallHeight + 1e-9 < base.ringTopHint.value && project.wallHeight > project.clearHeight && (
+              <span className="todo-inline"> — za mało miejsca nad sufitem ({fmtQty((project.wallHeight - project.clearHeight) * 100, 1)} cm)</span>
+            )}
+            {base.wallHeightMissing.length > 0 && project.wallHeight !== null && <span className="todo-inline"> — {base.wallHeightMissing.join(', ')}</span>}
+          </p>
+        )}
         <NumField label="Izolacja na chudziaku" {...CM} required value={project.floorLayers.insulation} onChange={(v) => update((p) => { p.floorLayers.insulation = v })} />
         <NumField label="Wylewka" {...CM} required value={project.floorLayers.screed} onChange={(v) => update((p) => { p.floorLayers.screed = v })} />
         <NumField label="Płytka / panel" {...CM} required value={project.floorLayers.finish} onChange={(v) => update((p) => { p.floorLayers.finish = v })} />
@@ -128,11 +147,34 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
             <span className="todo-inline">{base ? `Uzupełnij: ${base.wallMissing.join(', ')}` : calcError}</span>
           )}
         </div>
+        <div className="calc">
+          {gables ? (
+            <>
+              Ściany szczytowe na wieńcu (2 szt.): podstawa <b>{fmtQty(gableBase, 2)} m</b>, wysokość{' '}
+              <b>{fmtQty(gableHeight, 2)} m</b>, razem <b>{fmtQty(gables.value, 2)} m²</b> brutto — doliczone do bloczków ścian nośnych
+            </>
+          ) : (
+            <span className="todo-inline">Ściany szczytowe: podaj kąt nachylenia dachu</span>
+          )}
+        </div>
       </Section>
 
       <Section title="4. Ściany działowe">
         <NumField positive label="Długość ścian działowych" unit="m" required value={project.partitions.length} onChange={(v) => update((p) => { p.partitions.length = v })} />
-        <NumField positive label="Wysokość (puste = od chudziaka do sufitu)" {...CM} value={project.partitions.height} onChange={(v) => update((p) => { p.partitions.height = v })} />
+        <NumField positive allowEmpty={false} label="Murowane do wysokości (od gotowej posadzki)" {...CM} value={project.partitions.heightAboveFloor} onChange={(v) => update((p) => { p.partitions.heightAboveFloor = v ?? 2.8 })} />
+        <NumField positive label="Wysokość muru ręcznie (puste = liczona)" {...CM} value={project.partitions.height} onChange={(v) => update((p) => { p.partitions.height = v })} />
+        <p className="calc">
+          {project.partitions.height !== null ? (
+            <>Wysokość muru podana ręcznie: <b>{fmtQty(project.partitions.height * 100, 1)} cm</b></>
+          ) : base?.partitionHeight ? (
+            <>
+              Pierwsza warstwa na chudziaku: {fmtQty(project.partitions.heightAboveFloor * 100, 1)} + {fmtQty(base.floorBuild!.value * 100, 1)} ={' '}
+              <b>{fmtQty(base.partitionHeight.value * 100, 1)} cm</b> muru
+            </>
+          ) : (
+            <span className="todo-inline">Wysokość muru: uzupełnij warstwy podłogi</span>
+          )}
+        </p>
         <NumField positive label="Bloczek — długość" {...CM} required value={project.partitionBlock.blockLength} onChange={(v) => update((p) => { p.partitionBlock.blockLength = v })} />
         <NumField positive label="Bloczek — wysokość" {...CM} required value={project.partitionBlock.blockHeight} onChange={(v) => update((p) => { p.partitionBlock.blockHeight = v })} />
         <NumField allowEmpty={false} label="Spoina" {...CM} value={project.partitionBlock.jointThickness} onChange={(v) => update((p) => { p.partitionBlock.jointThickness = v ?? 0 })} />

@@ -17,8 +17,10 @@ export interface Dormer {
   side: 'przód' | 'tył'
   /** Odległość daszku od narożnika (do kontroli kolizji) [m]. */
   position: number
-  /** Szczyt daszku: EPS jak ściany albo jak szczyty główne (wełna + boazeria). */
+  /** Szczyt daszku: EPS jak ściany albo boazeria (z wełną lub bez — `gableInsulation`). */
   gableFinish: 'EPS' | 'boazeria'
+  /** Szczyt daszku w boazerii: ocieplony wełną (jak szczyty główne)? Domyślnie nie — sama boazeria. */
+  gableInsulation?: boolean
   /** Szerokość ściany szczytowej daszku (bez okapów) [m] — do elewacji. */
   wallWidth?: number
 }

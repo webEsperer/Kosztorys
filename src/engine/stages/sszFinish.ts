@@ -3,10 +3,10 @@
 import type { ProjectInput } from '../../model/project'
 import { computeCeilingRooms } from '../ceiling'
 import { computeCutting, DEFAULT_MIN_PIECE } from '../cutting'
-import { computeFacade, gablesArea, soffitArea } from '../facade'
+import { computeFacade, gableFacade, soffitArea } from '../facade'
 import { type ItemKind, type ItemSpec, type PackUnit, type Unit, UNIT_LABEL, need } from '../items'
 import { type Computed, ceilSafe, clean, fmt } from '../trace'
-import { type Builder, computed, lumpItem, projectBase } from './common'
+import { type Builder, computed, gableSpanInterior, lumpItem, projectBase } from './common'
 import { roofOf } from './sszRoof'
 
 interface ConsumptionOpts {
@@ -60,7 +60,7 @@ function consumptionItem(b: Builder, id: string, category: string, name: string,
 
 export function finishItems(b: Builder, project: ProjectInput): ItemSpec[] {
   const out: ItemSpec[] = []
-  const { geo, aWew, slabTop, ringTop, floorMissing } = projectBase(project)
+  const { geo, aWew, slabTop, ringTop, floorMissing, wallHeightMissing } = projectBase(project)
   const pWew = geo.interiorPerimeter.value
   const L = project.footprint.length
   const B = project.footprint.width
@@ -180,7 +180,7 @@ export function finishItems(b: Builder, project: ProjectInput): ItemSpec[] {
   const C2 = 'Elewacja — EPS'
   const soffitAbove = b.P('ssz-eps', 'soffitAbove', 'Linia podbitki nad górą wieńca', 0, 'm').value ?? 0
   const facRaw =
-    slabTop === null
+    slabTop === null || wallHeightMissing.length
       ? null
       : computeFacade({
           interiorPerimeter: pWew,
@@ -191,13 +191,35 @@ export function finishItems(b: Builder, project: ProjectInput): ItemSpec[] {
           wallOpenings: project.openings.filter((o) => o.wall === 'zewnętrzna'),
         })
   const withRing = (c: Computed | undefined): Computed | null => (c ? { ...c, trace: [...ringTop.trace, ...c.trace] } : null)
+  // Szczyty daszków wykończone EPS (jak ściany) — doliczone do EPS elewacji.
+  const { roof: roofForEps, missing: roofMissingEps } = roofOf(project)
+  const epsDormerIds = project.roof.dormers.filter((d) => d.gableFinish === 'EPS').map((d) => d.id)
+  const epsDormers = (roofForEps?.dormers ?? []).filter((d) => epsDormerIds.includes(d.id))
+  const epsDormerMissing = [
+    ...(epsDormerIds.length && !roofForEps ? roofMissingEps : []),
+    ...epsDormers.filter((d) => d.gableArea === null).map((d) => `szerokość ściany szczytu daszku ${d.id}`),
+  ]
+  const epsDormerArea = clean(epsDormers.reduce((s, d) => s + (d.gableArea ?? 0), 0))
+  const wallEps = withRing(facRaw?.netArea)
+  const netWithDormers: Computed | null =
+    wallEps && epsDormerArea > 0
+      ? {
+          ...wallEps,
+          value: clean(wallEps.value + epsDormerArea),
+          trace: [
+            ...wallEps.trace,
+            { label: 'Szczyty daszków w EPS', formula: 'Σ b_ściany² / 4 · tan β', values: epsDormers.map((d) => `${d.id}: ${fmt(d.gableArea ?? 0)}`).join(' + '), result: epsDormerArea, unit: 'm²' },
+            { label: 'EPS razem', formula: 'ściany + szczyty daszków', values: `${fmt(wallEps.value)} + ${fmt(epsDormerArea)}`, result: clean(wallEps.value + epsDormerArea), unit: 'm²' },
+          ],
+        }
+      : wallEps
   const fac = {
-    netArea: withRing(facRaw?.netArea),
+    netArea: netWithDormers,
     startRail: facRaw?.startRail ?? null,
     cornerBeads: withRing(facRaw?.cornerBeads),
     apu: facRaw?.apu ?? null,
   }
-  const fM = floorMissing
+  const fM = [...floorMissing, ...wallHeightMissing, ...epsDormerMissing]
   out.push(consumptionItem(b, 'ssz-eps', C2, `EPS ${fmt(project.facadeInsulation * 100)} cm — elewacja`, fac.netArea, fM, { unit: 'm2', pack: { packUnit: 'paczka', label: 'm² w paczce EPS', value: null } }))
   out.push(consumptionItem(b, 'ssz-eps-klej', C2, 'Klej do EPS', fac.netArea, fM, { unit: 'kg', rate: { label: 'Zużycie kleju do EPS', unit: 'kg/m²', value: null }, pack: { packUnit: 'worek', label: 'Klej w worku', value: null } }))
   out.push(consumptionItem(b, 'ssz-eps-klej-siatka', C2, 'Klej do zatapiania siatki', fac.netArea, fM, { unit: 'kg', rate: { label: 'Zużycie kleju do siatki', unit: 'kg/m²', value: null }, pack: { packUnit: 'worek', label: 'Klej w worku', value: null } }))
@@ -213,15 +235,26 @@ export function finishItems(b: Builder, project: ProjectInput): ItemSpec[] {
   // ── Szczyty i podbitka
   const C3 = 'Elewacja — szczyty i podbitka'
   const { roof, missing: roofMissing } = roofOf(project)
-  const boazeriaDormers = roof ? roof.dormers.filter((d) => project.roof.dormers.find((x) => x.id === d.id)?.gableFinish === 'boazeria') : []
+  const dormerInput = (id: string) => project.roof.dormers.find((x) => x.id === id)
+  const boazeriaDormers = roof ? roof.dormers.filter((d) => dormerInput(d.id)?.gableFinish === 'boazeria') : []
   const dormerGableMissing = boazeriaDormers.filter((d) => d.gableArea === null).map((d) => `szerokość ściany szczytu daszku ${d.id}`)
-  const gable: Computed | null = roof
-    ? (() => {
-        const g = gablesArea(roof.span, project.roof.pitchDeg!, project.openings.filter((o) => o.wall === 'szczyt'))
-        const extra = clean(boazeriaDormers.reduce((s, d) => s + (d.gableArea ?? 0), 0))
-        return extra > 0 ? { ...g, value: clean(g.value + extra), trace: [...g.trace, { label: 'Szczyty daszków (boazeria)', formula: 'Σ b_ściany² / 4 · tan β', values: fmt(extra), result: extra, unit: 'm²' }] } : g
-      })()
+  const gf = roof
+    ? gableFacade({
+        interiorSpan: gableSpanInterior(project),
+        wallThickness: project.wallThickness,
+        pitchDeg: project.roof.pitchDeg!,
+        insulated: project.gables.insulated,
+        woolThickness: project.gables.woolThickness,
+        gableOpenings: project.openings.filter((o) => o.wall === 'szczyt'),
+        dormers: boazeriaDormers.filter((d) => d.gableArea !== null).map((d) => ({ id: d.id, area: d.gableArea!, insulated: dormerInput(d.id)?.gableInsulation === true })),
+      })
     : null
+  /** Boazeria, łaty, wkręty, impregnat — wszystkie szczyty w boazerii. */
+  const gable: Computed | null = gf?.cladding ?? null
+  /** Wełna, łączniki, wsporniki, membrana — tylko szczyty ocieplone. */
+  const woolArea: Computed | null = gf?.wool ?? null
+  const noWool = gf !== null && gf.wool.value <= 0
+  const woolNote = noWool ? 'brak ocieplonych szczytów — włącz ocieplenie szczytów w danych projektu lub przy daszku' : undefined
   const gM = [...roofMissing, ...dormerGableMissing]
   const sp = (id: string, key: string, label: string) => b.P(id, key, label, null, 'm')
   {
@@ -231,15 +264,17 @@ export function finishItems(b: Builder, project: ProjectInput): ItemSpec[] {
     const sx = need(params, 'sx', missing)
     const sy = need(params, 'sy', missing)
     let quantity: Computed | null = null
-    if (gable && sx !== null && sy !== null) {
-      const w = computed('Wsporniki', '⌈A / (s_x × s_y)⌉', `⌈${fmt(gable.value)} / (${fmt(sx)} × ${fmt(sy)})⌉`, ceilSafe(gable.value / (sx * sy)), 'szt')
-      quantity = { ...w, trace: [...gable.trace, ...w.trace] }
+    if (woolArea && sx !== null && sy !== null) {
+      const w = computed('Wsporniki', '⌈A_wełny / (s_x × s_y)⌉', `⌈${fmt(woolArea.value)} / (${fmt(sx)} × ${fmt(sy)})⌉`, ceilSafe(woolArea.value / (sx * sy)), 'szt')
+      quantity = { ...w, trace: [...woolArea.trace, ...w.trace] }
     }
-    out.push(b.item({ id, category: C3, kind: 'material', name: 'Wsporniki elewacyjne (szczyty)', unit: 'szt', params, missing, quantity }))
+    out.push(b.item({ id, category: C3, kind: 'material', name: 'Wsporniki elewacyjne (szczyty ocieplone)', unit: 'szt', params, missing, quantity, ...(noWool ? { enabled: false, note: woolNote } : {}) }))
   }
-  out.push(consumptionItem(b, 'ssz-szczyt-welna', C3, 'Wełna skalna fasadowa (szczyty)', gable, gM, { unit: 'm2', pack: { packUnit: 'paczka', label: 'm² w paczce wełny', value: null } }))
-  out.push(consumptionItem(b, 'ssz-szczyt-laczniki', C3, 'Łączniki talerzykowe do wełny', gable, gM, { unit: 'szt', rate: { label: 'Łączników na m²', unit: 'szt/m²', value: null } }))
-  out.push(consumptionItem(b, 'ssz-szczyt-membrana', C3, 'Membrana wiatroizolacyjna fasadowa (UV)', gable, gM, { unit: 'm2', waste: 10, pack: { packUnit: 'rolka', label: 'm² w rolce membrany', value: null } }))
+  const woolOpts = noWool ? { enabled: false, note: woolNote } : {}
+  const woolCm = fmt(project.gables.woolThickness * 100, 1)
+  out.push(consumptionItem(b, 'ssz-szczyt-welna', C3, `Wełna skalna fasadowa ${woolCm} cm (szczyty)`, woolArea, gM, { unit: 'm2', pack: { packUnit: 'paczka', label: 'm² w paczce wełny', value: null }, ...woolOpts }))
+  out.push(consumptionItem(b, 'ssz-szczyt-laczniki', C3, 'Łączniki talerzykowe do wełny', woolArea, gM, { unit: 'szt', rate: { label: 'Łączników na m²', unit: 'szt/m²', value: null }, ...woolOpts }))
+  out.push(consumptionItem(b, 'ssz-szczyt-membrana', C3, 'Membrana wiatroizolacyjna fasadowa (UV) — na wełnę', woolArea, gM, { unit: 'm2', waste: 10, pack: { packUnit: 'rolka', label: 'm² w rolce membrany', value: null }, ...woolOpts }))
   out.push(consumptionItem(b, 'ssz-szczyt-laty-pionowe', C3, 'Łaty pionowe nośne', gable, gM, { unit: 'mb', rate: { label: 'mb łat na m² (1 / rozstaw)', unit: 'mb/m²', value: null } }))
   out.push(consumptionItem(b, 'ssz-szczyt-laty-poziome', C3, 'Łaty poziome pod boazerię', gable, gM, { unit: 'mb', rate: { label: 'mb łat na m² (1 / rozstaw)', unit: 'mb/m²', value: null } }))
   out.push(consumptionItem(b, 'ssz-szczyt-boazeria', C3, 'Boazeria — deska elewacyjna pionowa', gable, gM, { unit: 'm2', waste: 10 }))

@@ -55,6 +55,8 @@ export interface LevelsInput {
   clearHeight: number
   /** Rzędna góry wieńca ścian nośnych [m]. */
   wallRingBeamTop: number
+  /** Ściany działowe murowane do tej wysokości od gotowej posadzki [m] (domyślnie 2,80). */
+  partitionHeightAboveFloor: number
   floorLayers: FloorLayers
   /** Grubość chudziaka [m]. */
   slabThickness: number
@@ -78,6 +80,7 @@ export const DEFAULT_LEVELS: Omit<LevelsInput, 'foundation'> & {
 } = {
   clearHeight: 2.7,
   wallRingBeamTop: 2.89,
+  partitionHeightAboveFloor: 2.8,
   floorLayers: DEFAULT_FLOOR_LAYERS,
   slabThickness: 0.1,
   wall: DEFAULT_WALL_LAYERS,
@@ -96,8 +99,32 @@ export interface CeilingBuildUp {
 
 export const DEFAULT_CEILING_BUILD_UP: CeilingBuildUp = { board: 0.012, grid: 0.06, voidAbove: 0.15 }
 
+/** Góra wieńca ścian nośnych = wysokość ścian podana przez użytkownika (od gotowej posadzki ±0). */
+export function wallRingBeamTopFromInput(wallHeight: number, clearHeight: number, c: CeilingBuildUp): Computed {
+  const value = clean(wallHeight)
+  const above = clean(wallHeight - clearHeight)
+  const needed = clean(c.board + c.grid + c.voidAbove)
+  return {
+    value,
+    unit: 'm',
+    trace: [
+      {
+        label: 'Rzędna góry wieńca ścian',
+        formula: 'z_wś = wysokość ścian nośnych (od gotowej posadzki)',
+        values: fmt(wallHeight),
+        result: value,
+        unit: 'm',
+        note:
+          above + 1e-9 < needed
+            ? `UWAGA: nad gotowym sufitem zostaje ${fmt(above)} m, a sufit podwieszany potrzebuje ${fmt(needed)} m (GK + stelaż + pustka)`
+            : `podał użytkownik; nad gotowym sufitem ${fmt(above)} m (sufit podwieszany potrzebuje ${fmt(needed)} m)`,
+      },
+    ],
+  }
+}
+
 /**
- * Góra wieńca ścian nośnych = gotowy sufit + GK + stelaż + pustka.
+ * Podpowiedź: góra wieńca ścian nośnych = gotowy sufit + GK + stelaż + pustka.
  * (Wiązary/konstrukcja dachu opiera się na wieńcu, sufit wisi pod nią.)
  */
 export function wallRingBeamTopFromCeiling(clearHeight: number, c: CeilingBuildUp): Computed {
@@ -370,13 +397,36 @@ export function computeFoundationLevels(
   }
 }
 
+/**
+ * Ściany działowe: murowane do `h_dz_p` od gotowej posadzki (domyślnie 2,80 m), pierwsza warstwa na chudziaku:
+ *   h_dz = h_dz_p + g_p
+ */
+export function partitionWallHeight(heightAboveFloor: number, floorBuild: Computed): Computed {
+  const value = clean(heightAboveFloor + floorBuild.value)
+  return {
+    value,
+    unit: 'm',
+    trace: [
+      {
+        label: 'Wysokość muru ścian działowych (od chudziaka)',
+        formula: 'h_dz = wys. od gotowej posadzki + g_p',
+        values: `${fmt(heightAboveFloor)} + ${fmt(floorBuild.value)}`,
+        result: value,
+        unit: 'm',
+        ref: LEVEL_REFS.floorBuildUp,
+        note: 'pierwsza warstwa stoi na chudziaku',
+      },
+    ],
+  }
+}
+
 export interface LevelsResult {
   floorBuildUp: Computed
   /** Góra chudziaka = góra wieńca fundamentowego. */
   slabTop: Computed
   slabBottom: Computed
   ceiling: Computed
-  /** Wysokość ścian działowych od chudziaka do sufitu (domyślnie 2,93 m). */
+  /** Wysokość muru ścian działowych od chudziaka (domyślnie 2,80 + 0,23 = 3,03 m). */
   partitionWallHeight: Computed
   wallLayers: Traced<WallLayersResult>
   foundation: Traced<FoundationLevelsResult>
@@ -428,21 +478,7 @@ export function computeLevels(input: LevelsInput): LevelsResult {
       },
     ],
   }
-  const partitionValue = clean(input.clearHeight + fb.value)
-  const partitionWallHeight: Computed = {
-    value: partitionValue,
-    unit: 'm',
-    trace: [
-      {
-        label: 'Wysokość ścian działowych (chudziak → sufit)',
-        formula: 'h_dz = h_światło + g_p',
-        values: `${fmt(input.clearHeight)} + ${fmt(fb.value)}`,
-        result: partitionValue,
-        unit: 'm',
-        ref: LEVEL_REFS.floorBuildUp,
-      },
-    ],
-  }
+  const partitionHeight = partitionWallHeight(input.partitionHeightAboveFloor, fb)
   if (input.wallRingBeamTop <= input.clearHeight)
     throw new Error('Góra wieńca ścian musi być powyżej gotowego sufitu.')
 
@@ -451,7 +487,7 @@ export function computeLevels(input: LevelsInput): LevelsResult {
     slabTop,
     slabBottom,
     ceiling,
-    partitionWallHeight,
+    partitionWallHeight: partitionHeight,
     wallLayers: computeWallLayers(input.wallRingBeamTop, slabTopValue, input.wall),
     foundation: computeFoundationLevels(slabTopValue, input.foundation),
   }

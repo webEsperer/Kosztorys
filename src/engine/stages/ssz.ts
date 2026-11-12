@@ -4,6 +4,7 @@
 import type { ProjectInput } from '../../model/project'
 import { linearElementVolume } from '../concrete'
 import { computeCutting, DEFAULT_FELT_OVERLAP, DEFAULT_MIN_PIECE, formworkSegmentsRect } from '../cutting'
+import { gableWallsGross } from '../facade'
 import { GEOMETRY_REFS } from '../geometry'
 import { type ItemCutting, type ItemSpec, type Param, need } from '../items'
 import {
@@ -17,7 +18,7 @@ import {
 } from '../openings'
 import { computeRebarElement, defaultRingBeamRebar } from '../rebar'
 import { type Computed, type TraceStep, clean, fmt } from '../trace'
-import { type Builder, blocksPerM2, computed, feltRolls, lumpItem, makeBuilder, pourItems, projectBase, rebarItems } from './common'
+import { type Builder, blocksPerM2, computed, feltRolls, gableSpanInterior, lumpItem, makeBuilder, pourItems, projectBase, rebarItems } from './common'
 import { buildSSO } from './sso'
 import { roofItems } from './sszRoof'
 import { finishItems } from './sszFinish'
@@ -131,10 +132,11 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
   const b = makeBuilder(project, 'SSZ')
   const { P, item } = b
   const items: ItemSpec[] = []
-  const { pOs, axis, sides, wallLayers: wl, wallMissing, floorBuild, floorMissing } = projectBase(project)
+  const { pOs, axis, sides, wallLayers: wl, wallMissing, partitionHeight, floorMissing } = projectBase(project)
   const t = project.wallThickness
 
-  const extOpenings = project.openings.filter((o) => o.wall === 'zewnętrzna')
+  // Otwory w murze nośnym: ściany zewnętrzne + okna w ścianach szczytowych (też z nadprożami).
+  const extOpenings = project.openings.filter((o) => o.wall === 'zewnętrzna' || o.wall === 'szczyt')
   const partOpenings = project.openings.filter((o) => o.wall === 'działowa')
 
   // ── Ściany nośne
@@ -170,24 +172,43 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
     const base = computed('Podstawa pierwszej warstwy', 'P_oś × t', `${fmt(pOs.value)} × ${fmt(t)}`, pOs.value * t, 'm²', GEOMETRY_REFS.axisPerimeter)
     items.push(perAreaBagItem(b, 'ssz-zaprawa-wyrownawcza', C1, 'Zaprawa cementowa — warstwa wyrównawcza pierwszej warstwy', base, [], 'zaprawy'))
   }
-  const hhGross: Computed | null = wl && {
-    value: clean(pOs.value * wl.value.masonryHeight),
-    unit: 'm²',
-    trace: [
-      ...wl.trace.filter((s) => !/^Rzędna|^Wysokość wieńca/.test(s.label)),
-      {
-        label: 'Powierzchnia muru brutto',
-        formula: 'P_oś × (n × h_warstwy + docinka)',
-        values: `${fmt(pOs.value)} × ${fmt(wl.value.masonryHeight)}`,
-        result: clean(pOs.value * wl.value.masonryHeight),
-        unit: 'm²',
-        ref: GEOMETRY_REFS.axisPerimeter,
-      },
-    ],
-  }
+  // Ściany szczytowe główne (2 szt.) — murowane na wieńcu, trójkąt z szerokości muru i kąta dachu.
+  const pitch = project.roof.pitchDeg
+  const gableMissing = pitch === null ? ['kąt nachylenia dachu (ściany szczytowe)'] : []
+  const gables = pitch !== null ? gableWallsGross(gableSpanInterior(project), t, pitch) : null
+  const hhGross: Computed | null =
+    wl && gables
+      ? (() => {
+          const walls = clean(pOs.value * wl.value.masonryHeight)
+          const total = clean(walls + gables.value)
+          return {
+            value: total,
+            unit: 'm²',
+            trace: [
+              ...wl.trace.filter((s) => !/^Rzędna spodu|^Wysokość wieńca/.test(s.label)),
+              {
+                label: 'Mur ścian nośnych do wieńca (brutto)',
+                formula: 'P_oś × (n × h_warstwy + docinka)',
+                values: `${fmt(pOs.value)} × ${fmt(wl.value.masonryHeight)}`,
+                result: walls,
+                unit: 'm²',
+                ref: GEOMETRY_REFS.axisPerimeter,
+              },
+              ...gables.trace,
+              {
+                label: 'Powierzchnia muru brutto',
+                formula: 'ściany do wieńca + ściany szczytowe',
+                values: `${fmt(walls)} + ${fmt(gables.value)}`,
+                result: total,
+                unit: 'm²',
+              },
+            ],
+          }
+        })()
+      : null
   const extLintelsPer = P('ssz-nadproza-zew', 'perOpening', 'Nadproży na otwór (ściana 24 cm)', 2, 'szt')
   const extLintels = (h: number | null) => lintelSchedule(extOpenings, project.lintels.exterior, extLintelsPer.value ?? 2, h)
-  const hh = wallBlocksItem(b, 'ssz-hh-bloczki', C1, 'Bloczki ścian nośnych', hhGross, wallMissing.filter((m) => m !== 'wysokość bloczka ściany nośnej'), extOpenings, extLintels, project.wall)
+  const hh = wallBlocksItem(b, 'ssz-hh-bloczki', C1, 'Bloczki ścian nośnych (z szczytami)', hhGross, [...wallMissing.filter((m) => m !== 'wysokość bloczka ściany nośnej'), ...gableMissing], extOpenings, extLintels, project.wall)
   items.push(hh.item)
   items.push(perAreaBagItem(b, 'ssz-hh-klej', C1, 'Klej do cienkich spoin — ściany nośne', hh.netArea, hh.item.missing, 'kleju'))
 
@@ -270,18 +291,20 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
   const C4 = 'Ściany działowe'
   const partMissing: string[] = []
   if (project.partitions.length === null) partMissing.push('długość ścian działowych (mb)')
-  const partH = project.partitions.height ?? (floorBuild ? clean(project.clearHeight + floorBuild.value) : null)
+  const manualPartH = project.partitions.height
+  const partH = manualPartH ?? partitionHeight?.value ?? null
   if (partH === null) partMissing.push(...floorMissing)
-  const partGross: Computed | null =
-    project.partitions.length !== null && partH !== null
-      ? computed(
-          'Powierzchnia ścian działowych brutto',
-          'mb × wysokość (od chudziaka do sufitu)',
-          `${fmt(project.partitions.length)} × ${fmt(partH)}`,
-          project.partitions.length * partH,
-          'm²',
-        )
-      : null
+  const partGross: Computed | null = (() => {
+    if (project.partitions.length === null || partH === null) return null
+    const area = computed(
+      'Powierzchnia ścian działowych brutto',
+      manualPartH !== null ? 'mb × wysokość (podana ręcznie)' : 'mb × h_dz (od chudziaka)',
+      `${fmt(project.partitions.length)} × ${fmt(partH)}`,
+      project.partitions.length * partH,
+      'm²',
+    )
+    return manualPartH === null && partitionHeight ? { ...area, trace: [...partitionHeight.trace, ...area.trace] } : area
+  })()
   const partLintelsPer = P('ssz-nadproza-dz', 'perOpening', 'Nadproży na otwór (ściana 12 cm)', 1, 'szt')
   const partLintels = (h: number | null) => lintelSchedule(partOpenings, project.lintels.partition, partLintelsPer.value ?? 1, h)
   const part = wallBlocksItem(b, 'ssz-dz-bloczki', C4, 'Bloczki ścian działowych', partGross, partMissing, partOpenings, partLintels, project.partitionBlock)

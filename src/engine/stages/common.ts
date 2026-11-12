@@ -12,7 +12,9 @@ import {
   type FloorLayers,
   floorBuildUp,
   type LevelsResult,
+  partitionWallHeight,
   wallRingBeamTopFromCeiling,
+  wallRingBeamTopFromInput,
   type WallLayerParams,
   type WallLayersResult,
 } from '../levels'
@@ -284,8 +286,16 @@ export interface ProjectBase {
   /** Grubość warstw podłogi (z trace) i rzędna góry chudziaka = góry wieńca fund. */
   floorBuild: Computed | null
   slabTop: number | null
-  /** Rzędna góry wieńca ścian z wysokości pomieszczenia i warstw sufitu. */
+  /**
+   * Rzędna góry wieńca ścian = wysokość ścian nośnych podana przez użytkownika.
+   * Gdy jej brak (wallHeightMissing) — podpowiedź z sufitu, tylko do rysunków; pozycje są „uzupełnij”.
+   */
   ringTop: Computed
+  /** Podpowiedź: wysokość w świetle + GK + stelaż + pustka. */
+  ringTopHint: Computed
+  wallHeightMissing: string[]
+  /** Wysokość muru ścian działowych od chudziaka (null — brak warstw podłogi). */
+  partitionHeight: Computed | null
   /** Warstwy bloczków ścian nośnych i wieniec ścian. */
   wallLayers: Traced<WallLayersResult> | null
   wallMissing: string[]
@@ -318,9 +328,15 @@ export function projectBase(project: ProjectInput): ProjectBase {
   const floorBuild = floor ? floorBuildUp(floor) : null
   const slabTop = floorBuild ? clean(-floorBuild.value) : null
 
-  const ringTop = wallRingBeamTopFromCeiling(project.clearHeight, project.ceiling)
+  const ringTopHint = wallRingBeamTopFromCeiling(project.clearHeight, project.ceiling)
+  const wallHeightMissing: string[] = []
+  const wh = project.wallHeight
+  if (wh === null || wh === undefined) wallHeightMissing.push('wysokość ścian nośnych (posadzka → góra wieńca)')
+  else if (!(wh > project.clearHeight)) wallHeightMissing.push('wysokość ścian nośnych większa niż wysokość w świetle')
+  const ringTop = wallHeightMissing.length ? ringTopHint : wallRingBeamTopFromInput(wh!, project.clearHeight, project.ceiling)
+  const partitionHeight = floorBuild ? partitionWallHeight(project.partitions.heightAboveFloor ?? 2.8, floorBuild) : null
   const w = project.wall
-  const wallMissing = [...floorMissing]
+  const wallMissing = [...floorMissing, ...wallHeightMissing]
   if (w.blockHeight === null) wallMissing.push('wysokość bloczka ściany nośnej')
   const wallParams: WallLayerParams | null =
     w.blockHeight === null
@@ -343,6 +359,7 @@ export function projectBase(project: ProjectInput): ProjectBase {
           ...DEFAULT_LEVELS,
           clearHeight: project.clearHeight,
           wallRingBeamTop: ringTop.value,
+          partitionHeightAboveFloor: project.partitions.heightAboveFloor ?? 2.8,
           floorLayers: floor!,
           slabThickness: project.slabThickness,
           wall: wallParams!,
@@ -356,5 +373,11 @@ export function projectBase(project: ProjectInput): ProjectBase {
           },
         })
       : null
-  return { geo, pOs: geo.axisPerimeter, aWew: geo.interiorArea, axis, sides: rectSides(axis), floor, floorMissing, floorBuild, slabTop, ringTop, wallLayers, wallMissing, levels, levelsMissing }
+  return { geo, pOs: geo.axisPerimeter, aWew: geo.interiorArea, axis, sides: rectSides(axis), floor, floorMissing, floorBuild, slabTop, ringTop, ringTopHint, wallHeightMissing, partitionHeight, wallLayers, wallMissing, levels, levelsMissing }
+}
+
+/** Rozpiętość wewnętrzna pod ścianami szczytowymi (bok prostopadły do kalenicy) [m]. */
+export function gableSpanInterior(project: ProjectInput): number {
+  const { length, width } = project.footprint
+  return project.roof.ridgeAlongLonger ? Math.min(length, width) : Math.max(length, width)
 }

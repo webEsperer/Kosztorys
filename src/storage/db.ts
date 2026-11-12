@@ -39,6 +39,14 @@ export function upgradeProject(data: Partial<ProjectInput>): ProjectInput {
   merged.concrete = { ...base.concrete, ...(data.concrete ?? {}) }
   merged.ceilingRules = { ...base.ceilingRules, ...(data.ceilingRules ?? {}) }
   merged.planRules = { ...base.planRules, ...(data.planRules ?? {}) }
+  merged.gables = { ...base.gables, ...(data.gables ?? {}) }
+  // Starsze zapisy: szczyt daszku „boazeria” oznaczał wełnę + boazerię.
+  merged.roof.dormers = merged.roof.dormers.map((d) => (d.gableInsulation === undefined && d.gableFinish === 'boazeria' ? { ...d, gableInsulation: true } : d))
+  // Starsze zapisy liczyły górę wieńca z wysokości w świetle + warstw sufitu — zachowaj tę wartość.
+  if (data.wallHeight === undefined) {
+    const c = merged.ceiling
+    merged.wallHeight = Math.round((merged.clearHeight + c.board + c.grid + c.voidAbove) * 1e6) / 1e6
+  }
   return merged
 }
 

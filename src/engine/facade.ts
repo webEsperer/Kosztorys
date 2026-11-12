@@ -64,6 +64,102 @@ export function computeFacade(i: FacadeInput): FacadeResult {
   return { height, midPerimeter, grossArea, openingsArea: op, netArea, startRail, cornerBeads, apu, openingPerimeters: perims }
 }
 
+/**
+ * Murowane ściany szczytowe główne (2 szt.) — trójkąt stojący na górze wieńca ścian nośnych.
+ *   podstawa b = B_wew + 2·t (lico zewnętrzne muru, ściany prostopadłe do kalenicy)
+ *   wysokość h = b/2 · tan α;  A_szczytu = b² / 4 · tan α;  razem 2 × A_szczytu (brutto, przed odjęciem okien)
+ * Założenie: trójkąt pełny do linii połaci, bez odliczenia wieńca skośnego/kotwienia wiązarów.
+ */
+export function gableWallsGross(interiorSpan: number, wallThickness: number, pitchDeg: number): Computed {
+  const base = clean(interiorSpan + 2 * wallThickness)
+  const tan = Math.tan((pitchDeg * Math.PI) / 180)
+  const h = clean((base / 2) * tan)
+  const one = clean(((base * base) / 4) * tan)
+  const v = clean(2 * one)
+  return {
+    value: v,
+    unit: 'm²',
+    trace: [
+      st('Szczyt — podstawa (na wieńcu, lico zewn. muru)', 'b = B_wew + 2·t', `${fmt(interiorSpan)} + 2 × ${fmt(wallThickness)}`, base, 'm'),
+      st('Szczyt — wysokość w kalenicy', 'h = b/2 × tan α', `${fmt(base)} / 2 × tan ${fmt(pitchDeg)}°`, h, 'm'),
+      st('Ściana szczytowa (jedna)', 'b² / 4 × tan α', `${fmt(base)}² / 4 × tan ${fmt(pitchDeg)}°`, one, 'm²'),
+      {
+        ...st('Ściany szczytowe główne (2 szt.)', '2 × szczyt', `2 × ${fmt(one)}`, v, 'm²'),
+        note: 'trójkąt od góry wieńca do linii połaci; bez odliczenia wieńca skośnego',
+      },
+    ],
+  }
+}
+
+export interface GableFacadeInput {
+  /** Rozpiętość wewnętrzna pod szczytem (bok prostopadły do kalenicy) [m]. */
+  interiorSpan: number
+  wallThickness: number
+  pitchDeg: number
+  /** Szczyty główne ocieplone wełną? */
+  insulated: boolean
+  /** Grubość wełny [m]. */
+  woolThickness: number
+  gableOpenings: Opening[]
+  /** Szczyty daszków wykończone boazerią: pole trójkąta i czy ocieplone wełną. */
+  dormers: { id: string; area: number; insulated: boolean }[]
+}
+
+export interface GableFacadeResult {
+  /** Powierzchnia boazerii (szczyty główne + daszki w boazerii) [m²]. */
+  cladding: Computed
+  /** Powierzchnia ocieplona wełną (szczyty główne, jeśli ocieplone + daszki z wełną) [m²]. */
+  wool: Computed
+}
+
+/**
+ * Elewacja szczytów nad linią okapu (EPS ścian kończy się na linii okapu):
+ *   szczyty główne: b = B_wew + 2·t + 2·g_wełny (bez wełny: B_wew + 2·t); 2 × b² / 4 · tan α − okna w szczytach
+ *   + szczyty daszków w boazerii (z wełną lub bez).
+ */
+export function gableFacade(i: GableFacadeInput): GableFacadeResult {
+  const w = i.insulated ? i.woolThickness : 0
+  const base = clean(i.interiorSpan + 2 * i.wallThickness + 2 * w)
+  const tan = Math.tan((i.pitchDeg * Math.PI) / 180)
+  const one = clean(((base * base) / 4) * tan)
+  const op = clean(i.gableOpenings.reduce((a, o) => a + o.width * o.height * o.count, 0))
+  const main = clean(2 * one - op)
+  const mainTrace: TraceStep[] = [
+    i.insulated
+      ? st('Szczyt — podstawa (lico wełny)', 'b = B_wew + 2·t + 2·g_wełny', `${fmt(i.interiorSpan)} + 2 × ${fmt(i.wallThickness)} + 2 × ${fmt(w)}`, base, 'm')
+      : st('Szczyt — podstawa (lico muru, bez ocieplenia)', 'b = B_wew + 2·t', `${fmt(i.interiorSpan)} + 2 × ${fmt(i.wallThickness)}`, base, 'm'),
+    st('Szczyt (jeden) nad linią okapu', 'b² / 4 × tan α', `${fmt(base)}² / 4 × tan ${fmt(i.pitchDeg)}°`, one, 'm²'),
+    {
+      ...st('Szczyty główne netto', '2 × szczyt − okna w szczytach', `2 × ${fmt(one)} − ${fmt(op)}`, main, 'm²'),
+      note: `poniżej linii okapu EPS jak na ścianach; powyżej ${i.insulated ? `wełna skalna ${fmt(w * 100, 1)} cm + boazeria` : 'sama boazeria (bez ocieplenia)'}`,
+    },
+  ]
+  const dAll = i.dormers
+  const dIns = i.dormers.filter((d) => d.insulated)
+  const sum = (xs: { area: number }[]) => clean(xs.reduce((s, d) => s + d.area, 0))
+  const dormerStep = (xs: { id: string; area: number }[], label: string): TraceStep[] =>
+    xs.length ? [st(label, 'Σ b_ściany² / 4 · tan β', xs.map((d) => `${d.id}: ${fmt(d.area)}`).join(' + '), sum(xs), 'm²')] : []
+
+  const cl = clean(main + sum(dAll))
+  const cladding: Computed = {
+    value: cl,
+    unit: 'm²',
+    trace: [...mainTrace, ...dormerStep(dAll, 'Szczyty daszków w boazerii'), ...(dAll.length ? [st('Boazeria razem', 'szczyty główne + daszki', `${fmt(main)} + ${fmt(sum(dAll))}`, cl, 'm²')] : [])],
+  }
+  const mainWool = i.insulated ? main : 0
+  const wl = clean(mainWool + sum(dIns))
+  const wool: Computed = {
+    value: wl,
+    unit: 'm²',
+    trace: [
+      ...(i.insulated ? mainTrace : [st('Szczyty główne', 'bez ocieplenia (wybór użytkownika)', '0', 0, 'm²')]),
+      ...dormerStep(dIns, 'Szczyty daszków z wełną'),
+      ...(dIns.length ? [st('Wełna razem', 'szczyty główne + daszki z wełną', `${fmt(mainWool)} + ${fmt(sum(dIns))}`, wl, 'm²')] : []),
+    ],
+  }
+  return { cladding, wool }
+}
+
 /** Szczyty (2 szt.) nad linią okapu: B_z² / 4 × tan α każdy, minus okna w szczytach. */
 export function gablesArea(span: number, pitchDeg: number, gableOpenings: Opening[]): Computed {
   const one = clean(((span * span) / 4) * Math.tan((pitchDeg * Math.PI) / 180))

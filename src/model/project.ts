@@ -61,12 +61,23 @@ export interface ProjectInput {
   /** Wymiary wewnętrzne prostokąta [m]. */
   footprint: { length: number; width: number }
   wallThickness: number
+  /** EPS elewacji [m] — na ścianach na całej wysokości, na ścianach szczytowych do linii okapu. */
   facadeInsulation: number
+  /**
+   * Szczyty główne nad linią okapu: boazeria na łatach; `insulated` — pod boazerią wełna skalna
+   * o grubości `woolThickness` [m] (domyślnie tak, 0,20). Szczyty daszków — wybór przy daszku.
+   */
+  gables: { insulated: boolean; woolThickness: number }
   foundationInsulation: number
   /** Wysokość w świetle: gotowa posadzka → gotowy sufit [m]. */
   clearHeight: number
   floorLayers: FloorLayersInput
-  /** Sufit podwieszany: GK + stelaż + pustka — wyznacza górę wieńca ścian. */
+  /**
+   * Wysokość ścian nośnych: gotowa posadzka (±0) → góra wieńca ścian [m] — podaje użytkownik
+   * (null = uzupełnij; podpowiedź: wysokość w świetle + warstwy sufitu). Mur stoi na chudziaku.
+   */
+  wallHeight: number | null
+  /** Sufit podwieszany: GK + stelaż + pustka — podpowiedź wysokości ścian i kontrola miejsca nad sufitem. */
   ceiling: CeilingBuildUp
   slabThickness: number
   wall: WallInput
@@ -102,8 +113,12 @@ export interface ProjectInput {
   rooms: Room[]
   /** Zasady rozmieszczenia profili i wieszaków sufitu. */
   ceilingRules: CeilingRules
-  /** Ściany działowe: suma mb; wysokość null = od chudziaka do sufitu (z poziomów). */
-  partitions: { length: number | null; height: number | null }
+  /**
+   * Ściany działowe: suma mb; murowane do `heightAboveFloor` od gotowej posadzki (domyślnie 2,80 m),
+   * pierwsza warstwa na chudziaku → wysokość muru = heightAboveFloor + warstwy podłogi.
+   * `height` — ręczne nadpisanie całej wysokości muru (null = liczona).
+   */
+  partitions: { length: number | null; height: number | null; heightAboveFloor: number }
   /** Wybory użytkownika (np. wariant cięcia OSB). */
   choices: {
     /** Wariant cięcia OSB szalunku wieńca fundamentowego — wybiera użytkownik. */
@@ -137,8 +152,10 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
     footprint: { length: 12, width: 9 },
     wallThickness: 0.24,
     facadeInsulation: 0.2,
+    gables: { insulated: true, woolThickness: 0.2 },
     foundationInsulation: 0.1,
     clearHeight: 2.7,
+    wallHeight: null,
     floorLayers: { insulation: null, screed: null, finish: null },
     ceiling: DEFAULT_CEILING_BUILD_UP,
     slabThickness: 0.1,
@@ -168,7 +185,7 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
     planRules: { minPier: 0.25 },
     rooms: [],
     ceilingRules: DEFAULT_CEILING_RULES,
-    partitions: { length: null, height: null },
+    partitions: { length: null, height: null, heightAboveFloor: 2.8 },
     choices: { foundationRingBeamOsbVariant: null, wallRingBeamOsbVariant: null, foundationFeltVariant: null, wallFeltVariant: null },
     itemParams: {},
     prices: {},

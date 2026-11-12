@@ -11,7 +11,8 @@ function example(): ProjectInput {
   p.wall = { ...p.wall, blockLength: 0.59, blockHeight: 0.24 }
   p.partitionBlock = { blockLength: 0.59, blockHeight: 0.24, jointThickness: 0 }
   p.roof = { ...p.roof, pitchDeg: 35, eaveOverhang: 0.6, gableOverhang: 0.6 }
-  p.partitions = { length: 30, height: null }
+  p.partitions = { length: 30, height: null, heightAboveFloor: 2.8 }
+  p.wallHeight = 2.922
   p.openings = [
     { id: 'o1', mark: 'O1', type: 'okno', width: 1.5, height: 1.5, count: 4, wall: 'zewnętrzna' },
     { id: 'd1', mark: 'D1', type: 'drzwi zewnętrzne', width: 1.0, height: 2.1, count: 1, wall: 'zewnętrzna' },
@@ -118,6 +119,28 @@ describe('SSZ — sufit, elewacja, podłoga (przykład)', () => {
   it('szczyty: 2 × 9,88² / 4 × tan 35° − 0,36 ≈ 33,81 m²', () => {
     const one = (9.88 * 9.88) / 4 * Math.tan((35 * Math.PI) / 180)
     expect(byId(items, 'ssz-szczyt-welna').quantity?.value).toBeCloseTo(2 * one - 0.36, 4)
+  })
+
+  it('szczyty bez ocieplenia: boazeria z lica muru 9,48 m; wełna, łączniki, wsporniki, membrana wyłączone', () => {
+    const q = buildSSZ({ ...p, gables: { insulated: false, woolThickness: 0.2 } }).items
+    const one = (9.48 * 9.48) / 4 * Math.tan((35 * Math.PI) / 180)
+    expect(byId(q, 'ssz-szczyt-boazeria').quantity?.value).toBeCloseTo(2 * one - 0.36, 4)
+    for (const id of ['ssz-szczyt-welna', 'ssz-szczyt-laczniki', 'ssz-szczyt-wsporniki', 'ssz-szczyt-membrana']) expect(byId(q, id).enabled).toBe(false)
+  })
+
+  it('daszek z samą boazerią: do boazerii tak, do wełny nie; daszek z wełną — do obu; daszek w EPS — do EPS', () => {
+    const one = (9.88 * 9.88) / 4 * Math.tan((35 * Math.PI) / 180)
+    const main = 2 * one - 0.36
+    const dg = (3.5 * 3.5) / 4 // tan 45° = 1
+    const dormer = { id: 'D1', b: 4, w: 2, betaDeg: 45, dh: 0, side: 'przód' as const, position: 4, wallWidth: 3.5 }
+    const bare = buildSSZ({ ...p, roof: { ...p.roof, dormers: [{ ...dormer, gableFinish: 'boazeria', gableInsulation: false }] } }).items
+    expect(byId(bare, 'ssz-szczyt-boazeria').quantity?.value).toBeCloseTo(main + dg, 4)
+    expect(byId(bare, 'ssz-szczyt-welna').quantity?.value).toBeCloseTo(main, 4)
+    const wool = buildSSZ({ ...p, roof: { ...p.roof, dormers: [{ ...dormer, gableFinish: 'boazeria', gableInsulation: true }] } }).items
+    expect(byId(wool, 'ssz-szczyt-welna').quantity?.value).toBeCloseTo(main + dg, 4)
+    const eps = buildSSZ({ ...p, roof: { ...p.roof, dormers: [{ ...dormer, gableFinish: 'EPS' }] } }).items
+    expect(byId(eps, 'ssz-eps').quantity?.value).toBeCloseTo(131.19904 + dg, 4)
+    expect(byId(eps, 'ssz-szczyt-boazeria').quantity?.value).toBeCloseTo(main, 4)
   })
 
   it('podbitka: 2 × 14,08 × 0,6 + 4 × 6,7631 × 0,6 − 4 × 0,6 / cos 35° × 0,6', () => {
