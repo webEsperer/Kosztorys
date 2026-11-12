@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeDormer, computeRoof, trussCount, type Dormer, type RoofInput } from '../../src/engine/roof'
+import { computeDormer, computeRoof, dormerWarnings, trussCount, type Dormer, type RoofInput } from '../../src/engine/roof'
 
 // Przykład referencyjny: 12 × 9 m wew., ściana 0,24, EPS 0,20 → L_z = 12,88, B_z = 9,88; α = 35°, okapy 0,60.
 const BASE: RoofInput = { outerLength: 12.88, outerWidth: 9.88, ridgeAlongLonger: true, pitchDeg: 35, eaveOverhang: 0.6, gableOverhang: 0.6, dormers: [] }
@@ -85,5 +85,33 @@ describe('roof — daszek z koszami (test z CLAUDE.md)', () => {
 
   it('trójkąt szczytu daszku: b_ściany² / 4 · tan β', () => {
     expect(computeDormer(35, { ...DORMER, wallWidth: 3 }).gableArea).toBeCloseTo((9 / 4) * 1, 6)
+  })
+})
+
+describe('roof — kontrola daszków', () => {
+  const run = (dormers: Dormer[]) => {
+    const i = { ...BASE, dormers }
+    return dormerWarnings(i, computeRoof(i))
+  }
+
+  it('poprawny daszek — brak uwag', () => {
+    expect(run([DORMER])).toEqual([])
+  })
+
+  it('wychodzi poza okap (4 + 11 > 14,08)', () => {
+    expect(run([{ ...DORMER, position: 11 }])[0]).toContain('wychodzi poza połać')
+  })
+
+  it('dwa daszki po tej samej stronie nachodzą na siebie; po przeciwnych — OK', () => {
+    expect(run([DORMER, { ...DORMER, id: 'D2', position: 6 }]).some((w) => w.includes('nachodzą'))).toBe(true)
+    expect(run([DORMER, { ...DORMER, id: 'D2', position: 6, side: 'tył' }])).toEqual([])
+  })
+
+  it('kalenica daszku ponad główną: b = 8, β = 60° → d = 4 × tan 60° / tan 35° ≈ 9,9 > 5,54', () => {
+    expect(run([{ ...DORMER, b: 8, betaDeg: 60, position: 2 }]).some((w) => w.includes('ponad kalenicę'))).toBe(true)
+  })
+
+  it('Δh < 0 — komunikat o ręcznym podaniu', () => {
+    expect(run([{ ...DORMER, dh: -0.2 }])[0]).toContain('ręcznie')
   })
 })

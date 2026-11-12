@@ -751,3 +751,37 @@
     break-before: page;
   }
 }
+
+.roof-fields {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  column-gap: 24px;
+}
+
+.dormers {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.dormers h3 {
+  font-size: 0.95rem;
+}
+
+.dormer-id {
+  align-self: center;
+  font-size: 1rem;
+}
+
+.dormer-calc {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.warn-list {
+  margin: 0;
+  padding: 8px 12px 8px 26px;
+  border-radius: 6px;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  font-size: 0.86rem;
+}

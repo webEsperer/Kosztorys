@@ -188,6 +188,43 @@ export function computeRoof(i: RoofInput): RoofResult {
   }
 }
 
+/**
+ * Kontrola daszków (komunikaty przy rysunku/formularzu):
+ * • daszek musi mieścić się na długości okapu R (położenie = odległość lewej krawędzi b od początku okapu),
+ * • daszki po tej samej stronie nie mogą na siebie nachodzić,
+ * • kalenica daszku nie może wyjść ponad kalenicę główną (x0 + d ≤ rzut połaci głównej),
+ * • Δh < 0 — do ręcznego podania.
+ */
+export function dormerWarnings(i: RoofInput, r: RoofResult): string[] {
+  const out: string[] = []
+  const run = clean(r.span / 2 + i.eaveOverhang)
+  for (const dm of i.dormers) {
+    const n = `Daszek ${dm.id}`
+    if (dm.position < 0 || dm.position + dm.b > r.ridgeLength + 1e-9) {
+      out.push(`${n}: wychodzi poza połać (położenie ${fmt(dm.position)} + b ${fmt(dm.b)} > długość okapu ${fmt(r.ridgeLength)} m).`)
+    }
+    if (dm.dh < 0) {
+      out.push(`${n}: okap niżej niż główny (Δh < 0) — podaj powierzchnię daszku i długości koszy ręcznie.`)
+      continue
+    }
+    const dr = r.dormers.find((x) => x.id === dm.id)
+    if (dr && dr.x0 + dr.d > run + 1e-9) {
+      out.push(`${n}: kalenica daszku wychodzi ponad kalenicę główną (x0 + d = ${fmt(dr.x0 + dr.d)} m > ${fmt(run)} m) — zmniejsz β lub b.`)
+    }
+  }
+  for (let a = 0; a < i.dormers.length; a++) {
+    for (let b = a + 1; b < i.dormers.length; b++) {
+      const p = i.dormers[a]
+      const q = i.dormers[b]
+      if (p.side !== q.side) continue
+      if (p.position < q.position + q.b - 1e-9 && q.position < p.position + p.b - 1e-9) {
+        out.push(`Daszki ${p.id} i ${q.id} nachodzą na siebie (strona: ${p.side}).`)
+      }
+    }
+  }
+  return out
+}
+
 /** Liczba wiązarów z rozstawu: ⌈L_z / rozstaw⌉ + 1. */
 export function trussCount(length: number, spacing: number): { value: number; trace: TraceStep[] } {
   const value = Math.ceil(length / spacing - 1e-9) + 1

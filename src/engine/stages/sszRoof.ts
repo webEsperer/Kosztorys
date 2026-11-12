@@ -3,24 +3,35 @@
 import type { ProjectInput } from '../../model/project'
 import { computeGeometry } from '../geometry'
 import { type ItemSpec, need } from '../items'
-import { computeRoof, type RoofResult, trussCount } from '../roof'
+import { computeRoof, dormerWarnings, type RoofResult, trussCount } from '../roof'
 import { type Computed, type TraceStep, ceilSafe, clean, fmt } from '../trace'
 import { type Builder, computed, lumpItem, manualItem } from './common'
 
-export function roofOf(project: ProjectInput): { roof: RoofResult | null; missing: string[]; trace: TraceStep[] } {
+export function roofOf(project: ProjectInput): { roof: RoofResult | null; missing: string[]; trace: TraceStep[]; warnings: string[] } {
   const r = project.roof
   const missing: string[] = []
   if (r.pitchDeg === null) missing.push('kąt nachylenia dachu')
   if (r.eaveOverhang === null) missing.push('okap boczny')
   if (r.gableOverhang === null) missing.push('okap szczytowy')
-  if (missing.length) return { roof: null, missing, trace: [] }
+  if (missing.length) return { roof: null, missing, trace: [], warnings: [] }
+  try {
+    return roofOfValid(project)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { roof: null, missing: [msg], trace: [], warnings: [msg] }
+  }
+}
+
+function roofOfValid(project: ProjectInput): { roof: RoofResult; missing: string[]; trace: TraceStep[]; warnings: string[] } {
+  const r = project.roof
+  const missing: string[] = []
   const geo = computeGeometry({
     footprint: { kind: 'rect', length: project.footprint.length, width: project.footprint.width },
     wallThickness: project.wallThickness,
     facadeInsulation: project.facadeInsulation,
   })
   const od = geo.outerDimensions
-  const roof = computeRoof({
+  const input = {
     outerLength: od.value.length,
     outerWidth: od.value.width,
     ridgeAlongLonger: r.ridgeAlongLonger,
@@ -28,9 +39,10 @@ export function roofOf(project: ProjectInput): { roof: RoofResult | null; missin
     eaveOverhang: r.eaveOverhang!,
     gableOverhang: r.gableOverhang!,
     dormers: r.dormers,
-  })
+  }
+  const roof = computeRoof(input)
   for (const id of roof.manualDormers) missing.push(`daszek ${id} (Δh < 0): powierzchnia i kosze do podania ręcznie`)
-  return { roof, missing, trace: [...od.trace, ...roof.trace] }
+  return { roof, missing, trace: [...od.trace, ...roof.trace], warnings: dormerWarnings(input, roof) }
 }
 
 export function roofItems(b: Builder, project: ProjectInput): ItemSpec[] {

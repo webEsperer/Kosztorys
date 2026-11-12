@@ -8,6 +8,7 @@ import { roofOf } from '../../engine/stages/sszRoof'
 import { Check, NumField, Section, Select, TextField, fmtQty } from '../common/fields'
 import { OpeningsEditor } from './OpeningsEditor'
 import { RoomsEditor } from './RoomsEditor'
+import { DormersEditor } from './DormersEditor'
 
 export type Update = (fn: (p: ProjectInput) => void) => void
 
@@ -135,7 +136,9 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
         )}
       </Section>
 
-      <Section title="6. Dach">
+      <section className="card wide">
+        <h2>6. Dach</h2>
+        <div className="fields roof-fields">
         <NumField label="Kąt nachylenia" unit="°" required value={project.roof.pitchDeg} onChange={(v) => update((p) => { p.roof.pitchDeg = v })} />
         <NumField label="Okap boczny (od lica EPS)" {...CM} required value={project.roof.eaveOverhang} onChange={(v) => update((p) => { p.roof.eaveOverhang = v })} />
         <NumField label="Okap szczytowy (od lica EPS)" {...CM} required value={project.roof.gableOverhang} onChange={(v) => update((p) => { p.roof.gableOverhang = v })} />
@@ -148,7 +151,9 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
             <b>+{fmtQty((base.ringTop.value + roof.ridgeRise) * 100, 0)} cm</b> (bez grubości pokrycia)
           </p>
         )}
-      </Section>
+              </div>
+        <DormersEditor project={project} update={update} />
+      </section>
 
       <Section title="7. Betonowania">
         <PourFields title="Ławy" pp={project.concrete.footing} set={(fn) => update((p) => fn(p.concrete.footing))} />
