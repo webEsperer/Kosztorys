@@ -772,6 +772,173 @@
   font-size: 1rem;
 }
 
+/* Rysunek objaśniający wymiary daszku */
+.dim-field {
+  display: contents;
+}
+
+.dormer-help {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
+}
+
+.dormer-help summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.dormer-help-figs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-top: 8px;
+}
+
+.dormer-help figure {
+  margin: 0;
+  flex: 1 1 280px;
+  max-width: 520px;
+}
+
+.dormer-help figure:first-child {
+  flex-basis: 420px;
+}
+
+.dormer-help svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  font: 11px var(--sans);
+}
+
+.dormer-help figcaption {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.dormer-help-legend {
+  margin: 10px 0 4px;
+  padding-left: 18px;
+}
+
+.dormer-help .dh-roof {
+  fill: color-mix(in srgb, #b5563a 14%, transparent);
+  stroke: none;
+}
+
+.dormer-help .dh-dormer {
+  fill: color-mix(in srgb, var(--accent) 16%, transparent);
+  stroke: none;
+}
+
+.dormer-help .dh-wall-fill {
+  fill: color-mix(in srgb, var(--muted) 14%, transparent);
+  stroke: var(--muted);
+}
+
+.dormer-help .dh-hatch {
+  stroke: #b5563a;
+  stroke-width: 1;
+}
+
+.dormer-help .dh-eave,
+.dormer-help .dh-roof-line,
+.dormer-help .dh-dormer-line {
+  stroke: var(--text);
+  stroke-width: 2;
+  fill: none;
+}
+
+.dormer-help .dh-eave-main {
+  stroke: var(--text);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 3;
+}
+
+.dormer-help .dh-ridge {
+  stroke: var(--text);
+  stroke-width: 1.5;
+  stroke-dasharray: 10 3 2 3;
+}
+
+.dormer-help .dh-valley {
+  stroke: #d93025;
+  stroke-width: 3;
+}
+
+.dormer-help .dh-valley-t {
+  fill: #d93025;
+  font-weight: 700;
+}
+
+.dormer-help .dh-wall {
+  fill: none;
+  stroke: var(--muted);
+  stroke-dasharray: 4 3;
+}
+
+.dormer-help .dh-note {
+  fill: var(--muted);
+}
+
+.dormer-help .dh-note.strong {
+  fill: #b5563a;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.dormer-help .dh-ext {
+  stroke: var(--muted);
+  stroke-width: 0.6;
+}
+
+.dormer-help .dh-dim line {
+  stroke: var(--accent);
+  stroke-width: 1;
+}
+
+.dormer-help .dh-dim text {
+  fill: var(--accent);
+  font-weight: 600;
+}
+
+.dormer-help .dh-dim.calc line {
+  stroke: var(--muted);
+  stroke-dasharray: 3 2;
+}
+
+.dormer-help .dh-dim.calc text {
+  fill: var(--muted);
+  font-style: italic;
+}
+
+.dormer-help .dh-angle {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.2;
+}
+
+.dormer-help .dh-angle-t {
+  fill: var(--accent);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.dormer-help .dh-dim.on line,
+.dormer-help .dh-angle.on {
+  stroke: #e8710a;
+  stroke-width: 2.5;
+}
+
+.dormer-help .dh-dim.on text,
+.dormer-help .dh-angle-t.on {
+  fill: #e8710a;
+}
+
 .dormer-calc {
   flex-basis: 100%;
   margin: 0;
