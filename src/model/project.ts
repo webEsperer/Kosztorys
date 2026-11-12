@@ -7,6 +7,7 @@ import type { FloorLayers, WallLayerParams } from '../engine/levels'
 import { DEFAULT_FLOOR_LAYERS, DEFAULT_WALL_LAYERS } from '../engine/levels'
 import type { DoorLeafMap, LintelSize, Opening } from '../engine/openings'
 import { DEFAULT_DOOR_MAP, DEFAULT_LINTEL_TABLE } from '../engine/openings'
+import type { Dormer } from '../engine/roof'
 
 export interface FoundationInput {
   /** Bloczek fundamentowy — wymiary podaje użytkownik (null = uzupełnij). */
@@ -49,6 +50,18 @@ export interface ProjectInput {
   lintels: { exterior: LintelSize[]; partition: LintelSize[] }
   /** Mapowanie otwór → skrzydło drzwi wewnętrznych. */
   doorMap: DoorLeafMap[]
+  /** Dach: kąt i okapy podaje użytkownik (null = uzupełnij). */
+  roof: {
+    pitchDeg: number | null
+    /** Okap boczny / szczytowy — poziomo od lica gotowego EPS [m]. */
+    eaveOverhang: number | null
+    gableOverhang: number | null
+    ridgeAlongLonger: boolean
+    /** Rozstaw wiązarów [m] (domyślnie 0,9) albo liczba podana przez użytkownika. */
+    trussSpacing: number
+    trussCount: number | null
+    dormers: Dormer[]
+  }
   /** Ściany działowe: suma mb; wysokość null = od chudziaka do sufitu (z poziomów). */
   partitions: { length: number | null; height: number | null }
   /** Wybory użytkownika (np. wariant cięcia OSB). */
@@ -98,6 +111,7 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
     openings: [],
     lintels: { exterior: DEFAULT_LINTEL_TABLE, partition: DEFAULT_LINTEL_TABLE },
     doorMap: DEFAULT_DOOR_MAP,
+    roof: { pitchDeg: null, eaveOverhang: null, gableOverhang: null, ridgeAlongLonger: true, trussSpacing: 0.9, trussCount: null, dormers: [] },
     partitions: { length: null, height: null },
     choices: { foundationRingBeamOsbVariant: null, wallRingBeamOsbVariant: null },
     itemParams: {},
