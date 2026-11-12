@@ -107,6 +107,28 @@ Aplikacja rysuje **schemat poziomów** (przekrój) z wyliczonymi rzędnymi i pok
 Lista typów otworów: `typ (okno / drzwi zewnętrzne / brama / drzwi wewnętrzne), szerokość, wysokość, liczba,
 ściana (zewnętrzna / szczyt / działowa), oznaczenie (O1, D1…)`.
 
+Do kosztorysu wystarczy typ + liczba. Do wizualizacji każdy egzemplarz otworu ma dodatkowo **położenie**:
+- `wallId` — która ściana (ściany obrysu numerowane od narożnika lewego dolnego, zgodnie z ruchem wskazówek zegara;
+  ściany działowe — własne id),
+- `offset` — odległość od wewnętrznego narożnika ściany do krawędzi otworu (cm),
+- `sillHeight` — wysokość parapetu od gotowej posadzki (cm; drzwi = 0),
+- `side` — dla drzwi kierunek otwierania (lewe/prawe, do wewnątrz/na zewnątrz), opcjonalnie.
+Otwory bez położenia liczą się w kosztorysie normalnie, a wizualizacja pokazuje je na liście „do rozmieszczenia”.
+
+**Edytor rzutu (ui/plan-editor/):** rzut ścian z góry; kliknięcie ściany → „dodaj okno/drzwi”; przeciąganie otworu
+wzdłuż ściany; wymiary od narożnika i między otworami pokazywane na bieżąco; wpisanie dokładnej wartości w cm;
+kontrola kolizji (otwór na otworze, za blisko narożnika — minimalny filar parametrem, domyślnie 25 cm).
+
+**Import z CAD (etap późniejszy):**
+- Obsługujemy **DXF** (format tekstowy, biblioteka `dxf-parser`). **DWG nie czytamy w przeglądarce** — użytkownik
+  zapisuje rzut z programu CAD jako DXF albo konwertuje DWG → DXF darmowym ODA File Converter.
+- Kreator importu: wybór jednostek rysunku (mm/cm/m), wybór warstw ze ścianami i z oknami/drzwiami,
+  podgląd rozpoznanych elementów na rzucie; użytkownik zatwierdza lub poprawia przed zapisem.
+- Rozpoznawanie: obrys wewnętrzny ścian zewnętrznych z linii/polilinii; okna i drzwi z bloków (INSERT) —
+  nazwa bloku, punkt wstawienia, obrót i skala → szerokość, ściana, offset; wysokości otworów i parapetów
+  uzupełnia użytkownik (w rzucie 2D ich nie ma), chyba że blok ma atrybuty z wymiarami.
+- Import zawsze kończy się w edytorze rzutu — nic nie trafia do kosztorysu bez zatwierdzenia.
+
 ## Wzory geometryczne (geometry.ts)
 
 Dla obrysu prostokątnego wielokątnego (liczba narożników wypukłych − wklęsłych = 4):
@@ -340,6 +362,108 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
 - Obróbki blacharskie [ręcznie: liczba × cena za obróbkę], w tym obróbki kominów.
 - Opcjonalnie: wkręty/klamry do dachówek, ławy kominiarskie, okna dachowe.
 
+### Dach — dobudowane daszki dwuspadowe połączone koszowo (roof.ts, opcja)
+
+Użytkownik może dodać **dowolną liczbę** małych daszków dwuspadowych, prostopadłych do kalenicy głównej,
+połączonych z połacią główną dwoma koszami. Liczymy w rzucie z góry: `pow. połaci = pow. rzutu / cos(kąt)`;
+kosze dzielą rzut między połać główną a daszek.
+
+**Dane dla każdego daszku:**
+| Parametr | Opis |
+|---|---|
+| `b` | szerokość daszku w rzucie, razem z okapami szczytowymi daszku |
+| `w` | wysięg daszku poza linię okapu głównego (poziomo) |
+| `β` | kąt nachylenia daszku |
+| `Δh` | różnica wysokości okapu daszku względem okapu głównego (domyślnie 0; dodatnia = wyżej) |
+| strona | po której stronie okapowej budynku (daszek nie może wychodzić ze szczytu) |
+| położenie | odległość od narożnika (tylko do kontroli, czy mieści się na połaci i nie koliduje z innym) |
+
+**Wzory (α = kąt dachu głównego):**
+1. Początek koszy za linią okapu głównego: `x0 = Δh / tan α` (dla `Δh = 0` → `x0 = 0`).
+2. Wejście kalenicy daszku w połać główną: `d = (b/2) · tan β / tan α`.
+3. Powierzchnia rzutu przejęta z połaci głównej: `T = b · x0 + b · d / 2`.
+4. Połać główna: `A_główna = (rzut_główny − Σ T) / cos α`.
+5. Daszek: `A_daszek = (b · w + T) / cos β`.
+6. Dla `β = α` i `Δh = 0`: `d = b/2`, przyrost dachu = `b · w / cos α` (test kontrolny).
+7. `Δh < 0` (okap daszku niżej niż główny): nie liczymy automatycznie — komunikat z prośbą o ręczne
+   podanie powierzchni daszku i długości koszy.
+
+**Elementy dodatkowe wyliczane z tych danych:**
+- Kosze (2 szt. na daszek): długość każdego `√((b/2)² + d² + ((b/2) · tan β)²)`
+  (dla `Δh > 0` dodatkowo odcinek prosty `x0` przy okapie) → blacha koszowa mb, taśma/uszczelka koszowa mb.
+- Kalenica daszku: `w + x0 + d` → gąsiory, taśma kalenicowa.
+- Okapy daszku: `2 × (w + x0)` → rynny, pas nadrynnowy, pas podrynnowy, grzebień okapowy, deski czołowe, struktonit.
+- Okap główny skracany o `b` w miejscu daszku (rynny, pasy, grzebień, deski czołowe głównej połaci).
+- Wiatrownice / dachówki krawędziowe daszku: `2 × (b/2) / cos β`.
+- Membrana, łaty, kontrłaty, dachówki daszku liczone z `A_daszek` (rozstaw łat jak na dachu głównym).
+- Konstrukcja daszku (wiązary/krokwie) — kwota ręczna, jak dla dachu głównego.
+- Odpad dachówki przy koszach: domyślnie 12% dla połaci z koszami (parametr) zamiast odpadu standardowego.
+- Szczyt daszku: powierzchnia trójkąta `b_ściany² / 4 · tan β` (bez okapów) do elewacji — użytkownik wybiera,
+  czy jest wykończony EPS czy jak szczyty główne (wełna + boazeria).
+
+**Trace** pokazuje: d, x0, T, powierzchnię przejętą z połaci głównej, powierzchnię daszku, długości koszy.
+
+### Wizualizacja dachu (ui/roof-view/)
+
+Wzorzec działania: **`docs/prototyp-dach.html`** (otwórz w przeglądarce). Przenieś z niego metodę rysowania
+do komponentów React, ale **geometria ma pochodzić z `engine/roof.ts`** — rysunek i kosztorys używają tych samych
+liczb, komponent niczego nie przelicza samodzielnie. `roof.ts` zwraca listę połaci (wielokąty 3D + normalne),
+krawędzi (typ: okap, kalenica, kosz, wiatrownica) i wymiarów.
+
+**Widok 3D (SVG, bez dodatkowych bibliotek na start):**
+- rzutowanie aksonometryczne, sortowanie ścian od najdalszej (painter's algorithm), ukrywanie ścian odwróconych
+  od widza (back-face culling), cieniowanie płaskie wg normalnej — jak w prototypie;
+- obrót przeciąganiem myszą/palcem + suwak; zoom kółkiem/szczypaniem; przycisk „widok domyślny”;
+- kolory: połać główna, daszki, szczyty, kosze (czerwone), kalenice (przerywane);
+- etykiety na rysunku: numery połaci z powierzchnią (P1 = 61,2 m²), numery koszy z długością
+  (K1 = 4,03 m), kalenice z długością; przełącznik „pokaż/ukryj etykiety”.
+
+**Rzut z góry (SVG) z wymiarowaniem:**
+- linie wymiarowe jak na rysunku technicznym: L, D, okapy boczne i szczytowe, dla każdego daszku b, w, d, x0
+  oraz odległość daszku od narożnika;
+- obrys ścian (lico EPS) przerywaną linią pod obrysem dachu, żeby było widać okapy;
+- trójkąt T zakreskowany, kosze oznaczone K1, K2…, kalenice, kierunek spadku połaci (strzałki);
+- tabelka obok: liczba koszy, suma długości koszy, kalenice, okapy, wiatrownice, powierzchnie połaci.
+
+**Interakcja z kosztorysem:**
+- kliknięcie elementu na rysunku (połać, kosz, kalenica, okap) → podświetlenie i panel z trace oraz listą pozycji
+  materiałowych, które z niego wynikają (np. kosz → blacha koszowa, taśma koszowa);
+- kliknięcie pozycji w kosztorysie (np. „Blacha koszowa”) → podświetlenie odpowiednich elementów na rysunku;
+- zmiana parametrów w formularzu → rysunek i kosztorys odświeżają się na żywo;
+- wiele daszków: dodawanie/usuwanie, przesuwanie wzdłuż okapu; kontrola kolizji (daszki nachodzące na siebie,
+  daszek wychodzący poza połać, kalenica daszku ponad kalenicą główną) z komunikatem przy rysunku.
+
+**Eksport:** rzut z wymiarami i widok 3D jako PNG/SVG, dołączane do eksportu PDF kosztorysu.
+
+## Wizualizacja 3D domu (ui/house-3d/) — po kosztorysie i widoku dachu SVG
+
+Cel: prawie realistyczny model domu w przeglądarce, **budowany w całości z parametrów projektu**
+(geometria, poziomy, otwory z położeniem, dach z daszkami, elewacja). Zmiana parametru → model przebudowuje się.
+
+**Technologia:** React Three Fiber + `@react-three/drei`. Geometria budowana w module `engine/model3d.ts`
+(czyste dane: bryły, otwory, połacie — bez three.js), a komponenty tylko je renderują.
+
+**Etapy:**
+1. **Bryła z obliczeń:** ściany z grubością muru + EPS, otwory w ścianach (wycięcia), wieniec, dach z połaciami
+   i daszkami (z `roof.ts`), szczyty, okapy, podbitka. Proste kolory. Kamera orbitująca, zoom, widoki: z przodu,
+   z boku, z góry, z lotu ptaka.
+2. **Materiały PBR:** tynk elewacyjny, dachówka (tekstura z mapą normalnych, kierunek zgodny ze spadkiem połaci),
+   pionowa boazeria na szczytach, blacha (rynny, obróbki), struktonit na deskach czołowych, szkło.
+   Tekstury CC0 z ambientCG / Poly Haven w `public/textures/` (z plikiem LICENSE z informacją o źródle).
+   Wybór kolorów elewacji, dachówki i stolarki w UI.
+3. **Światło i cienie:** oświetlenie HDRI nieba, cienie słoneczne, ambient occlusion, tone mapping.
+   **Słońce wg daty i godziny** dla lokalizacji projektu (domyślnie Ełk, ok. 53,8° N, 22,4° E) i obrotu budynku
+   względem północy — suwak godziny i kalendarz, podgląd nasłonecznienia okien.
+4. **Detale:** okna w głębi muru z ramą i szybą, parapety zewnętrzne, drzwi, rynny i rury spustowe,
+   kominy, teren (trawa, opaska), cokół z XPS.
+5. **Opcjonalnie:** tryb VR (WebXR, przycisk „Wejdź do VR”), eksport modelu do glTF (do Blendera).
+
+**Wydajność:** automatyczne obniżenie jakości na słabszych urządzeniach (rozdzielczość cieni, rozmiar tekstur,
+wyłączenie AO); model ładowany dopiero po wejściu w zakładkę 3D (lazy loading), żeby nie spowalniać kosztorysu.
+
+**Spójność z kosztorysem:** kliknięcie elementu w 3D (połać, okno, ściana) pokazuje odpowiadające pozycje
+kosztorysu i ich trace — tak jak w widoku dachu SVG.
+
 ### Sufit podwieszany krzyżowy GK + ocieplenie (ceiling.ts)
 - Pow. sufitu = `A_wew` (lub suma pomieszczeń).
 - Profile CD60 główne [licz]: mb = `A / rozstaw_główne` (domyślnie 1,0 m) → szt. (dł. profilu 3 m lub 4 m).
@@ -432,6 +556,9 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
   kąt dachu 35°, okapy 60 cm. Każdy wzór ma test z wynikiem policzonym ręcznie.
 - Testy levels.ts: przypadki z resztą 0, 3 cm (dokładana do wieńca) i większą niż limit (warstwa docinana).
 - Testy cutting.ts: oba warianty cięcia, wykorzystanie resztek.
+- Testy daszku z koszami: `b = 4 m, w = 2 m, α = 35°, β = 45°, Δh = 0` → `d ≈ 2,86 m`, `T ≈ 5,71 m²`,
+  daszek ≈ 19,4 m², ubytek połaci głównej ≈ 7,0 m², kosz ≈ 4,0 m każdy;
+  oraz `β = α = 35°` → przyrost dachu = `8 / cos 35° ≈ 9,77 m²`.
 - Testy rebar.ts: liczba prętów z zakładami, strzemiona, masy.
 - Testy groszowe i zaokrągleń do opakowań; trace zgodny z wynikiem.
 - Przed zakończeniem zadania: `npm test` i `npm run build`.
