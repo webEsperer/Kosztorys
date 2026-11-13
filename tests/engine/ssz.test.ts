@@ -64,7 +64,7 @@ describe('SSZ — ściany nośne', () => {
     // góra wieńca 2,972; H = 3,202; n = ⌊2,952 / 0,24⌋ = 12; r = 3,202 − 2,88 − 0,25 = 0,072 > 0,04
     const q = buildSSZ({ ...p, wallHeight: 2.972 }).items
     const v = byId(q, 'ssz-ws-beton').quantity!.value
-    expect(v).toBe(Math.round(42.96 * 0.24 * 0.25 * 1.03 * 1e6) / 1e6)
+    expect(v).toBe(3) // 2,5776 + 5% = 2,70648 → 3 m³
   })
 
   it('bez warstw podłogi lub wymiarów bloczka → uzupełnij', () => {
@@ -115,8 +115,8 @@ describe('SSZ — wieniec ścian', () => {
   const p = example()
   const { items } = buildSSZ(p)
 
-  it('wieniec 27,2 cm: 42,96 × 0,24 × 0,272 × 1,03 = 2,888562 m³, 1 kurs', () => {
-    expect(byId(items, 'ssz-ws-beton').quantity?.value).toBe(2.888562) // zaokr. do 6 miejsc
+  it('wieniec 27,2 cm: 42,96 × 0,24 × 0,272 = 2,804429 + 5% = 2,94465 → zamawiasz 3 m³, 1 kurs', () => {
+    expect(byId(items, 'ssz-ws-beton').quantity?.value).toBe(3)
     expect(byId(items, 'ssz-ws-transport').quantity?.value).toBe(1)
   })
 

@@ -30,8 +30,8 @@ describe('SSO — nowy projekt bez danych fundamentu', () => {
     expect(byId(items, 'sso-sf-bloczki').missing).toContain('długość bloczka fundamentowego')
   })
 
-  it('chudziak liczy się od razu: 108 × 0,10 = 10,8 → 11,124 m³, 2 kursy', () => {
-    expect(byId(items, 'sso-chudziak-beton').quantity?.value).toBe(11.124)
+  it('chudziak liczy się od razu: 108 × 0,10 = 10,8 + 3% = 11,124 → zamawiasz 11,5 m³, 2 kursy', () => {
+    expect(byId(items, 'sso-chudziak-beton').quantity?.value).toBe(11.5)
     expect(byId(items, 'sso-chudziak-transport').quantity?.value).toBe(2)
   })
 
@@ -50,8 +50,9 @@ describe('SSO — przykład z danymi fundamentu', () => {
     expect(context.levels?.foundation.value.excavationBottom).toBe(-1.25)
   })
 
-  it('ławy: beton 10,619712 m³, 2 kursy; pompa wyłączona', () => {
-    expect(byId(items, 'sso-lawy-beton').quantity?.value).toBe(10.619712)
+  it('ławy: 10,3104 + 10% = 11,34144 → zamawiasz 11,5 m³ lub 11 m³, 2 kursy; pompa wyłączona', () => {
+    expect(byId(items, 'sso-lawy-beton').quantity?.value).toBe(11.5)
+    expect(byId(items, 'sso-lawy-beton').note).toBe('10,31 m³ + 10% = 11,34 m³ → zamawiasz 11,5 m³ lub 11 m³')
     expect(byId(items, 'sso-lawy-transport').quantity?.value).toBe(2)
     expect(byId(items, 'sso-lawy-pompa').enabled).toBe(false)
   })
@@ -108,8 +109,8 @@ describe('SSO — przykład z danymi fundamentu', () => {
     expect(byId(items, 'sso-sf-xps').quantity?.value).toBe(38.5584)
   })
 
-  it('wieniec fund.: beton 2,5776 × 1,03 = 2,654928 m³; 1 kurs; stal Ø12 38 prętów, Ø6 33', () => {
-    expect(byId(items, 'sso-wf-beton').quantity?.value).toBe(2.654928)
+  it('wieniec fund.: 2,5776 + 5% = 2,70648 → zamawiasz 3 m³; 1 kurs; stal Ø12 38 prętów, Ø6 33', () => {
+    expect(byId(items, 'sso-wf-beton').quantity?.value).toBe(3)
     expect(byId(items, 'sso-wf-transport').quantity?.value).toBe(1)
     expect(computeItem(byId(items, 'sso-wf-stal12'), null).packs).toBe(38)
     expect(computeItem(byId(items, 'sso-wf-stal6'), null).packs).toBe(33)

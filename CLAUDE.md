@@ -200,7 +200,10 @@ Bloczki H+H Gold 24 — ściany nośne
 ## Betonowania (wspólny moduł concrete.ts)
 
 Każde betonowanie (ławy, wieniec fundamentowy, chudziak, wieniec ścian) ma osobno:
-- objętość m³ (+ naddatek domyślnie 3%), klasa betonu (opis), cena betonu za m³,
+- objętość m³ + **zapas** (wg użytkownika: **ławy w gruncie 10%, wieńce 5%**, chudziak 3%), potem **zamówienie
+  zaokrąglone w górę do 0,5 m³** (parametr); gdy pełne m³ w dół nadal ≥ objętość bez zapasu — pokazywana druga możliwość.
+  Przykłady: ławy 9,2 + 10% = 10,12 → zamawiasz 10,5 m³ lub 10 m³; wieniec 9,2 + 5% = 9,66 → zamawiasz 10 m³.
+  Koszt betonu, transportu (kursy) i pompy za m³ liczony od objętości zamówionej. Klasa betonu (opis), cena betonu za m³,
 - transport: za m³ **albo** za kurs (`kursy = ceil(V / pojemność gruszki)`, domyślnie 8 m³),
 - pompa: przełącznik „potrzebna pompa” + cena (ryczałt za podjazd + opcjonalnie za m³ lub za godzinę).
 Chudziak: beton z włóknami zbrojącymi (cena m³ z włóknami od dostawcy; opcjonalnie włókna osobno kg/m³).

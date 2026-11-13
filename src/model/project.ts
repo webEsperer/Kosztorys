@@ -1,7 +1,7 @@
 // Dane projektu (wejście kreatora + nadpisania użytkownika). Wymiary w metrach, kwoty w groszach.
 
 import type { ConcretePourParams } from '../engine/concrete'
-import { defaultPourParams } from '../engine/concrete'
+import { defaultPourParams, FOOTING_EXTRA_PERCENT, RING_BEAM_EXTRA_PERCENT } from '../engine/concrete'
 import type { Grosze } from '../engine/money'
 import type { Stage } from '../engine/items'
 import type { CustomItem } from '../engine/stages/custom'
@@ -173,10 +173,10 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
       footingFormworkHeight: 0.12,
     },
     concrete: {
-      footing: defaultPourParams('C20/25'),
-      foundationRingBeam: defaultPourParams('C20/25'),
+      footing: defaultPourParams('C20/25', FOOTING_EXTRA_PERCENT),
+      foundationRingBeam: defaultPourParams('C20/25', RING_BEAM_EXTRA_PERCENT),
       slab: { ...defaultPourParams('C12/15 z włóknami'), fibers: { enabled: false, kgPerM3: null, pricePerKgGrosze: null } },
-      wallRingBeam: defaultPourParams('C20/25'),
+      wallRingBeam: defaultPourParams('C20/25', RING_BEAM_EXTRA_PERCENT),
     },
     openings: [],
     lintels: { exterior: DEFAULT_LINTEL_TABLE, partition: DEFAULT_LINTEL_TABLE },

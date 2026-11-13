@@ -86,8 +86,10 @@ export interface ConcreteFibers {
 }
 
 export interface ConcretePourParams {
-  /** Naddatek objętości [%] (domyślnie 3). */
+  /** Zapas objętości [%] — wg użytkownika: ławy w gruncie 10%, wieńce 5%. */
   extraPercent: number
+  /** Zaokrąglenie zamówienia w górę do wielokrotności [m³] (domyślnie 0,5; brak = 0,5). */
+  orderStep?: number
   /** Klasa betonu — opis, np. „C20/25”. */
   concreteClass: string
   /** Cena betonu za m³ (brutto). */
@@ -99,10 +101,15 @@ export interface ConcretePourParams {
 
 export const DEFAULT_TRUCK_CAPACITY_M3 = 8
 export const DEFAULT_CONCRETE_EXTRA_PERCENT = 3
+/** Zapas betonu wg użytkownika: ławy w gruncie 10%, wieńce 5%. */
+export const FOOTING_EXTRA_PERCENT = 10
+export const RING_BEAM_EXTRA_PERCENT = 5
+export const DEFAULT_ORDER_STEP_M3 = 0.5
 
-export function defaultPourParams(concreteClass: string): ConcretePourParams {
+export function defaultPourParams(concreteClass: string, extraPercent: number = DEFAULT_CONCRETE_EXTRA_PERCENT): ConcretePourParams {
   return {
-    extraPercent: DEFAULT_CONCRETE_EXTRA_PERCENT,
+    extraPercent,
+    orderStep: DEFAULT_ORDER_STEP_M3,
     concreteClass,
     pricePerM3Grosze: null,
     transport: { mode: 'perTrip', truckCapacityM3: DEFAULT_TRUCK_CAPACITY_M3, pricePerTripGrosze: null },
@@ -117,8 +124,12 @@ export interface ConcretePourResult {
   concreteClass: string
   /** Objętość geometryczna. */
   volume: Computed
-  /** Objętość do zamówienia (z naddatkiem). */
+  /** Objętość z zapasem: V × (1 + zapas). */
+  withReserve: number
+  /** Objętość do zamówienia: V z zapasem zaokrąglona w górę do kroku (0,5 m³) — podstawa kosztu. */
   orderedVolume: Computed
+  /** Druga możliwość: pełne m³ w dół, jeśli nadal ≥ objętość bez zapasu (np. 10,12 → 10). */
+  alternativeOrder: number | null
   /** Liczba kursów gruszki (gdy transport za kurs). */
   trips: Traced<number> | null
   /** Masa włókien (gdy kupowane osobno). */
@@ -134,18 +145,37 @@ export interface ConcretePourResult {
 export function computeConcretePour(name: string, volume: Computed, p: ConcretePourParams): ConcretePourResult {
   if (!(p.extraPercent >= 0)) throw new Error(`Naddatek betonu nie może być ujemny (podano ${p.extraPercent}).`)
 
-  const ordered = clean(volume.value * (1 + p.extraPercent / 100))
+  const withReserve = clean(volume.value * (1 + p.extraPercent / 100))
+  const step = p.orderStep !== undefined && p.orderStep > 0 ? p.orderStep : DEFAULT_ORDER_STEP_M3
+  const ordered = clean(ceilSafe(clean(withReserve / step)) * step)
+  const down = Math.floor(withReserve + 1e-9)
+  const alternativeOrder = down < ordered - 1e-9 && down >= volume.value - 1e-9 && down > 0 ? down : null
   const orderedVolume: Computed = {
     value: ordered,
     unit: 'm³',
     trace: [
       ...volume.trace,
       {
-        label: 'Objętość do zamówienia',
-        formula: 'V_z = V × (1 + naddatek)',
-        values: `${fmt(volume.value)} × (1 + ${fmt(p.extraPercent)}%)`,
+        label: 'Objętość z zapasem',
+        formula: 'V_z = V + zapas %',
+        values: `${fmt(volume.value)} + ${fmt(p.extraPercent)}% = ${fmt(volume.value)} × ${fmt(1 + p.extraPercent / 100, 4)}`,
+        result: withReserve,
+        unit: 'm³',
+      },
+      {
+        label: 'Zamawiasz (zaokrąglenie w górę)',
+        formula: `⌈V_z / ${fmt(step)}⌉ × ${fmt(step)}`,
+        values: `⌈${fmt(withReserve)} / ${fmt(step)}⌉ × ${fmt(step)}`,
         result: ordered,
         unit: 'm³',
+        ...(alternativeOrder !== null
+          ? {
+              note: `albo ${fmt(alternativeOrder)} m³ (pełne m³ w dół — nadal ≥ ${fmt(volume.value)} m³ bez zapasu, zapas ${fmt(
+                (alternativeOrder / volume.value - 1) * 100,
+                1,
+              )}%)`,
+            }
+          : {}),
       },
     ],
   }
@@ -225,7 +255,9 @@ export function computeConcretePour(name: string, volume: Computed, p: ConcreteP
     name,
     concreteClass: p.concreteClass,
     volume,
+    withReserve,
     orderedVolume,
+    alternativeOrder,
     trips,
     fibersKg,
     lines,

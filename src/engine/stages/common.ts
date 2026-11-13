@@ -150,7 +150,11 @@ export function pourItems(
       unit: 'm3',
       quantity: pour ? pour.orderedVolume : null,
       missing: [...volumeMissing],
-      note: `naddatek ${fmt(pp.extraPercent)}% wliczony w objętość do zamówienia`,
+      note: pour
+        ? `${fmt(pour.volume.value, 2)} m³ + ${fmt(pp.extraPercent)}% = ${fmt(pour.withReserve, 2)} m³ → zamawiasz ${fmt(pour.orderedVolume.value)} m³${
+            pour.alternativeOrder !== null ? ` lub ${fmt(pour.alternativeOrder)} m³` : ''
+          }`
+        : `zapas ${fmt(pp.extraPercent)}%, zamówienie zaokrąglone w górę do ${fmt(pp.orderStep ?? 0.5)} m³`,
     }),
   )
   if (pp.transport.mode === 'perTrip') {

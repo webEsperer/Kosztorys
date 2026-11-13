@@ -21,7 +21,8 @@ function PourFields({ title, pp, set }: { title: string; pp: ConcretePourParams;
     <div className="pour">
       <h3>{title}</h3>
       <TextField label="Klasa betonu" value={pp.concreteClass} onChange={(v) => set((x) => { x.concreteClass = v })} />
-      <NumField nonNegative allowEmpty={false} label="Naddatek objętości" unit="%" value={pp.extraPercent} onChange={(v) => set((x) => { x.extraPercent = v ?? 0 })} />
+      <NumField nonNegative allowEmpty={false} label="Zapas betonu" unit="%" value={pp.extraPercent} onChange={(v) => set((x) => { x.extraPercent = v ?? 0 })} />
+      <NumField positive allowEmpty={false} label="Zamówienie zaokrąglone w górę do" unit="m³" value={pp.orderStep ?? 0.5} onChange={(v) => set((x) => { x.orderStep = v ?? 0.5 })} />
       <Select
         label="Transport"
         value={pp.transport.mode}

@@ -1,7 +1,10 @@
+import { newProject } from '../../src/model/project'
 import { describe, expect, it } from 'vitest'
 import {
   computeConcretePour,
   defaultPourParams,
+  FOOTING_EXTRA_PERCENT,
+  RING_BEAM_EXTRA_PERCENT,
   linearElementVolume,
   slabVolume,
   type ConcretePourParams,
@@ -38,10 +41,12 @@ describe('concrete — objętości elementów', () => {
 describe('concrete — betonowanie', () => {
   const footings = linearElementVolume('ławy', P_OS, 0.6, 0.4)
 
-  it('domyślnie: naddatek 3%, transport za kurs (8 m³), bez cen → niepełne', () => {
+  it('zapas 3% (wartość ogólna), zamówienie w górę do 0,5 m³, transport za kurs (8 m³), bez cen → niepełne', () => {
     const r = computeConcretePour('Ławy', footings, defaultPourParams('C20/25'))
-    // 10,3104 × 1,03 = 10,619712 m³; kursy = ⌈10,619712 / 8⌉ = 2
-    expect(r.orderedVolume.value).toBe(10.619712)
+    // 10,3104 × 1,03 = 10,619712 m³ → zamawiasz 11 m³ (10 m³ < 10,3104 — brak drugiej możliwości); kursy = ⌈11 / 8⌉ = 2
+    expect(r.withReserve).toBe(10.619712)
+    expect(r.orderedVolume.value).toBe(11)
+    expect(r.alternativeOrder).toBeNull()
     expect(r.trips?.value).toBe(2)
     expect(r.complete).toBe(false)
     expect(r.totalGrosze).toBe(0)
@@ -55,12 +60,11 @@ describe('concrete — betonowanie', () => {
       pump: { enabled: true, rentalGrosze: 60000, perM3Grosze: 1000 },
     }
     const r = computeConcretePour('Ławy', footings, p)
-    // beton: 10,619712 × 420 = 4460,27904 → 4460,28 zł
-    // transport: 2 × 250 = 500 zł; pompa: 600 + 10,619712 × 10 = 600 + 106,20 zł
-    expect(r.lines.map((l) => l.costGrosze)).toEqual([446028, 50000, 60000, 10620])
-    expect(r.totalGrosze).toBe(566648)
+    // beton: 11 × 420 = 4620 zł; transport: 2 × 250 = 500 zł; pompa: 600 + 11 × 10 = 600 + 110 zł
+    expect(r.lines.map((l) => l.costGrosze)).toEqual([462000, 50000, 60000, 11000])
+    expect(r.totalGrosze).toBe(583000)
     expect(r.complete).toBe(true)
-    expect(renderTrace(r.trace)).toContain('5 666,48 zł')
+    expect(renderTrace(r.trace)).toContain('5 830,00 zł')
   })
 
   it('transport za m³ — brak kursów', () => {
@@ -71,7 +75,7 @@ describe('concrete — betonowanie', () => {
     }
     const r = computeConcretePour('Ławy', footings, p)
     expect(r.trips).toBeNull()
-    expect(r.lines[1].costGrosze).toBe(31859) // 10,619712 × 30 zł = 318,59 zł
+    expect(r.lines[1].costGrosze).toBe(33000) // 11 m³ × 30 zł = 330 zł
   })
 
   it('pełna gruszka: 8 m³ dokładnie → 1 kurs', () => {
@@ -91,7 +95,7 @@ describe('concrete — betonowanie', () => {
     expect(hoursLine?.costGrosze).toBeNull()
   })
 
-  it('chudziak z włóknami osobno: dozowanie null → uzupełnij; 2 kg/m³ → 22,248 kg', () => {
+  it('chudziak z włóknami osobno: dozowanie null → uzupełnij; 2 kg/m³ × 11,5 m³ = 23 kg', () => {
     const v = slabVolume('chudziak', A_WEW, 0.1)
     const base = defaultPourParams('C12/15')
     const r1 = computeConcretePour('Chudziak', v, {
@@ -99,13 +103,42 @@ describe('concrete — betonowanie', () => {
       fibers: { enabled: true, kgPerM3: null, pricePerKgGrosze: 2000 },
     })
     expect(r1.fibersKg?.value).toBeNull()
-    expect(r1.trips?.value).toBe(2) // 10,8 × 1,03 = 11,124 m³ → ⌈1,39⌉ = 2
+    expect(r1.trips?.value).toBe(2) // 10,8 × 1,03 = 11,124 → zamawiasz 11,5 m³ → ⌈1,44⌉ = 2
 
     const r2 = computeConcretePour('Chudziak', v, {
       ...base,
       fibers: { enabled: true, kgPerM3: 2, pricePerKgGrosze: 2000 },
     })
-    expect(r2.fibersKg?.value).toBe(22.248)
-    expect(r2.lines.at(-1)?.costGrosze).toBe(44496)
+    expect(r2.fibersKg?.value).toBe(23)
+    expect(r2.lines.at(-1)?.costGrosze).toBe(46000)
+  })
+})
+
+describe('zamówienie betonu — zasady użytkownika (zapas + zaokrąglenie)', () => {
+  const v = (x: number) => ({ value: x, unit: 'm³', trace: [] })
+  it('ławy w gruncie: 9,2 m³ + 10% = 10,12 m³ → zamawiasz 10,5 m³ lub 10 m³', () => {
+    const r = computeConcretePour('Ławy', v(9.2), defaultPourParams('C20/25', FOOTING_EXTRA_PERCENT))
+    expect(r.withReserve).toBe(10.12)
+    expect(r.orderedVolume.value).toBe(10.5)
+    expect(r.alternativeOrder).toBe(10)
+    const t = renderTrace(r.orderedVolume.trace)
+    expect(t).toContain('9,2 + 10%')
+    expect(t).toContain('albo 10 m³')
+  })
+  it('wieniec: 9,2 m³ + 5% = 9,66 m³ → zamawiasz 10 m³ (9 m³ < 9,2 — bez drugiej możliwości)', () => {
+    const r = computeConcretePour('Wieniec', v(9.2), defaultPourParams('C20/25', RING_BEAM_EXTRA_PERCENT))
+    expect(r.withReserve).toBe(9.66)
+    expect(r.orderedVolume.value).toBe(10)
+    expect(r.alternativeOrder).toBeNull()
+  })
+  it('krok zamówienia 1 m³: 10,12 → 11 m³ (lub 10)', () => {
+    const r = computeConcretePour('Ławy', v(9.2), { ...defaultPourParams('C20/25', 10), orderStep: 1 })
+    expect(r.orderedVolume.value).toBe(11)
+    expect(r.alternativeOrder).toBe(10)
+  })
+  it('domyślne zapasy projektu: ławy 10%, wieńce 5%', () => {
+    const p = newProject()
+    expect([p.concrete.footing.extraPercent, p.concrete.foundationRingBeam.extraPercent, p.concrete.wallRingBeam.extraPercent]).toEqual([10, 5, 5])
+    expect(p.concrete.footing.orderStep).toBe(0.5)
   })
 })
