@@ -112,13 +112,13 @@ export function roofItems(b: Builder, project: ProjectInput): ItemSpec[] {
         trace: [
           ...roofTrace,
           ...n.trace,
-          { label: 'Kontrłaty — połacie główne', formula: '2 × N_wiązarów × s', values: `2 × ${n.value} × ${fmt(roof.slope)}`, result: main, unit: 'm' },
+          { label: 'Kontrłaty — połacie główne (wzdłuż każdego wiązara, dł. = połać s)', formula: '2 × N_wiązarów × s', values: `2 × ${n.value} × ${fmt(roof.slope)}`, result: main, unit: 'm' },
           ...(nD ? [{ label: 'Kontrłaty — daszki', formula: 'Σ A_daszków / rozstaw wiązarów', values: `${fmt(dormerArea)} / ${fmt(project.roof.trussSpacing)}`, result: dorm, unit: 'm' }] : []),
           { label: 'Kontrłaty — informacyjnie', formula: 'mb × szer. × gr.', values: `${fmt(mb)} × ${fmt(params.w.value ?? 0)} × ${fmt(params.h.value ?? 0)}`, result: m3, unit: 'm³' },
         ],
       }
     }
-    out.push(item({ id, category: C2, kind: 'material', name: 'Kontrłaty 3,2 × 5 cm', unit: 'mb', params, missing, quantity }))
+    out.push(item({ id, category: C2, kind: 'material', name: 'Kontrłaty 3,2 × 5 cm — wzdłuż wiązarów, na membranie', unit: 'mb', params, missing, quantity, note: 'Kontrłaty: wzdłuż spadku, po jednej na każdym wiązarze (na membranie — docisk i szczelina wentylacyjna); rozstaw = rozstaw wiązarów, długość = długość połaci s.' }))
   }
   {
     const id = 'ssz-laty'
@@ -141,14 +141,14 @@ export function roofItems(b: Builder, project: ProjectInput): ItemSpec[] {
         unit: 'mb',
         trace: [
           ...roofTrace,
-          { label: 'Rzędy łat na połać', formula: '⌈s / rozstaw⌉ + 1', values: `⌈${fmt(roof.slope)} / ${fmt(sp)}⌉ + 1`, result: rows, unit: '' },
-          { label: 'Łaty — połacie główne', formula: '2 × rzędy × R', values: `2 × ${rows} × ${fmt(roof.ridgeLength)}`, result: main, unit: 'm' },
+          { label: 'Rzędy łat na połać (poziomo, rozstaw z karty dachówki)', formula: '⌈s / rozstaw⌉ + 1', values: `⌈${fmt(roof.slope)} / ${fmt(sp)}⌉ + 1`, result: rows, unit: '' },
+          { label: 'Łaty — połacie główne (każdy rząd na całą długość połaci R)', formula: '2 × rzędy × R', values: `2 × ${rows} × ${fmt(roof.ridgeLength)}`, result: main, unit: 'm' },
           ...(nD ? [{ label: 'Łaty — daszki', formula: 'Σ A_daszków / rozstaw', values: `${fmt(dormerArea)} / ${fmt(sp)}`, result: dorm, unit: 'm' }] : []),
           { label: 'Łaty — informacyjnie', formula: 'mb × szer. × gr.', values: `${fmt(mb)} × ${fmt(params.w.value ?? 0)} × ${fmt(params.h.value ?? 0)}`, result: m3, unit: 'm³' },
         ],
       }
     }
-    out.push(item({ id, category: C2, kind: 'material', name: 'Łaty 4 × 6 cm', unit: 'mb', params, missing, quantity }))
+    out.push(item({ id, category: C2, kind: 'material', name: 'Łaty 4 × 6 cm — poziomo pod dachówkę', unit: 'mb', params, missing, quantity, note: 'Łaty: poziomo w poprzek połaci (równolegle do kalenicy), przybijane do kontrłat; na nich leży dachówka; rozstaw z karty producenta dachówki.' }))
   }
   {
     const id = 'ssz-dachowka'

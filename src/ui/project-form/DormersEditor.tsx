@@ -3,7 +3,7 @@
 import type { Dormer } from '../../engine/roof'
 import type { ProjectInput } from '../../model/project'
 import { roofOf } from '../../engine/stages/sszRoof'
-import { NumField, fmtQty } from '../common/fields'
+import { FoldRow, NumField, fmtQty } from '../common/fields'
 import type { Update } from './ProjectForm'
 import { useState, type FocusEvent } from 'react'
 import { DormerHelp, type DormerDimKey } from './DormerHelp'
@@ -12,6 +12,7 @@ export function DormersEditor({ project, update }: { project: ProjectInput; upda
   const { roof, warnings } = roofOf(project)
   // wymiar podświetlany na rysunku — wg pola, w którym jest kursor
   const [active, setActive] = useState<DormerDimKey | null>(null)
+  const [justAdded, setJustAdded] = useState<string | null>(null)
   const onFocus = (e: FocusEvent<HTMLElement>) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-dim]')
     setActive((el?.dataset.dim as DormerDimKey | undefined) ?? null)
@@ -37,7 +38,21 @@ export function DormersEditor({ project, update }: { project: ProjectInput; upda
       {dormers.map((d) => {
         const r = roof?.dormers.find((x) => x.id === d.id)
         return (
-          <div key={d.id} className="opening-row dormer-row" onFocusCapture={onFocus} onBlurCapture={onBlur}>
+          <FoldRow
+            key={d.id}
+            defaultOpen={d.id === justAdded}
+            summary={
+              <span className="fold-sum">
+                <b>{d.id}</b>
+                <span>
+                  b {fmtQty(d.b * 100, 1)} cm, w {fmtQty(d.w * 100, 1)} cm, β {fmtQty(d.betaDeg, 1)}°
+                </span>
+                <span className="muted">{d.side}</span>
+                {r && <span className="muted">{fmtQty(r.area)} m²</span>}
+              </span>
+            }
+          >
+          <div className="opening-row dormer-row" onFocusCapture={onFocus} onBlurCapture={onBlur}>
             <b className="dormer-id">{d.id}</b>
             <span className="dim-field" data-dim="b">
               <NumField positive allowEmpty={false} label="b — szer. z okapami" unit="cm" scale={100} width={64} value={d.b} onChange={(v) => set(d.id, (x) => { x.b = v ?? 0 })} />
@@ -94,6 +109,7 @@ export function DormersEditor({ project, update }: { project: ProjectInput; upda
               </p>
             )}
           </div>
+          </FoldRow>
         )
       })}
       {warnings.length > 0 && (
@@ -106,11 +122,13 @@ export function DormersEditor({ project, update }: { project: ProjectInput; upda
       <div className="row-actions">
         <button
           className="btn"
-          onClick={() =>
+          onClick={() => {
+            const id = nextId()
+            setJustAdded(id)
             update((p) => {
-              p.roof.dormers.push({ id: nextId(), b: 4, w: 2, betaDeg: p.roof.pitchDeg ?? 35, dh: 0, side: 'przód', position: 1, gableFinish: 'boazeria', gableInsulation: false })
+              p.roof.dormers.push({ id, b: 4, w: 2, betaDeg: p.roof.pitchDeg ?? 35, dh: 0, side: 'przód', position: 1, gableFinish: 'boazeria', gableInsulation: false })
             })
-          }
+          }}
         >
           + daszek
         </button>

@@ -167,3 +167,17 @@ export function Section({ title, children, note }: { title: string; children: Re
     </section>
   )
 }
+
+/**
+ * Zwijany wiersz listy (otwory, pomieszczenia, daszki): zwinięty pokazuje jedną linię podsumowania,
+ * po rozwinięciu — pola do edycji (wg użytkownika: sztywne zestawienia zajmowały za dużo miejsca).
+ */
+export function FoldRow({ summary, children, defaultOpen = false, className = '' }: { summary: ReactNode; children: ReactNode; defaultOpen?: boolean; className?: string }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <details className={`fold-row ${className}`} open={open} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+      <summary>{summary}</summary>
+      {open && <div className="fold-body">{children}</div>}
+    </details>
+  )
+}

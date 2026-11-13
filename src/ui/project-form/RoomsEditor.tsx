@@ -1,11 +1,13 @@
 // Pomieszczenia (prostokąty) — sufit, obwody i taśmy liczone per pomieszczenie.
 
 import type { ProjectInput } from '../../model/project'
-import { NumField, fmtQty } from '../common/fields'
+import { FoldRow, NumField, fmtQty } from '../common/fields'
 import type { Update } from './ProjectForm'
+import { useState } from 'react'
 
 export function RoomsEditor({ project, update }: { project: ProjectInput; update: Update }) {
   const rooms = project.rooms
+  const [justAdded, setJustAdded] = useState<string | null>(null)
   const area = rooms.reduce((a, r) => a + r.length * r.width, 0)
   const aWew = project.footprint.length * project.footprint.width
   const set = (id: string, fn: (r: ProjectInput['rooms'][number]) => void) =>
@@ -21,7 +23,20 @@ export function RoomsEditor({ project, update }: { project: ProjectInput; update
         </p>
       )}
       {rooms.map((r) => (
-        <div key={r.id} className="opening-row">
+        <FoldRow
+          key={r.id}
+          defaultOpen={r.id === justAdded}
+          summary={
+            <span className="fold-sum">
+              <b>{r.name}</b>
+              <span>
+                {fmtQty(r.length * 100, 1)} × {fmtQty(r.width * 100, 1)} cm
+              </span>
+              <span className="muted">{fmtQty(r.length * r.width)} m²</span>
+            </span>
+          }
+        >
+        <div className="opening-row">
           <label className="nf">
             <span className="nf-label">Nazwa</span>
             <span className="nf-box">
@@ -35,15 +50,18 @@ export function RoomsEditor({ project, update }: { project: ProjectInput; update
             ✕
           </button>
         </div>
+        </FoldRow>
       ))}
       <div className="row-actions">
         <button
           className="btn"
-          onClick={() =>
+          onClick={() => {
+            const id = `r-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+            setJustAdded(id)
             update((p) => {
-              p.rooms.push({ id: `r-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, name: `Pomieszczenie ${p.rooms.length + 1}`, length: 3, width: 3 })
+              p.rooms.push({ id, name: `Pomieszczenie ${p.rooms.length + 1}`, length: 3, width: 3 })
             })
-          }
+          }}
         >
           + pomieszczenie
         </button>

@@ -2,7 +2,8 @@
 
 import type { ProjectInput } from '../../model/project'
 import { type Opening, type OpeningType, type OpeningWall, OPENING_DEDUCTIONS, openingDeductions } from '../../engine/openings'
-import { NumField, fmtQty } from '../common/fields'
+import { FoldRow, NumField, fmtQty } from '../common/fields'
+import { useState } from 'react'
 import type { Update } from './ProjectForm'
 
 const TYPES: OpeningType[] = ['okno', 'drzwi zewnętrzne', 'brama', 'drzwi wewnętrzne']
@@ -17,10 +18,13 @@ function nextMark(openings: Opening[], type: OpeningType): string {
 
 export function OpeningsEditor({ project, update }: { project: ProjectInput; update: Update }) {
   const openings = project.openings
-  const add = (type: OpeningType) =>
+  const [justAdded, setJustAdded] = useState<string | null>(null)
+  const add = (type: OpeningType) => {
+    const id = `op-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    setJustAdded(id)
     update((p) => {
       p.openings.push({
-        id: `op-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        id,
         mark: nextMark(p.openings, type),
         type,
         width: type === 'drzwi wewnętrzne' ? 0.9 : type === 'brama' ? 2.5 : 1.0,
@@ -29,6 +33,7 @@ export function OpeningsEditor({ project, update }: { project: ProjectInput; upd
         wall: type === 'drzwi wewnętrzne' ? 'działowa' : 'zewnętrzna',
       })
     })
+  }
   const set = (id: string, fn: (o: Opening) => void) =>
     update((p) => {
       const o = p.openings.find((x) => x.id === id)
@@ -41,8 +46,29 @@ export function OpeningsEditor({ project, update }: { project: ProjectInput; upd
   return (
     <div className="openings">
       {openings.length === 0 && <p className="muted">Brak otworów. Dodaj okna i drzwi — odejmą się od murów i elewacji.</p>}
+      {openings.length > 0 && (
+        <p className="muted small">
+          {openings.length} typów otworów, razem {openings.reduce((a, o) => a + o.count, 0)} szt. Kliknij wiersz, żeby go rozwinąć i edytować.
+        </p>
+      )}
       {openings.map((o) => (
-        <div key={o.id} className="opening-row">
+        <FoldRow
+          key={o.id}
+          defaultOpen={o.id === justAdded}
+          summary={
+            <span className="fold-sum">
+              <b>{o.mark}</b>
+              <span>{o.type}</span>
+              <span>
+                {fmtQty(o.width * 100, 1)} × {fmtQty(o.height * 100, 1)} cm
+              </span>
+              <span>{o.count} szt</span>
+              <span className="muted">{o.wall}</span>
+              {o.room && <span className="muted">{o.room}</span>}
+            </span>
+          }
+        >
+        <div className="opening-row">
           <label className="nf">
             <span className="nf-label">Oznaczenie</span>
             <span className="nf-box">
@@ -82,6 +108,7 @@ export function OpeningsEditor({ project, update }: { project: ProjectInput; upd
             ✕
           </button>
         </div>
+        </FoldRow>
       ))}
       <div className="row-actions">
         {TYPES.map((t) => (
@@ -90,7 +117,12 @@ export function OpeningsEditor({ project, update }: { project: ProjectInput; upd
           </button>
         ))}
       </div>
-      {openings.length > 0 && <OpeningsSummary rows={ded.rows} totals={ded.totals} />}
+      {openings.length > 0 && (
+        <details className="fold-section">
+          <summary>Zestawienie otworów — co odejmujemy i od czego</summary>
+          <OpeningsSummary rows={ded.rows} totals={ded.totals} />
+        </details>
+      )}
     </div>
   )
 }
@@ -105,7 +137,6 @@ const WALL_TITLE: Record<OpeningWall, string> = {
 function OpeningsSummary({ rows, totals }: { rows: ReturnType<typeof openingDeductions>['rows']; totals: Record<OpeningWall, number> }) {
   return (
     <div className="openings-summary">
-      <h3>Zestawienie otworów — co odejmujemy i od czego</h3>
       {WALLS.filter((w) => rows.some((r) => r.opening.wall === w)).map((w) => {
         const rs = rows.filter((r) => r.opening.wall === w)
         return (

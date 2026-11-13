@@ -40,8 +40,10 @@ wzór, podstawione dane, kroki pośrednie, naddatek, zaokrąglenie, koszt.
 - Testy: Vitest (silnik), Testing Library (UI).
 - Eksport/import projektu: JSON. Eksport zestawień: CSV i PDF/druk. Eksport zestawienia otworów dla producenta stolarki.
 - Rysunki pomocnicze (plan cięcia płyt OSB i pasów papy, schemat poziomów): SVG generowane w aplikacji.
-- Układ: telefon — etapy jako zakładki, pozycje jako karty z rozwijanym trace;
-  komputer — tabela + panel boczny „Jak to policzono”.
+- Układ: etapy jako zakładki, pozycje w tabeli; kliknięcie pozycji otwiera **okienko (pop-up) „Jak to policzono”**
+  — strona pod spodem zablokowana, bez przewijania i skakania (wg użytkownika; zamyka ✕, Esc, kliknięcie obok).
+- Listy w danych projektu (otwory, pomieszczenia, daszki, zestawienie otworów) — **zwijane wiersze** (`FoldRow`):
+  zwinięty pokazuje jedną linię podsumowania, rozwinięty — pola do edycji; nowo dodany wiersz otwarty (wg użytkownika).
 
 ## Architektura
 
@@ -421,8 +423,10 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
 ### Dach — pokrycie (roof.ts)
 - Połać: `s = (B_z/2 + okap_boczny) / cos α`, `R = L_z + 2 × okap_szczytowy`, `A_dachu = 2 × s × R`.
 - Membrana dachowa [licz]: `A × (1 + zakłady 10%)` / m² w rolce.
-- Kontrłaty [licz]: `2 × N_wiązarów × s` mb; przekrój domyślnie 3,2 × 5 cm → m³.
-- Łaty [licz]: rzędy = `ceil(s / rozstaw_łat) + 1` na połać, `mb = 2 × rzędy × R`; rozstaw z karty dachówki
+- Kontrłaty [licz] — **wzdłuż wiązarów (spadku), na membranie**, rozstaw = rozstaw wiązarów:
+  `2 × N_wiązarów × s` mb; przekrój domyślnie 3,2 × 5 cm → m³.
+- Łaty [licz] — **poziomo w poprzek połaci, pod dachówkę**, rozstaw z karty dachówki (nazewnictwo dekarskie;
+  użytkownik nazywał je odwrotnie — w nazwach pozycji dopisany kierunek): rzędy = `ceil(s / rozstaw_łat) + 1` na połać, `mb = 2 × rzędy × R`; rozstaw z karty dachówki
   (`null` = uzupełnij); przekrój domyślnie 4 × 6 cm → m³.
 - Dachówka [licz]: `A × szt/m²` (zużycie `null` = uzupełnij).
 - Gąsiory [licz]: `R × szt/mb` + gąsior początkowy i końcowy.

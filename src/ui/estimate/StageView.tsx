@@ -48,13 +48,29 @@ export function StageView({
   const cats: string[] = []
   for (const r of rows) if (!cats.includes(r.spec.category)) cats.push(r.spec.category)
   const sel = rows.find((r) => r.spec.id === selected) ?? null
-  const panelRef = useRef<HTMLDivElement>(null)
+  // Szczegóły pozycji w okienku (pop-up) — strona pod spodem nie przewija się i nie skacze (wg użytkownika).
+  const open = sel !== null
+  const dialogRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (sel && window.matchMedia('(max-width: 1100px)').matches) panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [sel])
+    if (!open) return
+    const body = document.body
+    const prevOverflow = body.style.overflow
+    const prevPad = body.style.paddingRight
+    const sbw = window.innerWidth - document.documentElement.clientWidth
+    body.style.overflow = 'hidden'
+    if (sbw > 0) body.style.paddingRight = `${sbw}px`
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onSelect(null) }
+    window.addEventListener('keydown', onKey)
+    dialogRef.current?.focus({ preventScroll: true })
+    return () => {
+      body.style.overflow = prevOverflow
+      body.style.paddingRight = prevPad
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [open, onSelect])
 
   return (
-    <div className={`stage${sel ? ' with-panel' : ''}`}>
+    <div className="stage">
       <div className="stage-list">
         <div className="stage-head">
           <h2>{STAGE_LABEL[stage]}</h2>
@@ -182,8 +198,10 @@ export function StageView({
         </div>
       </div>
       {sel && (
-        <div ref={panelRef} className="stage-panel">
-          <ItemPanel r={sel} project={project} update={update} onClose={() => onSelect(null)} onShowRoof={onShowRoof} />
+        <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onSelect(null) }}>
+          <div ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-label={sel.spec.name} tabIndex={-1}>
+            <ItemPanel r={sel} project={project} update={update} onClose={() => onSelect(null)} onShowRoof={onShowRoof} />
+          </div>
         </div>
       )}
     </div>
