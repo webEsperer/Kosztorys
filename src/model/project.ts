@@ -136,6 +136,8 @@ export interface ProjectInput {
   prices: Record<string, Grosze | null>
   /** Włączenie / wyłączenie pozycji wg id (nadpisuje domyślne). */
   enabled: Record<string, boolean>
+  /** Rozliczenie kwotą za całość zamiast stawki za h / dobę (np. praca koparki) wg id pozycji. */
+  lumpSumBilling: Record<string, boolean>
   /** Przeniesienie pozycji do innego etapu wg id. */
   stageOverride: Record<string, Stage>
   /** Rezerwa na nieprzewidziane wydatki: % od sumy etapów (domyślnie 10). */
@@ -191,6 +193,7 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
     prices: {},
     enabled: {},
     stageOverride: {},
+    lumpSumBilling: {},
     reservePercent: 10,
     customItems: [],
     vatPercent: null,

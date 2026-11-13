@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { newProject, type ProjectInput } from '../../src/model/project'
 import { buildSSO } from '../../src/engine/stages/sso'
+import { buildSSZ } from '../../src/engine/stages/ssz'
 import { computeItem, sumItems, type ItemSpec } from '../../src/engine/items'
 import { renderTrace } from '../../src/engine/trace'
 
@@ -160,5 +161,30 @@ describe('SSO — przykład z danymi fundamentu', () => {
     const s = sumItems(results)
     expect(s.complete).toBe(false)
     expect(s.totalGrosze).toBe(800000)
+  })
+})
+
+describe('praca koparki — godziny × stawka albo kwota za całość', () => {
+  it('za godzinę: 12 h × 250 zł = 3000 zł; brak godzin → uzupełnij', async () => {
+    const { computeItem } = await import('../../src/engine/items')
+    const p = newProject()
+    const blank = buildSSO(p).items.find((i) => i.id === 'sso-koparka-wykop')!
+    expect(blank.manualQty).toEqual({ key: 'qty', allowLumpSum: true, lumpSum: false })
+    expect(blank.missing).toContain('Godziny pracy koparki (wykop)')
+    const it = buildSSO({ ...p, itemParams: { 'sso-koparka-wykop': { qty: 12 } } }).items.find((i) => i.id === 'sso-koparka-wykop')!
+    expect(computeItem(it, 25000).costGrosze).toBe(300000)
+  })
+  it('kwota za całość: koszt = kwota, godziny niewymagane (informacyjnie)', async () => {
+    const { computeItem } = await import('../../src/engine/items')
+    const p = { ...newProject(), lumpSumBilling: { 'sso-koparka-wykop': true } }
+    const it = buildSSO(p).items.find((i) => i.id === 'sso-koparka-wykop')!
+    expect(it.priceBasis).toBe('lumpSum')
+    expect(it.missing).toEqual([])
+    const r = computeItem(it, 450000)
+    expect(r.costGrosze).toBe(450000)
+    expect(r.missing).toEqual([])
+  })
+  it('materiały (kominy) — bez opcji kwoty za całość', () => {
+    expect(buildSSZ(newProject()).items.find((i) => i.id === 'ssz-kominy')!.manualQty?.allowLumpSum).toBe(false)
   })
 })

@@ -80,7 +80,7 @@ export function makeBuilder(project: ProjectInput, stage: Stage = 'SSO') {
     ...(i.note ? { note: i.note } : {}),
     ...(i.cutting ? { cutting: i.cutting } : {}),
   })
-  return { P, item }
+  return { P, item, project }
 }
 
 /**
@@ -119,9 +119,13 @@ export function computed(label: string, formula: string, values: string, value: 
 /** Pozycja ręczna: ilość × cena (np. godziny pracy koparki). */
 export function manualItem(b: Builder, id: string, category: string, kind: ItemKind, name: string, unit: Unit, qtyLabel: string, enabled = true): ItemSpec {
   const params = { qty: b.P(id, 'qty', qtyLabel, null, unit) }
+  // Usługi i sprzęt (koparka, zagęszczarka…) można rozliczyć kwotą za całość zamiast stawki za h / dobę.
+  const allowLumpSum = kind === 'service' || kind === 'equipment'
+  const lumpSum = allowLumpSum && b.project.lumpSumBilling?.[id] === true
   const missing: string[] = []
-  const v = need(params, 'qty', missing)
-  return b.item({ id, category, kind, name, unit, params, missing, quantity: manualQuantity(qtyLabel, v, unit), enabled })
+  const v = lumpSum ? params.qty.value : need(params, 'qty', missing)
+  const spec = b.item({ id, category, kind, name, unit, params, missing, quantity: manualQuantity(qtyLabel, v, unit), enabled, ...(lumpSum ? { priceBasis: 'lumpSum' as const } : {}) })
+  return { ...spec, manualQty: { key: 'qty', allowLumpSum, lumpSum } }
 }
 
 /** Pozycja ryczałtowa: kwota wpisana ręcznie. */

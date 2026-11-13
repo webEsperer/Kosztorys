@@ -30,6 +30,16 @@ export const UNIT_LABEL: Record<Unit, string> = {
 export const COUNTED_UNITS: Unit[] = ['szt', 'kurs', 'kpl']
 
 /** Edytowalny współczynnik pozycji. `null` = niepewny — „uzupełnij”. */
+/** Pozycja z ilością wpisywaną ręcznie (godziny, doby, sztuki) — pole ilości w wierszu kosztorysu. */
+export interface ManualQty {
+  /** Klucz parametru z ilością. */
+  key: string
+  /** Można rozliczyć kwotą za całość zamiast stawki za jednostkę (np. koparka). */
+  allowLumpSum: boolean
+  /** Rozliczenie bieżące: true = kwota za całość. */
+  lumpSum: boolean
+}
+
 export interface Param {
   label: string
   /** Wartość do obliczeń (null = uzupełnij albo wartość niepoprawna — patrz `error`). */
@@ -103,6 +113,8 @@ export interface ItemSpec {
   note?: string
   /** Plan cięcia (pozycje liczone modułem cięcia pasów). */
   cutting?: ItemCutting
+  /** Ilość wpisywana ręcznie (pole w wierszu) i sposób rozliczenia. */
+  manualQty?: ManualQty
 }
 
 /** Pozycja z kosztem. */

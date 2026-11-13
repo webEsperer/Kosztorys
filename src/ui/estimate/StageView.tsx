@@ -14,7 +14,7 @@ import type { RoofElementKind } from '../roof-view/links'
 
 function qtyText(r: ItemResult): string {
   const s = r.spec
-  if (s.priceBasis === 'lumpSum') return 'kwota'
+  if (s.priceBasis === 'lumpSum') return s.quantity ? `${fmtQty(s.quantity.value)} ${UNIT_LABEL[s.unit]} (kwota)` : 'kwota'
   if (s.quantity === null) return '—'
   const q = !s.packaging && r.chargedQuantity !== null ? r.chargedQuantity : (r.quantityWithWaste ?? s.quantity.value)
   return `${fmtQty(q)} ${UNIT_LABEL[s.unit]}`
@@ -86,9 +86,35 @@ export function StageView({
                         {s.name}
                         {missing && <span className="dot" title={r.missing.join(', ')} />}
                       </div>
-                      <div className="r-qty">{qtyText(r)}</div>
+                      {s.manualQty ? (
+                        <div className="r-qty r-qty-input" onClick={(e) => e.stopPropagation()}>
+                          <NumField
+                            nonNegative
+                            label=""
+                            unit={UNIT_LABEL[s.unit]}
+                            width={52}
+                            placeholder={s.manualQty.lumpSum ? 'opcj.' : 'ile?'}
+                            required={!s.manualQty.lumpSum}
+                            value={s.params[s.manualQty.key]?.raw !== undefined ? s.params[s.manualQty.key].raw! : (s.params[s.manualQty.key]?.value ?? null)}
+                            onChange={(v) => update((p) => { p.itemParams[s.id] = { ...(p.itemParams[s.id] ?? {}), [s.manualQty!.key]: v } })}
+                          />
+                        </div>
+                      ) : (
+                        <div className="r-qty">{qtyText(r)}</div>
+                      )}
                       <div className="r-pack muted">{packText(r)}</div>
                       <div className="r-price" onClick={(e) => e.stopPropagation()}>
+                        {s.manualQty?.allowLumpSum && (
+                          <select
+                            className="billing"
+                            title="Sposób rozliczenia"
+                            value={s.manualQty.lumpSum ? 'lump' : 'unit'}
+                            onChange={(e) => update((p) => { p.lumpSumBilling = { ...(p.lumpSumBilling ?? {}), [s.id]: e.target.value === 'lump' } })}
+                          >
+                            <option value="unit">za {UNIT_LABEL[s.unit]}</option>
+                            <option value="lump">za całość</option>
+                          </select>
+                        )}
                         <NumField nonNegative
                           label=""
                           unit={s.priceBasis === 'lumpSum' ? 'zł' : s.priceBasis === 'perPack' ? `zł/${s.packaging?.packUnit}` : `zł/${r.chargedUnit}`}

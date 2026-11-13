@@ -292,6 +292,9 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
 ## SSO — Stan surowy otwarty
 
 ### Roboty ziemne i sprzęt
+- **Usługi i sprzęt z ilością ręczną** (koparka, zagęszczarka, wypożyczenia): liczba h / dób wpisywana w wierszu
+  kosztorysu; rozliczenie **za h (dobę) albo kwotą za całość** (wybór użytkownika — różnie się rozliczają;
+  przy kwocie godziny tylko informacyjnie).
 - Praca koparki — wykop [ręcznie: godziny] × cena/h
 - Praca koparki — zasypanie [ręcznie: godziny] × cena/h
 - Wynajem zagęszczarki [ręcznie: doby] × cena/doba

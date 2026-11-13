@@ -398,7 +398,7 @@
 
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 2.4fr) 110px minmax(0, 1.3fr) 170px 120px;
+  grid-template-columns: minmax(0, 2.4fr) 110px minmax(0, 1.3fr) 210px 120px;
   gap: 8px;
   align-items: center;
   padding: 6px 12px;
@@ -1060,4 +1060,34 @@
 .openings-summary .os-total th,
 .openings-summary .os-total td {
   border-bottom: none;
+}
+
+.row .r-qty-input .nf {
+  margin: 0;
+}
+.row .r-price select.billing {
+  margin-right: 4px;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg, transparent);
+  color: inherit;
+}
+.row .r-price {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.r-qty-input .nf-label {
+  display: none;
+}
+.r-qty-input .nf {
+  justify-content: flex-end;
+}
+@media (max-width: 760px) {
+  .r-qty-input .nf {
+    justify-content: flex-start;
+  }
 }
