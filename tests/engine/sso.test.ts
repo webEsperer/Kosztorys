@@ -111,6 +111,17 @@ describe('SSO — przykład z danymi fundamentu', () => {
     expect(byId(items, 'sso-sf-xps').quantity?.value).toBe(38.5584)
   })
 
+  it('pianoklej: bez wymiaru płyty XPS — uzupełnij', () => {
+    expect(byId(items, 'sso-sf-pianoklej').quantity).toBeNull()
+  })
+
+  it('pianoklej: płyta 1,25 × 0,6 → 38,5584 / 0,75 = 51,4112 płyt × 4 warkocze × 1,25 = 257,056 mb → 7 puszek po 40 mb', () => {
+    const q = buildSSO({ ...p, itemParams: { 'sso-sf-xps': { boardLength: 1.25, boardWidth: 0.6 } } }).items
+    const pk = byId(q, 'sso-sf-pianoklej')
+    expect(pk.quantity?.value).toBe(257.056)
+    expect(computeItem(pk, null).packs).toBe(7)
+  })
+
   it('wieniec fund.: 2,5776 + 5% = 2,70648 → zamawiasz 3 m³; 1 kurs; stal Ø12 38 prętów, Ø6 33', () => {
     expect(byId(items, 'sso-wf-beton').quantity?.value).toBe(3)
     expect(byId(items, 'sso-wf-transport').quantity?.value).toBe(1)
@@ -130,8 +141,27 @@ describe('SSO — przykład z danymi fundamentu', () => {
     expect(chosenA.quantity?.value).toBe(12)
   })
 
-  it('zasypka: (−0,33 − (−1,25)) = 0,92 m; 108 × 0,92 × 1,2 = 119,232 m³', () => {
-    expect(byId(items, 'sso-zasypka').quantity?.value).toBe(119.232)
+  it('zasypka: 108 × 0,92 = 99,36 m³; × 1,2 = 119,232; +5% = 125,19 → zamówienie 125,5 m³', () => {
+    const z = byId(items, 'sso-zasypka')
+    expect(z.quantity?.value).toBe(125.5)
+    const t = renderTrace(z.quantity!.trace)
+    expect(t).toContain('99,36')
+    expect(t).toContain('119,232')
+  })
+
+  it('zasypka w tonach: bez gęstości — uzupełnij; 125,1936 m³ × 1,6 t/m³ = 200,31 t → 200,5 t', () => {
+    const base = { ...p, tonnesBilling: { 'sso-zasypka': true } }
+    const z0 = byId(buildSSO(base).items, 'sso-zasypka')
+    expect(z0.quantity).toBeNull()
+    expect(z0.unit).toBe('t')
+    const z = byId(buildSSO({ ...base, itemParams: { 'sso-zasypka': { density: 1.6 } } }).items, 'sso-zasypka')
+    expect(z.quantity?.value).toBe(200.5)
+    expect(z.bulk?.tonnes).toBe(true)
+  })
+
+  it('zasypka: zapas 0%, krok 1 m³ → 119,232 → 120 m³ (parametry edytowalne)', () => {
+    const q = buildSSO({ ...p, itemParams: { 'sso-zasypka': { lossPercent: 0, orderStep: 1 } } }).items
+    expect(byId(q, 'sso-zasypka').quantity?.value).toBe(120)
   })
 
   it('papa pod bloczki: rolka 1 × 10 m, pas 40 cm, zakład 30 cm → najmniej rolek', () => {

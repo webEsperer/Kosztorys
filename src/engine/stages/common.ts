@@ -51,7 +51,7 @@ export interface ItemInit {
 export const POSITIVE_PARAM_KEYS = new Set([
   'stakeThickness', 'cleatWidth', 'cleatThickness', 'fasciaW', 'fasciaT',
   'bag', 'boardH', 'boardLength', 'boardThickness', 'boardWidth', 'bucket', 'cleatLength', 'coil', 'compaction', 'drum',
-  'h', 'w', 'm2PerCan', 'm2PerRoll', 'perPack', 'profileLength', 'rollLength', 'rollWidth', 'sheetLength', 'sheetWidth',
+  'h', 'w', 'm2PerCan', 'mbPerCan', 'beadsPerBoard', 'orderStep', 'orderStepT', 'density', 'm2PerRoll', 'perPack', 'profileLength', 'rollLength', 'rollWidth', 'sheetLength', 'sheetWidth',
   'spacing', 'sx', 'sy', 'stakeLength', 'stakeWidth', 'stripWidth', 'tile',
 ])
 

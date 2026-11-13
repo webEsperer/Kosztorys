@@ -140,6 +140,8 @@ export interface ProjectInput {
   lumpSumBilling: Record<string, boolean>
   /** Drewno rozliczane za m³ zamiast za szt / mb wg id pozycji. */
   timberBilling: Record<string, boolean>
+  /** Materiał sypki (piasek) zamawiany w tonach zamiast w m³ wg id pozycji. */
+  tonnesBilling?: Record<string, boolean>
   /** Przeniesienie pozycji do innego etapu wg id. */
   stageOverride: Record<string, Stage>
   /** Rezerwa na nieprzewidziane wydatki: % od sumy etapów (domyślnie 10). */
@@ -197,6 +199,7 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
     stageOverride: {},
     lumpSumBilling: {},
     timberBilling: {},
+    tonnesBilling: {},
     reservePercent: 10,
     customItems: [],
     vatPercent: null,

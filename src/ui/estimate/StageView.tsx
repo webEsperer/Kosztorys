@@ -127,6 +127,17 @@ export function StageView({
                             <option value="m3">za m³</option>
                           </select>
                         )}
+                        {s.bulk && (
+                          <select
+                            className="billing"
+                            title="Piasek: zamówienie w m³ albo w tonach"
+                            value={s.bulk.tonnes ? 't' : 'm3'}
+                            onChange={(e) => update((p) => { p.tonnesBilling = { ...(p.tonnesBilling ?? {}), [s.id]: e.target.value === 't' } })}
+                          >
+                            <option value="m3">za m³</option>
+                            <option value="t">za tonę</option>
+                          </select>
+                        )}
                         {s.manualQty?.allowLumpSum && (
                           <select
                             className="billing"

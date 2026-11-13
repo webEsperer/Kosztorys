@@ -328,7 +328,9 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
   na warstwę, wielkość wiadra → liczba wiader.
 - XPS 10 cm na zewnątrz [licz]: od góry ławy do 3 cm poniżej góry wieńca fundamentowego;
   `pow = obwód w połowie XPS × wysokość`; płyta (wymiary brytu) i liczba płyt w paczce → m²/paczkę → liczba paczek.
-- Pianoklej do XPS [licz]: m² na puszkę (parametr) → liczba puszek.
+- Pianoklej do XPS [licz] (wg użytkownika): na każdą płytę XPS **4 warkocze wzdłuż długości płyty**, grubość ok. 2 cm;
+  `mb = (pow. XPS / pow. płyty) × 4 × dł. płyty`; wydajność puszki w **mb warkocza** (parametr, domyślnie 40 mb)
+  → `ceil(mb / 40)` puszek.
 - Opcjonalnie (wyłączone): folia kubełkowa na XPS.
 
 ### Wieniec fundamentowy (domyślnie 25 cm)
@@ -343,7 +345,11 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
   `wys = 0,12 + n_warstw·(h_bloczka + spoina) + h_wieńca − g_chudziaka` (spoiny wliczone; przykład 0,92 m);
   `pow = A_wew` (wnętrze ścian fundamentowych, minus ławy wewnętrzne jeśli są);
   `V_luźny = pow × wys × współczynnik zagęszczenia` (parametr, domyślnie 1,2 — do weryfikacji z dostawcą);
-  cena za m³ lub tonę z transportem (przelicznik t/m³ parametr).
+  **zapas na straty** (rozsypanie, na łopacie) +5% (parametr) i **zamówienie zaokrąglone w górę do 0,5 m³**
+  (parametr) — wg użytkownika: `ceil(V × 1,2 × 1,05 / 0,5) × 0,5` (np. 10 m³ → 12,6 → 13 m³);
+  **zamówienie w m³ albo w tonach** — wybór użytkownika (`tonnesBilling`, wg użytkownika): tony = V luźna z zapasem ×
+  gęstość nasypowa (t/m³, `null` = uzupełnij, zwykle 1,5–1,7), zaokrąglenie w górę do 0,5 t (parametr);
+  cena za m³ lub za tonę z transportem.
 
 ### Chudziak (10 cm, beton z włóknami)
 - Beton [licz]: `A_wew × 0,10` → moduł betonowania.

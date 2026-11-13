@@ -121,6 +121,15 @@ export function ItemPanel({
           )}
         </div>
       )}
+      {s.bulk && (
+        <div className="ip-row">
+          <Check
+            label="Zamówienie w tonach (zamiast w m³) — przelicznik: gęstość nasypowa od dostawcy"
+            checked={s.bulk.tonnes}
+            onChange={(v) => update((p) => { p.tonnesBilling = { ...(p.tonnesBilling ?? {}), [s.id]: v } })}
+          />
+        </div>
+      )}
       {s.manualQty?.allowLumpSum && (
         <div className="ip-row">
           <Check

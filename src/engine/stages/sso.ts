@@ -5,7 +5,7 @@ import type { ProjectInput } from '../../model/project'
 import { linearElementVolume, slabVolume } from '../concrete'
 import { computeCutting, DEFAULT_MIN_PIECE, DEFAULT_FELT_OVERLAP, formworkSegmentsRect } from '../cutting'
 import { footingFacePerimeters, GEOMETRY_REFS } from '../geometry'
-import { type ItemCutting, type ItemSpec, need } from '../items'
+import { type ItemCutting, type ItemSpec, type Param, need } from '../items'
 import type { LevelsResult } from '../levels'
 import { computeRebarElement, defaultFootingRebar, defaultRingBeamRebar } from '../rebar'
 import { type Computed, ceilSafe, clean, fmt } from '../trace'
@@ -338,21 +338,51 @@ export function buildSSO(project: ProjectInput): { items: ItemSpec[]; context: S
   }
   {
     const id = 'sso-sf-pianoklej'
-    const params = { m2PerCan: P(id, 'm2PerCan', 'Wydajność puszki', null, 'm²/puszka', 'z karty pianokleju') }
-    const missing = [...xpsMissing.filter((m) => !m.startsWith('Płyt'))]
-    const per = need(params, 'm2PerCan', missing)
+    // Wg użytkownika: na każdą płytę XPS 4 warkocze pianokleju wzdłuż długości płyty (grubość ok. 2 cm),
+    // wydajność puszki w mb warkocza (domyślnie 40 mb).
+    const params = {
+      beadsPerBoard: P(id, 'beadsPerBoard', 'Warkocze na płytę (wzdłuż długości)', 4, 'szt'),
+      beadThickness: P(id, 'beadThickness', 'Grubość warkocza', 0.02, 'm', 'informacyjnie — wydajność puszki podana dla tej grubości'),
+      mbPerCan: P(id, 'mbPerCan', 'Wydajność puszki', 40, 'mb/puszka', 'mb warkocza z jednej puszki — sprawdź na karcie pianokleju'),
+    }
+    const missing = [...xpsMissing.filter((m) => !m.startsWith('Płyt w paczce'))]
+    const beads = need(params, 'beadsPerBoard', missing)
+    const per = need(params, 'mbPerCan', missing)
+    const bl = xpsParams.boardLength.value
+    const bw = xpsParams.boardWidth.value
+    let quantity: Computed | null = null
+    if (xpsArea && bl !== null && bw !== null && beads !== null) {
+      const boards = clean(xpsArea.value / (bl * bw))
+      const mb = clean(boards * beads * bl)
+      quantity = {
+        value: mb,
+        unit: 'mb',
+        trace: [
+          ...xpsArea.trace,
+          { label: 'Liczba płyt XPS (z ułamkiem)', formula: 'pow. XPS / (dł. × szer. płyty)', values: `${fmt(xpsArea.value)} / (${fmt(bl)} × ${fmt(bw)})`, result: boards, unit: 'płyt' },
+          {
+            label: 'Długość warkoczy pianokleju',
+            formula: 'płyty × warkocze na płytę × dł. płyty',
+            values: `${fmt(boards)} × ${fmt(beads)} × ${fmt(bl)}`,
+            result: mb,
+            unit: 'mb',
+            note: `warkocze wzdłuż długości płyty, grubość ok. ${fmt((params.beadThickness.value ?? 0) * 100)} cm`,
+          },
+        ],
+      }
+    }
     items.push(
       item({
         id,
         category: C2,
         kind: 'material',
         name: 'Pianoklej do XPS',
-        unit: 'm2',
+        unit: 'mb',
         params,
         missing,
-        packaging: { packUnit: 'puszka', perPack: per, packLabel: per === null ? 'puszka' : `puszka = ${fmt(per)} m²` },
+        packaging: { packUnit: 'puszka', perPack: per, packLabel: per === null ? 'puszka' : `puszka = ${fmt(per)} mb warkocza` },
         priceBasis: 'perPack',
-        quantity: xpsArea,
+        quantity,
       }),
     )
   }
@@ -409,16 +439,36 @@ export function buildSSO(project: ProjectInput): { items: ItemSpec[]; context: S
   const C4 = 'Zasypka wewnątrz fundamentów'
   {
     const id = 'sso-zasypka'
-    const params = { compaction: P(id, 'compaction', 'Współczynnik zagęszczenia', 1.2, '', 'do weryfikacji z dostawcą') }
+    // Zamówienie w m³ albo w tonach (wybór użytkownika): tony = V luźna z zapasem × gęstość nasypowa (t/m³).
+    const tonnes = project.tonnesBilling?.[id] === true
+    const params: Record<string, Param> = {
+      compaction: P(id, 'compaction', 'Współczynnik zagęszczenia', 1.2, '', 'luźny piasek → po zagęszczeniu; do weryfikacji z dostawcą'),
+      lossPercent: P(id, 'lossPercent', 'Zapas na straty (rozsypanie, na łopacie)', 5, '%'),
+      ...(tonnes
+        ? {
+            density: P(id, 'density', 'Gęstość nasypowa piasku (luźnego)', null, 't/m³', 'przelicznik od dostawcy — zwykle ok. 1,5–1,7 t/m³, zależy od wilgotności'),
+            orderStepT: P(id, 'orderStepT', 'Zaokrąglenie zamówienia w górę do', 0.5, 't'),
+          }
+        : { orderStep: P(id, 'orderStep', 'Zaokrąglenie zamówienia w górę do', 0.5, 'm³', 'żwirownie wożą zwykle pełne połówki m³') }),
+    }
     const missing = [...levelsMissing]
     const k = need(params, 'compaction', missing)
+    const loss = need(params, 'lossPercent', missing)
+    const rho = tonnes ? need(params, 'density', missing) : 1
+    const step = need(params, tonnes ? 'orderStepT' : 'orderStep', missing)
     let quantity: Computed | null = null
-    if (levels && fl && k !== null) {
+    if (levels && fl && k !== null && loss !== null && step !== null && rho !== null) {
       const h = clean(levels.slabBottom.value - fl.excavationBottom)
-      const v = clean(aWew.value * h * k)
+      const vCompacted = clean(aWew.value * h)
+      const v = clean(vCompacted * k)
+      const vLoss = clean(v * (1 + loss / 100))
+      const mass = clean(vLoss * rho)
+      const need_ = tonnes ? mass : vLoss
+      const ou = tonnes ? 't' : 'm³'
+      const vOrder = clean(Math.ceil(need_ / step - 1e-9) * step)
       quantity = {
-        value: v,
-        unit: 'm³',
+        value: vOrder,
+        unit: ou,
         trace: [
           {
             label: 'Wysokość zasypki',
@@ -428,11 +478,18 @@ export function buildSSO(project: ProjectInput): { items: ItemSpec[]; context: S
             unit: 'm',
             note: 'od dna wykopu (12 cm pod górą ławy) do góry ściany fund. z wieńcem, minus chudziak',
           },
-          { label: 'Objętość luźna', formula: 'A_wew × h × k_zag', values: `${fmt(aWew.value)} × ${fmt(h)} × ${fmt(k)}`, result: v, unit: 'm³', ref: GEOMETRY_REFS.interiorArea },
+          { label: 'Objętość do wypełnienia (po zagęszczeniu)', formula: 'A_wew × h', values: `${fmt(aWew.value)} × ${fmt(h)}`, result: vCompacted, unit: 'm³', ref: GEOMETRY_REFS.interiorArea },
+          { label: 'Objętość luźna (przed zagęszczeniem)', formula: 'V × k_zag', values: `${fmt(vCompacted)} × ${fmt(k)}`, result: v, unit: 'm³' },
+          { label: 'Zapas na straty', formula: 'V_luźna × (1 + zapas)', values: `${fmt(v)} × (1 + ${fmt(loss)}%)`, result: vLoss, unit: 'm³' },
+          ...(tonnes ? [{ label: 'Masa piasku', formula: 'V × gęstość nasypowa', values: `${fmt(vLoss)} × ${fmt(rho)}`, result: mass, unit: 't' }] : []),
+          { label: 'Zamówienie', formula: `zaokrąglenie w górę do ${fmt(step)} ${ou}`, values: `⌈${fmt(need_)} / ${fmt(step)}⌉ × ${fmt(step)}`, result: vOrder, unit: ou },
         ],
       }
     }
-    items.push(item({ id, category: C4, kind: 'material', name: 'Piasek — zasypka wewnątrz fundamentów (z transportem)', unit: 'm3', params, missing, quantity }))
+    items.push({
+      ...item({ id, category: C4, kind: 'material', name: 'Piasek — zasypka wewnątrz fundamentów (z transportem)', unit: tonnes ? 't' : 'm3', params, missing, quantity }),
+      bulk: { tonnes },
+    })
   }
 
   // ── Chudziak

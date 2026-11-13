@@ -134,6 +134,8 @@ export interface ItemSpec {
   manualQty?: ManualQty
   /** Drewno: rozliczenie za jednostkę (szt / mb) albo za m³. */
   timber?: TimberInfo
+  /** Materiał sypki (piasek): zamówienie w m³ albo w tonach (`tonnes`). */
+  bulk?: { tonnes: boolean }
 }
 
 /** Pozycja z kosztem. */
