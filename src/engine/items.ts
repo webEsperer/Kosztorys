@@ -31,6 +31,11 @@ export const COUNTED_UNITS: Unit[] = ['szt', 'kurs', 'kpl']
 
 /** Edytowalny współczynnik pozycji. `null` = niepewny — „uzupełnij”. */
 /** Pozycja z ilością wpisywaną ręcznie (godziny, doby, sztuki) — pole ilości w wierszu kosztorysu. */
+/** Jednostka po „za” (biernik): za h, za dobę, za szt. */
+export function perUnitLabel(u: Unit): string {
+  return u === 'doba' ? 'dobę' : UNIT_LABEL[u]
+}
+
 export interface ManualQty {
   /** Klucz parametru z ilością. */
   key: string

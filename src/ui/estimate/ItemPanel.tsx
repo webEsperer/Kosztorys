@@ -1,6 +1,6 @@
 // Panel pozycji: „Jak to policzono” (trace), cena, parametry, wybory, włącz/wyłącz, przeniesienie do etapu.
 
-import { type ItemCutting, type ItemResult, type Stage, UNIT_LABEL } from '../../engine/items'
+import { type ItemCutting, type ItemResult, type Stage, UNIT_LABEL, perUnitLabel } from '../../engine/items'
 import { useState } from 'react'
 import { CuttingPlan } from '../cutting/CuttingPlan'
 import { STAGE_LABEL, STAGES } from '../../engine/estimate'
@@ -108,7 +108,7 @@ export function ItemPanel({
       {s.manualQty?.allowLumpSum && (
         <div className="ip-row">
           <Check
-            label={`Rozliczenie kwotą za całość (zamiast stawki za ${UNIT_LABEL[s.unit]})`}
+            label={`Rozliczenie kwotą za całość (zamiast stawki za ${perUnitLabel(s.unit)})`}
             checked={s.manualQty.lumpSum}
             onChange={(v) => update((p) => { p.lumpSumBilling = { ...(p.lumpSumBilling ?? {}), [s.id]: v } })}
           />

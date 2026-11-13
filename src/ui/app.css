@@ -201,7 +201,7 @@
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
   gap: 14px;
   align-items: start;
 }
@@ -1090,4 +1090,41 @@
   .r-qty-input .nf {
     justify-content: flex-start;
   }
+}
+
+/* Rozpisania obliczeń w danych projektu (wysokości ścian): opis zawijany, liczby w jednej linii */
+.fields > * {
+  min-width: 0;
+}
+.sum-table.breakdown {
+  font-size: 0.84rem;
+}
+.sum-table.breakdown th,
+.sum-table.breakdown td {
+  padding: 3px 6px;
+  vertical-align: top;
+}
+.sum-table.breakdown th {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+  font-weight: 400;
+}
+.sum-table.breakdown td {
+  white-space: nowrap;
+  text-align: right;
+  width: 1%;
+}
+.partition-breakdown,
+.wall-breakdown {
+  overflow-x: auto;
+}
+
+/* Lista otworów: kolumna nie może rosnąć do szerokości tabeli zestawienia (ta przewija się w poziomie) */
+.openings {
+  grid-template-columns: minmax(0, 1fr);
+}
+.openings > *,
+.openings-summary {
+  min-width: 0;
 }

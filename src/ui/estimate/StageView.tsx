@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import type { Estimate } from '../../engine/estimate'
 import { STAGE_LABEL } from '../../engine/estimate'
-import { type ItemResult, type Stage, UNIT_LABEL } from '../../engine/items'
+import { type ItemResult, type Stage, UNIT_LABEL, perUnitLabel } from '../../engine/items'
 import { formatPLN } from '../../engine/money'
 import type { ProjectInput } from '../../model/project'
 import { NumField, fmtQty } from '../common/fields'
@@ -111,7 +111,7 @@ export function StageView({
                             value={s.manualQty.lumpSum ? 'lump' : 'unit'}
                             onChange={(e) => update((p) => { p.lumpSumBilling = { ...(p.lumpSumBilling ?? {}), [s.id]: e.target.value === 'lump' } })}
                           >
-                            <option value="unit">za {UNIT_LABEL[s.unit]}</option>
+                            <option value="unit">za {perUnitLabel(s.unit)}</option>
                             <option value="lump">za całość</option>
                           </select>
                         )}

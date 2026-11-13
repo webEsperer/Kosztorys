@@ -235,7 +235,7 @@ function PartitionHeightBreakdown({ project, base, update }: { project: ProjectI
           </button>
         </p>
       ) : (
-        <table className="sum-table">
+        <table className="sum-table breakdown">
           <tbody>
             <tr><th>Gotowa posadzka → gotowy sufit (w świetle)</th><td>{cm(project.clearHeight)} cm</td></tr>
             <tr><th>+ płyta GK</th><td>{cm(project.ceiling.board)} cm</td></tr>
@@ -282,7 +282,7 @@ function WallHeightBreakdown({ project, base, update, calcError }: { project: Pr
           </button>
         </p>
       ) : null}
-      <table className="sum-table">
+      <table className="sum-table breakdown">
         <tbody>
           {project.wallHeight === null && (
             <>
