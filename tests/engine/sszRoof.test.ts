@@ -7,6 +7,8 @@ import { computeItem, type ItemSpec } from '../../src/engine/items'
 function example(): ProjectInput {
   const p = newProject('Przykład')
   p.roof = { ...p.roof, pitchDeg: 35, eaveOverhang: 0.6, gableOverhang: 0.6 }
+  // ilości łat i kontrłat sprawdzane w mb (domyślnie za m³ netto — test w timber.test.ts)
+  p.timberBilling = { 'ssz-laty': false, 'ssz-kontrlaty': false }
   return p
 }
 const byId = (items: ItemSpec[], id: string): ItemSpec => {

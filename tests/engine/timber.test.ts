@@ -6,18 +6,23 @@ import { buildSSO } from '../../src/engine/stages/sso'
 import { buildSSZ } from '../../src/engine/stages/ssz'
 import { computeEstimate } from '../../src/engine/estimate'
 import { computeItem } from '../../src/engine/items'
-import { TIMBER_SECTIONS } from '../../src/engine/stages/common'
+import { TIMBER_M3_NET_DEFAULT, TIMBER_SECTIONS } from '../../src/engine/stages/common'
 
 const house = () => applyTemplate(newProject(), builtInTemplate(newProject()))
 const find = (items: { id: string }[], id: string) => items.find((i) => i.id === id) as ReturnType<typeof buildSSO>['items'][number]
 
 describe('drewno za m³', () => {
-  it('domyślnie za sztukę; znacznik drewna przy deskach, palikach, łatach, deskach czołowych, ruszcie', () => {
+  it('domyślnie: szalunek ław, łaty, kontrłaty za m³ netto; reszta drewna za szt / mb', () => {
     const p = house()
     const all = [...buildSSO(p).items, ...buildSSZ(p).items]
-    for (const id of Object.keys(TIMBER_SECTIONS)) expect(find(all, id).timber, id).toMatchObject({ m3: false })
+    for (const id of Object.keys(TIMBER_SECTIONS)) {
+      const net = TIMBER_M3_NET_DEFAULT.has(id)
+      expect(find(all, id).timber, id).toMatchObject({ m3: net })
+      expect(find(all, id).netPrice?.vatPercent, id).toBe(net ? 23 : undefined)
+    }
     expect(find(all, 'ssz-szczyt-boazeria').timber).toBeUndefined()
-    expect(find(all, 'sso-lawy-deski').unit).toBe('szt')
+    expect(find(all, 'sso-lawy-deski').unit).toBe('m3')
+    expect(find(all, 'ssz-deski-czolowe').unit).toBe('mb')
   })
 
   it('deski szalunkowe: 43 szt × (2 × 0,12 × 0,025 = 0,006 m³) = 0,258 m³; koszt = m³ × cena', () => {
@@ -26,7 +31,8 @@ describe('drewno za m³', () => {
     expect(it.unit).toBe('m3')
     expect(it.quantity?.value).toBeCloseTo(0.258, 9)
     expect(it.timber).toMatchObject({ m3: true, baseUnit: 'szt', manual: null })
-    expect(computeItem(it, 200000).costGrosze).toBe(51600) // 0,258 × 2000 zł
+    // cena netto 2000 zł/m³ + VAT 23% = 2460 zł/m³ brutto; 0,258 × 2460 = 634,68 zł
+    expect(computeItem(it, 200000).costGrosze).toBe(63468)
   })
 
   it('m³ wpisane ręcznie ma pierwszeństwo przed wymiarami', () => {
@@ -47,7 +53,7 @@ describe('drewno za m³', () => {
 
   it('kontrłaty 3,2 × 5 cm: mb × 0,0016 m³/mb', () => {
     const p = house()
-    const mb = find(buildSSZ(p).items, 'ssz-kontrlaty').quantity!.value
+    const mb = find(buildSSZ({ ...p, timberBilling: { 'ssz-kontrlaty': false } }).items, 'ssz-kontrlaty').quantity!.value
     const it = find(buildSSZ({ ...p, timberBilling: { 'ssz-kontrlaty': true } }).items, 'ssz-kontrlaty')
     expect(it.quantity?.value).toBeCloseTo(mb * 0.05 * 0.032, 5)
   })

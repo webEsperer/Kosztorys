@@ -488,20 +488,26 @@ export const TIMBER_SECTIONS: Record<string, TimberSection> = {
   },
 }
 
+/** Drewno domyślnie rozliczane za m³ z ceną NETTO (wg użytkownika): szalunek ław oraz łaty i kontrłaty dachu. */
+export const TIMBER_M3_NET_DEFAULT = new Set(['sso-lawy-deski', 'sso-lawy-paliki', 'sso-lawy-deseczki', 'ssz-laty', 'ssz-kontrlaty'])
+
 /**
- * Pozycje z drewna: domyślnie za szt / mb; gdy użytkownik wybierze „za m³” (project.timberBilling[id]) —
+ * Pozycje z drewna: domyślnie za szt / mb (szalunek ław, łaty, kontrłaty — za m³ netto, TIMBER_M3_NET_DEFAULT); gdy użytkownik wybierze „za m³” (project.timberBilling[id]) —
  * ilość w m³ = ilość × m³ na jednostkę (z wymiarów) albo m³ wpisane ręcznie (parametr `m3`).
  */
 export function applyTimber(b: Builder, items: ItemSpec[]): ItemSpec[] {
   return items.map((spec) => {
     const sec = TIMBER_SECTIONS[spec.id]
     if (!sec) return spec
-    const m3Mode = b.project.timberBilling?.[spec.id] === true
+    const m3Mode = b.project.timberBilling?.[spec.id] ?? TIMBER_M3_NET_DEFAULT.has(spec.id)
     if (!m3Mode) return { ...spec, timber: { m3: false, baseUnit: spec.unit, fromDims: null, manual: null } }
+    // Wg użytkownika: deski, paliki, deseczki szalunku oraz łaty i kontrłaty — cena netto za m³ (z tartaku).
+    const netExtra: Record<string, Param> = TIMBER_M3_NET_DEFAULT.has(spec.id) ? { vat: b.P(spec.id, 'vat', 'VAT do ceny netto', 23, '%') } : {}
+    const netPrice = netExtra.vat ? { netPrice: { vatPercent: netExtra.vat.value } } : {}
     const extra: Record<string, Param> = {}
     for (const d of sec.defs) if (!(d.key in spec.params)) extra[d.key] = b.P(spec.id, d.key, d.label, d.def, 'm')
     const manualP = b.P(spec.id, 'm3', 'Drewno — ilość wpisana ręcznie (puste = z wymiarów)', null, 'm³')
-    const params: Record<string, Param> = { ...spec.params, ...extra, m3: manualP }
+    const params: Record<string, Param> = { ...spec.params, ...extra, m3: manualP, ...netExtra }
     const secMissing: string[] = []
     const vals = sec.uses.map((k) => {
       const p = params[k]
@@ -531,6 +537,6 @@ export function applyTimber(b: Builder, items: ItemSpec[]): ItemSpec[] {
       }
     }
     const { packaging: _p, chargeFullPacks: _c, ...rest } = spec
-    return { ...rest, unit: 'm3' as Unit, quantity, params, missing, priceBasis: 'perUnit' as const, timber: { m3: true, baseUnit: spec.unit, fromDims, manual: manualP.value } }
+    return { ...rest, unit: 'm3' as Unit, quantity, params, missing, priceBasis: 'perUnit' as const, timber: { m3: true, baseUnit: spec.unit, fromDims, manual: manualP.value }, ...netPrice }
   })
 }

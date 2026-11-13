@@ -136,6 +136,16 @@ export interface ItemSpec {
   timber?: TimberInfo
   /** Materiał sypki (piasek): zamówienie w m³ albo w tonach (`tonnes`). */
   bulk?: { tonnes: boolean }
+  /**
+   * Cena wpisywana NETTO (np. drewno za m³ z tartaku); koszt liczony brutto = netto × (1 + VAT).
+   * Cena zapisana pod osobnym kluczem (`priceKey`), żeby nie mieszać jej z ceną brutto za szt / mb.
+   */
+  netPrice?: { vatPercent: number | null }
+}
+
+/** Klucz ceny pozycji w `project.prices` (cena netto ma osobny klucz). */
+export function priceKey(spec: Pick<ItemSpec, 'id' | 'netPrice'>): string {
+  return spec.netPrice ? `${spec.id}#netto` : spec.id
 }
 
 /** Pozycja z kosztem. */
@@ -175,10 +185,29 @@ export function manualQuantity(label: string, value: number | null, unit: string
 }
 
 /** Liczy koszt pozycji: ilość × (1 + odpad) → opakowania → koszt. */
-export function computeItem(spec: ItemSpec, unitPriceGrosze: Grosze | null): ItemResult {
+export function computeItem(spec: ItemSpec, enteredPriceGrosze: Grosze | null): ItemResult {
   const u = UNIT_LABEL[spec.unit]
   const missing = [...spec.missing]
   const trace: TraceStep[] = []
+  // Cena netto → brutto (VAT parametrem pozycji)
+  let unitPriceGrosze = enteredPriceGrosze
+  let netStep: TraceStep | null = null
+  if (spec.netPrice && enteredPriceGrosze !== null) {
+    const vat = spec.netPrice.vatPercent
+    if (vat === null) {
+      unitPriceGrosze = null
+      missing.push('stawka VAT (cena wpisana netto)')
+    } else {
+      unitPriceGrosze = Math.round(enteredPriceGrosze * (1 + vat / 100))
+      netStep = {
+        label: 'Cena brutto z ceny netto',
+        formula: 'netto × (1 + VAT)',
+        values: `${formatPLN(enteredPriceGrosze)} × (1 + ${fmt(vat)}%)`,
+        result: formatPLN(unitPriceGrosze),
+        unit: `/${u}`,
+      }
+    }
+  }
   const base = {
     spec,
     quantityWithWaste: null as number | null,
@@ -211,7 +240,7 @@ export function computeItem(spec: ItemSpec, unitPriceGrosze: Grosze | null): Ite
 
   if (spec.quantity === null) {
     trace.push({ label: `Ilość — ${spec.name}`, formula: '', values: 'brak danych', result: 'uzupełnij', unit: '' })
-    if (unitPriceGrosze === null) missing.push('cena')
+    if (enteredPriceGrosze === null) missing.push('cena')
     return base
   }
   trace.push(...spec.quantity.trace)
@@ -271,7 +300,8 @@ export function computeItem(spec: ItemSpec, unitPriceGrosze: Grosze | null): Ite
   }
 
   let cost: Grosze | null = null
-  if (unitPriceGrosze === null) missing.push('cena')
+  if (enteredPriceGrosze === null) missing.push('cena')
+  if (netStep) trace.push(netStep)
   if (charged !== null && unitPriceGrosze !== null) {
     cost = multiply(charged, unitPriceGrosze)
     trace.push({

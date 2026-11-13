@@ -184,6 +184,9 @@ Ilość do zakupu = `ceil(ilość × (1 + odpad) / perPack)` opakowań; koszt = 
 **Drewno** (deski szalunkowe, paliki, deseczki, kontrłaty, łaty, deski czołowe, łaty szczytów, ruszt podbitki — bez boazerii):
 wybór rozliczenia **za szt / mb albo za m³** (wg użytkownika). Za m³: ilość × przekrój (m³ na jednostkę z wymiarów;
 brakujące wymiary przekroju = uzupełnij) albo m³ wpisane ręcznie w wierszu (ma pierwszeństwo). `TIMBER_SECTIONS` w `stages/common.ts`.
+**Deski, paliki i deseczki szalunku ław oraz łaty i kontrłaty dachu — domyślnie za m³ z ceną NETTO** (wg użytkownika,
+`TIMBER_M3_NET_DEFAULT`): cena netto za m³ zapisana pod kluczem `id#netto` (nie miesza się z ceną brutto za szt/mb),
+brutto = netto × (1 + VAT), VAT parametrem pozycji (domyślnie 23%); trace pokazuje przeliczenie.
 
 ## Śledzenie obliczeń (trace) — wymóg kluczowy
 

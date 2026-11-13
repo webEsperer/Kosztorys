@@ -2,7 +2,7 @@
 // sumy etapów (z podziałem na kategorie i rodzaje), rezerwa, koszt na m², lista „do uzupełnienia”.
 
 import type { ProjectInput } from '../model/project'
-import { type ItemKind, type ItemResult, type ItemSpec, type Stage, computeItem, sumItems } from './items'
+import { type ItemKind, type ItemResult, type ItemSpec, type Stage, computeItem, priceKey, sumItems } from './items'
 import type { Grosze } from './money'
 import { buildGeneral } from './stages/general'
 import { buildSD } from './stages/sd'
@@ -66,7 +66,7 @@ export function buildAllItems(project: ProjectInput): ItemSpec[] {
 }
 
 export function computeEstimate(project: ProjectInput): Estimate {
-  const items = buildAllItems(project).map((s) => computeItem(s, project.prices[s.id] ?? null))
+  const items = buildAllItems(project).map((s) => computeItem(s, project.prices[priceKey(s)] ?? null))
   const stages: StageSummary[] = STAGES.map((stage) => {
     const rs = items.filter((r) => r.spec.stage === stage)
     const s = sumItems(rs)

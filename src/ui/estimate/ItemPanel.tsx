@@ -1,6 +1,6 @@
 // Panel pozycji: „Jak to policzono” (trace), cena, parametry, wybory, włącz/wyłącz, przeniesienie do etapu.
 
-import { type ItemCutting, type ItemResult, type Stage, UNIT_LABEL, perUnitLabel } from '../../engine/items'
+import { type ItemCutting, type ItemResult, type Stage, UNIT_LABEL, perUnitLabel, priceKey } from '../../engine/items'
 import { useState } from 'react'
 import { CuttingPlan } from '../cutting/CuttingPlan'
 import { STAGE_LABEL, STAGES } from '../../engine/estimate'
@@ -13,7 +13,7 @@ import { kindForItem, type RoofElementKind } from '../roof-view/links'
 import { CustomItemFields } from './CustomItemFields'
 
 const PRICE_UNIT: Record<ItemResult['spec']['priceBasis'], (r: ItemResult) => string> = {
-  perUnit: (r) => `zł/${r.chargedUnit}`,
+  perUnit: (r) => `zł${r.spec.netPrice ? ' netto' : ''}/${r.chargedUnit}`,
   perPack: (r) => `zł/${r.spec.packaging?.packUnit ?? 'op.'}`,
   lumpSum: () => 'zł (kwota)',
 }
@@ -145,8 +145,8 @@ export function ItemPanel({
           label="Cena"
           unit={PRICE_UNIT[s.priceBasis](r)}
           required
-          value={project.prices[s.id] == null ? null : project.prices[s.id]! / 100}
-          onChange={(v) => update((p) => { p.prices[s.id] = v === null ? null : Math.round(v * 100) })}
+          value={project.prices[priceKey(s)] == null ? null : project.prices[priceKey(s)]! / 100}
+          onChange={(v) => update((p) => { p.prices[priceKey(s)] = v === null ? null : Math.round(v * 100) })}
         />
         {Object.entries(s.params).map(([key, prm]) => {
           const isM = prm.unit === 'm'

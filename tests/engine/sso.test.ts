@@ -13,6 +13,8 @@ function example(): ProjectInput {
   p.wall = { ...p.wall, blockLength: 0.59, blockHeight: 0.24 }
   p.partitionBlock = { blockLength: 0.59, blockHeight: 0.24, jointThickness: 0 }
   p.foundation = { ...p.foundation, blockLength: 0.38, blockWidth: 0.24, blockHeight: 0.12, jointThickness: 0.01, layers: 5, footingWidth: 0.6, footingHeight: 0.4 }
+  // ilości drewna sprawdzane w szt / mb (domyślnie szalunek liczony za m³ netto — osobny test)
+  p.timberBilling = { 'sso-lawy-deski': false, 'sso-lawy-paliki': false, 'sso-lawy-deseczki': false }
   return p
 }
 
@@ -109,6 +111,19 @@ describe('SSO — przykład z danymi fundamentu', () => {
 
   it('XPS: obwód 42,96 + 4·0,24 + 4·0,10 = 44,32 m × 0,87 m = 38,5584 m²', () => {
     expect(byId(items, 'sso-sf-xps').quantity?.value).toBe(38.5584)
+  })
+
+  it('deski szalunkowe: domyślnie za m³, cena netto 1000 zł/m³ + VAT 23% → 1230 zł/m³ brutto', () => {
+    const d = byId(buildSSO({ ...p, timberBilling: {} }).items, 'sso-lawy-deski')
+    expect(d.unit).toBe('m3')
+    expect(d.netPrice?.vatPercent).toBe(23)
+    const r = computeItem(d, 100000)
+    expect(r.unitPriceGrosze).toBe(123000)
+    expect(r.costGrosze).toBe(Math.round(d.quantity!.value * 123000))
+    // przełączenie na szt — cena brutto pod zwykłym kluczem
+    const s = byId(buildSSO({ ...p, timberBilling: { 'sso-lawy-deski': false } }).items, 'sso-lawy-deski')
+    expect(s.unit).toBe('szt')
+    expect(s.netPrice).toBeUndefined()
   })
 
   it('pianoklej: bez wymiaru płyty XPS — uzupełnij', () => {

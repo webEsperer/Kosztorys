@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import type { Estimate } from '../../engine/estimate'
 import { STAGE_LABEL } from '../../engine/estimate'
-import { type ItemResult, type Stage, UNIT_LABEL, perUnitLabel } from '../../engine/items'
+import { type ItemResult, type Stage, UNIT_LABEL, perUnitLabel, priceKey } from '../../engine/items'
 import { formatPLN } from '../../engine/money'
 import type { ProjectInput } from '../../model/project'
 import { NumField, fmtQty } from '../common/fields'
@@ -151,11 +151,11 @@ export function StageView({
                         )}
                         <NumField nonNegative
                           label=""
-                          unit={s.priceBasis === 'lumpSum' ? 'zł' : s.priceBasis === 'perPack' ? `zł/${s.packaging?.packUnit}` : `zł/${r.chargedUnit}`}
+                          unit={s.priceBasis === 'lumpSum' ? 'zł' : s.priceBasis === 'perPack' ? `zł/${s.packaging?.packUnit}` : `zł${s.netPrice ? ' netto' : ''}/${r.chargedUnit}`}
                           width={78}
-                          value={project.prices[s.id] == null ? null : project.prices[s.id]! / 100}
+                          value={project.prices[priceKey(s)] == null ? null : project.prices[priceKey(s)]! / 100}
                           placeholder="cena"
-                          onChange={(v) => update((p) => { p.prices[s.id] = v === null ? null : Math.round(v * 100) })}
+                          onChange={(v) => update((p) => { p.prices[priceKey(s)] = v === null ? null : Math.round(v * 100) })}
                         />
                       </div>
                       <div className="r-cost">{s.enabled ? (r.costGrosze === null ? '—' : formatPLN(r.costGrosze)) : 'wyłączona'}</div>
