@@ -46,15 +46,15 @@ export function CustomItemFields({ item, update, onDeleted }: { item: CustomItem
             )}
             {dims ? (
               <>
-                <NumField label="Długość" unit="cm" scale={100} required value={item.length} onChange={(v) => set((c) => { c.length = v })} />
-                {item.unit !== 'mb' && <NumField label="Szerokość" unit="cm" scale={100} required value={item.width} onChange={(v) => set((c) => { c.width = v })} />}
-                {item.unit === 'm3' && <NumField label="Wysokość" unit="cm" scale={100} required value={item.height} onChange={(v) => set((c) => { c.height = v })} />}
+                <NumField nonNegative label="Długość" unit="cm" scale={100} required value={item.length} onChange={(v) => set((c) => { c.length = v })} />
+                {item.unit !== 'mb' && <NumField nonNegative label="Szerokość" unit="cm" scale={100} required value={item.width} onChange={(v) => set((c) => { c.width = v })} />}
+                {item.unit === 'm3' && <NumField nonNegative label="Wysokość" unit="cm" scale={100} required value={item.height} onChange={(v) => set((c) => { c.height = v })} />}
               </>
             ) : (
-              <NumField label="Ilość" unit={UNIT_LABEL[item.unit]} required value={item.quantity} onChange={(v) => set((c) => { c.quantity = v })} />
+              <NumField nonNegative label="Ilość" unit={UNIT_LABEL[item.unit]} required value={item.quantity} onChange={(v) => set((c) => { c.quantity = v })} />
             )}
-            <NumField label="Liczba sztuk (mnożnik)" unit="×" value={item.count} onChange={(v) => set((c) => { c.count = v ?? 1 })} />
-            <NumField label="Odpad" unit="%" value={item.wastePercent} onChange={(v) => set((c) => { c.wastePercent = v ?? 0 })} />
+            <NumField nonNegative label="Liczba sztuk (mnożnik)" unit="×" value={item.count} onChange={(v) => set((c) => { c.count = v ?? 1 })} />
+            <NumField nonNegative label="Odpad" unit="%" value={item.wastePercent} onChange={(v) => set((c) => { c.wastePercent = v ?? 0 })} />
             <Select
               label="Opakowanie"
               value={(item.packaging?.packUnit ?? '') as PackUnit | ''}
@@ -68,7 +68,7 @@ export function CustomItemFields({ item, update, onDeleted }: { item: CustomItem
             />
             {item.packaging && (
               <>
-                <NumField label={`Zawartość opakowania (${UNIT_LABEL[item.unit]})`} required value={item.packaging.perPack} onChange={(v) => set((c) => { if (c.packaging) c.packaging.perPack = v })} />
+                <NumField positive label={`Zawartość opakowania (${UNIT_LABEL[item.unit]})`} required value={item.packaging.perPack} onChange={(v) => set((c) => { if (c.packaging) c.packaging.perPack = v })} />
                 <Select<PriceBasis>
                   label="Cena za"
                   value={item.priceBasis === 'perPack' ? 'perPack' : 'perUnit'}

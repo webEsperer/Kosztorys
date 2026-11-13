@@ -18,7 +18,7 @@ import {
 } from '../openings'
 import { computeRebarElement, defaultRingBeamRebar } from '../rebar'
 import { type Computed, type TraceStep, clean, fmt } from '../trace'
-import { type Builder, blocksPerM2, computed, feltRolls, gableSpanInterior, lumpItem, makeBuilder, pourItems, projectBase, rebarItems } from './common'
+import { type Builder, attempt, blocksPerM2, computed, feltRolls, gableSpanInterior, lumpItem, makeBuilder, pourItems, projectBase, rebarItems } from './common'
 import { buildSSO } from './sso'
 import { roofItems } from './sszRoof'
 import { finishItems } from './sszFinish'
@@ -159,13 +159,17 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
     const mp = need(params, 'minPiece', missing)
     const felt =
       sw !== null && rw !== null && rl !== null && ov !== null && mp !== null
-        ? feltRolls(project, 'wallFeltVariant', {
-            sheet: { width: rw, length: rl },
-            stripWidth: sw,
-            segments: sides.map((L, i) => ({ id: `b${i + 1}`, label: `bok ${i + 1}`, length: L })),
-            minPieceLength: mp,
-            jointOverlap: ov,
-          })
+        ? attempt(
+            () =>
+              feltRolls(project, 'wallFeltVariant', {
+                sheet: { width: rw, length: rl },
+                stripWidth: sw,
+                segments: sides.map((L, i) => ({ id: `b${i + 1}`, label: `bok ${i + 1}`, length: L })),
+                minPieceLength: mp,
+                jointOverlap: ov,
+              }),
+            missing,
+          )
         : null
     items.push(item({ id, category: C1, kind: 'material', name: 'Papa pod ściany nośne (rolki)', unit: 'szt', params, missing, quantity: felt?.quantity ?? null, ...(felt ? { cutting: felt.cutting } : {}), ...(felt?.note ? { note: felt.note } : {}) }))
   }
@@ -241,7 +245,7 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
     let cutting: ItemCutting | undefined
     let quantity: Computed | null = null
     let note: string | undefined
-    if (rbh !== null && sl !== null && sw !== null && ov !== null && mp !== null) {
+    if (rbh !== null && sl !== null && sw !== null && ov !== null && mp !== null) attempt(() => {
       const cut = computeCutting({
         material: 'płytę OSB',
         sheetUnit: 'płyt',
@@ -269,7 +273,7 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
         quantity = { value: n, unit: 'szt', trace }
         cutting = { result: cut, sheet: { width: sw, length: sl }, stripWidth: clean(rbh + ov), segments: formworkSegmentsRect(axis.length, axis.width, t), used: v.key, choiceKey: 'wallRingBeamOsbVariant', userMustChoose: true }
       }
-    }
+    }, missing)
     items.push(item({ id, category: C2, kind: 'material', name: 'Płyty OSB — szalunek wieńca ścian', unit: 'szt', params, missing, quantity, ...(note ? { note } : {}), ...(cutting ? { cutting } : {}) }))
   }
 

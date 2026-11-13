@@ -61,7 +61,7 @@ export function OpeningsEditor({ project, update }: { project: ProjectInput; upd
           </label>
           <NumField positive allowEmpty={false} label="Szerokość" unit="cm" scale={100} width={64} value={o.width} onChange={(v) => set(o.id, (x) => { x.width = v ?? 0 })} />
           <NumField positive allowEmpty={false} label="Wysokość" unit="cm" scale={100} width={64} value={o.height} onChange={(v) => set(o.id, (x) => { x.height = v ?? 0 })} />
-          <NumField allowEmpty={false} label="Liczba" unit="szt" width={44} value={o.count} onChange={(v) => set(o.id, (x) => { x.count = Math.max(0, Math.round(v ?? 0)) })} />
+          <NumField nonNegative allowEmpty={false} label="Liczba" unit="szt" width={44} value={o.count} onChange={(v) => set(o.id, (x) => { x.count = Math.max(0, Math.round(v ?? 0)) })} />
           <label className="nf">
             <span className="nf-label">Ściana</span>
             <span className="nf-box">

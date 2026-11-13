@@ -9,7 +9,7 @@ import { type ItemCutting, type ItemSpec, need } from '../items'
 import type { LevelsResult } from '../levels'
 import { computeRebarElement, defaultFootingRebar, defaultRingBeamRebar } from '../rebar'
 import { type Computed, ceilSafe, clean, fmt } from '../trace'
-import { computed, feltRolls, lumpItem, makeBuilder, manualItem, pourItems, projectBase, rebarItems } from './common'
+import { attempt, computed, feltRolls, lumpItem, makeBuilder, manualItem, pourItems, projectBase, rebarItems } from './common'
 
 // ─── SSO ────────────────────────────────────────────────────────────────────
 
@@ -233,13 +233,17 @@ export function buildSSO(project: ProjectInput): { items: ItemSpec[]; context: S
     const mp = need(params, 'minPiece', missing)
     const felt =
       sw !== null && rw !== null && rl !== null && ov !== null && mp !== null
-        ? feltRolls(project, 'foundationFeltVariant', {
-            sheet: { width: rw, length: rl },
-            stripWidth: sw,
-            segments: sides.map((L, i) => ({ id: `b${i + 1}`, label: `bok ${i + 1}`, length: L })),
-            minPieceLength: mp,
-            jointOverlap: ov,
-          })
+        ? attempt(
+            () =>
+              feltRolls(project, 'foundationFeltVariant', {
+                sheet: { width: rw, length: rl },
+                stripWidth: sw,
+                segments: sides.map((L, i) => ({ id: `b${i + 1}`, label: `bok ${i + 1}`, length: L })),
+                minPieceLength: mp,
+                jointOverlap: ov,
+              }),
+            missing,
+          )
         : null
     items.push(item({ id, category: C2, kind: 'material', name: 'Papa na ławie pod bloczki (rolki)', unit: 'szt', params, missing, quantity: felt?.quantity ?? null, ...(felt ? { cutting: felt.cutting } : {}), ...(felt?.note ? { note: felt.note } : {}) }))
   }
@@ -381,7 +385,7 @@ export function buildSSO(project: ProjectInput): { items: ItemSpec[]; context: S
     let quantity: Computed | null = null
     let note: string | undefined
     let cutting: ItemCutting | undefined
-    if (rbw !== null && sl !== null && sw !== null && ov !== null && mp !== null) {
+    if (rbw !== null && sl !== null && sw !== null && ov !== null && mp !== null) attempt(() => {
       const cut = computeCutting({
         material: 'płytę OSB',
         sheetUnit: 'płyt',
@@ -397,7 +401,7 @@ export function buildSSO(project: ProjectInput): { items: ItemSpec[]; context: S
       else if (v === null) missing.push(`wariant ${variant} niemożliwy dla tej płyty — wybierz drugi`)
       if (v) quantity = { value: v.sheets, unit: 'szt', trace: [...cut.trace, { label: 'Wariant wybrany przez użytkownika', formula: '', values: v.instruction, result: v.sheets, unit: 'płyt' }] }
       cutting = { result: cut, sheet: { width: sw, length: sl }, stripWidth: clean(rbh + ov), segments: formworkSegmentsRect(axis.length, axis.width, rbw), used: v ? v.key : null, choiceKey: 'foundationRingBeamOsbVariant', userMustChoose: true }
-    }
+    }, missing)
     items.push(item({ id, category: C3, kind: 'material', name: 'Płyty OSB — szalunek wieńca fundamentowego', unit: 'szt', params, missing, quantity, ...(note ? { note } : {}), ...(cutting ? { cutting } : {}) }))
   }
 

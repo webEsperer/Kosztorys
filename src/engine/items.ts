@@ -32,9 +32,25 @@ export const COUNTED_UNITS: Unit[] = ['szt', 'kurs', 'kpl']
 /** Edytowalny współczynnik pozycji. `null` = niepewny — „uzupełnij”. */
 export interface Param {
   label: string
+  /** Wartość do obliczeń (null = uzupełnij albo wartość niepoprawna — patrz `error`). */
   value: number | null
   unit: string
   note?: string
+  /** Dopuszczalny zakres: 'positive' (> 0, np. wymiary, rozstawy, opakowania) albo 'nonNegative' (≥ 0). */
+  min?: 'positive' | 'nonNegative'
+  /** Wartość wpisana, ale niepoprawna (np. 0 jako długość rolki) — nie trafia do obliczeń. */
+  error?: string
+  /** Wartość wpisana przez użytkownika (pokazywana w polu, także gdy niepoprawna). */
+  raw?: number | null
+}
+
+/** Sprawdza zakres wartości parametru; niepoprawna → value null + opis błędu (zamiast wywracać obliczenia). */
+export function validateParam(p: Param): Param {
+  const v = p.value
+  if (v === null || p.min === undefined) return p
+  const bad = !Number.isFinite(v) || v < 0 || (p.min === 'positive' && v === 0)
+  if (!bad) return p
+  return { ...p, value: null, raw: v, error: p.min === 'positive' ? 'wartość musi być większa od zera' : 'wartość nie może być ujemna' }
 }
 
 export interface Packaging {
@@ -115,7 +131,7 @@ export function param(label: string, value: number | null, unit: string, note?: 
 export function need(params: Record<string, Param>, key: string, missing: string[]): number | null {
   const p = params[key]
   if (!p) throw new Error(`Brak parametru „${key}”.`)
-  if (p.value === null) missing.push(p.label)
+  if (p.value === null) missing.push(p.error ? `${p.label} — ${p.error}` : p.label)
   return p.value
 }
 

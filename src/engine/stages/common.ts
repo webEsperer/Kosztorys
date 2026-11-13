@@ -4,7 +4,7 @@ import type { ProjectInput } from '../../model/project'
 import { type ConcretePourParams, computeConcretePour } from '../concrete'
 import { computeGeometry, type GeometryResult } from '../geometry'
 import { computeCutting, type CuttingInput } from '../cutting'
-import { type ItemCutting, type ItemKind, type ItemSpec, type Packaging, type Param, type PriceBasis, type Stage, type Unit, manualQuantity, need, param } from '../items'
+import { type ItemCutting, type ItemKind, type ItemSpec, type Packaging, type Param, type PriceBasis, type Stage, type Unit, manualQuantity, need, param, validateParam } from '../items'
 import {
   computeLevels,
   computeWallLayers,
@@ -44,12 +44,22 @@ export interface ItemInit {
   cutting?: ItemCutting
 }
 
+/**
+ * Parametry, które muszą być > 0: wymiary arkuszy/rolek/desek/profili, rozstawy, zawartość opakowań, przekroje.
+ * Pozostałe parametry mogą być 0 (zakłady, wysunięcia, przełączniki 0/1, odpad…), ale nigdy ujemne.
+ */
+export const POSITIVE_PARAM_KEYS = new Set([
+  'bag', 'boardH', 'boardLength', 'boardThickness', 'boardWidth', 'bucket', 'cleatLength', 'coil', 'compaction', 'drum',
+  'h', 'w', 'm2PerCan', 'm2PerRoll', 'perPack', 'profileLength', 'rollLength', 'rollWidth', 'sheetLength', 'sheetWidth',
+  'spacing', 'sx', 'sy', 'stakeLength', 'stakeWidth', 'stripWidth', 'tile',
+])
+
 export function makeBuilder(project: ProjectInput, stage: Stage = 'SSO') {
   /** Parametr z wartością domyślną, nadpisany przez użytkownika (project.itemParams). */
   const P = (itemId: string, key: string, label: string, def: number | null, unit: string, note?: string): Param => {
     const o = project.itemParams[itemId]
     const v = o && key in o ? o[key] : def
-    return param(label, v, unit, note)
+    return validateParam({ ...param(label, v, unit, note), min: POSITIVE_PARAM_KEYS.has(key) ? 'positive' : 'nonNegative' })
   }
   const item = (i: ItemInit): ItemSpec => ({
     id: i.id,
@@ -393,4 +403,17 @@ export function projectBase(project: ProjectInput): ProjectBase {
 export function gableSpanInterior(project: ProjectInput): number {
   const { length, width } = project.footprint
   return project.roof.ridgeAlongLonger ? Math.min(length, width) : Math.max(length, width)
+}
+
+/**
+ * Uruchamia obliczenie, które może odrzucić dane (np. pas szerszy niż rolka) — zamiast przerywać cały kosztorys,
+ * dopisuje komunikat do braków pozycji i zwraca null.
+ */
+export function attempt<T>(fn: () => T, missing: string[]): T | null {
+  try {
+    return fn()
+  } catch (e) {
+    missing.push(`popraw dane: ${e instanceof Error ? e.message : String(e)}`)
+    return null
+  }
 }

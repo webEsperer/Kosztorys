@@ -132,7 +132,7 @@ export function PlanEditor({ project, update }: { project: ProjectInput; update:
       <div className="pe-main card">
         <div className="pe-head">
           <h2>Rzut — rozmieszczenie otworów</h2>
-          <NumField allowEmpty={false} label="Minimalny filar" unit="cm" scale={100} width={56} value={minPier} onChange={(v) => update((p) => { p.planRules.minPier = v ?? 0.25 })} />
+          <NumField nonNegative allowEmpty={false} label="Minimalny filar" unit="cm" scale={100} width={56} value={minPier} onChange={(v) => update((p) => { p.planRules.minPier = v ?? 0.25 })} />
         </div>
         <p className="muted small">Kliknij ścianę, aby dodać okno lub drzwi. Przeciągnij otwór wzdłuż ściany (także na inną ścianę). Wymiary od narożnika i między otworami — w cm.</p>
         <div className="pe-canvas">
@@ -310,8 +310,8 @@ export function PlanEditor({ project, update }: { project: ProjectInput; update:
                   </select>
                 </span>
               </label>
-              <NumField allowEmpty={false} label="Od narożnika do krawędzi otworu" unit="cm" scale={100} value={selPlacement.offset} onChange={(v) => setPlacement(sel!, (pl) => { pl.offset = v ?? 0 })} />
-              <NumField allowEmpty={false} label="Wysokość parapetu od posadzki" unit="cm" scale={100} value={selPlacement.sillHeight} onChange={(v) => setPlacement(sel!, (pl) => { pl.sillHeight = v ?? 0 })} />
+              <NumField nonNegative allowEmpty={false} label="Od narożnika do krawędzi otworu" unit="cm" scale={100} value={selPlacement.offset} onChange={(v) => setPlacement(sel!, (pl) => { pl.offset = v ?? 0 })} />
+              <NumField nonNegative allowEmpty={false} label="Wysokość parapetu od posadzki" unit="cm" scale={100} value={selPlacement.sillHeight} onChange={(v) => setPlacement(sel!, (pl) => { pl.sillHeight = v ?? 0 })} />
               {selOpening.type !== 'okno' && (
                 <label className="nf">
                   <span className="nf-label">Otwieranie</span>

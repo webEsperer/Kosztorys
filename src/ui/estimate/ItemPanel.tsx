@@ -106,7 +106,7 @@ export function ItemPanel({
       })()}
 
       <div className="fields">
-        <NumField
+        <NumField nonNegative
           label="Cena"
           unit={PRICE_UNIT[s.priceBasis](r)}
           required
@@ -123,7 +123,10 @@ export function ItemPanel({
               unit={isM ? 'cm' : prm.unit}
               scale={isM ? 100 : 1}
               required={prm.value === null}
-              value={prm.value}
+              value={prm.raw !== undefined ? prm.raw : prm.value}
+              positive={prm.min === 'positive'}
+              nonNegative={prm.min === 'nonNegative'}
+              error={prm.error}
               onChange={(v) =>
                 update((p) => {
                   p.itemParams[s.id] = { ...(p.itemParams[s.id] ?? {}), [key]: v }

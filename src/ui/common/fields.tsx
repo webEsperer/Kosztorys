@@ -36,7 +36,9 @@ export function NumField({
   placeholder,
   width,
   positive = false,
+  nonNegative = false,
   allowEmpty = true,
+  error,
 }: {
   label: ReactNode
   value: number | null
@@ -48,7 +50,11 @@ export function NumField({
   placeholder?: string
   width?: number
   positive?: boolean
+  /** Wartość musi być ≥ 0. */
+  nonNegative?: boolean
   allowEmpty?: boolean
+  /** Błąd zapisanej wartości (np. 0 z importu) — pokazywany pod polem. */
+  error?: string
 }) {
   const shown = value === null ? '' : fmtNum(Math.round(value * scale * 1e6) / 1e6, 4)
   const [text, setText] = useState(shown)
@@ -60,8 +66,9 @@ export function NumField({
     if (!focused) setText(shown)
   }, [shown, focused])
   const missing = required && value === null
+  const shownError = invalid ?? (error ? `Popraw: ${error}` : null)
   return (
-    <label className={`nf${missing ? ' nf-missing' : ''}${invalid ? ' nf-invalid' : ''}`} title={invalid ?? hint}>
+    <label className={`nf${missing ? ' nf-missing' : ''}${shownError ? ' nf-invalid' : ''}`} title={shownError ?? hint}>
       <span className="nf-label">{label}</span>
       <span className="nf-box">
         <input
@@ -100,13 +107,17 @@ export function NumField({
               setInvalid('Wartość musi być większa od zera')
               return
             }
+            if (nonNegative && v < 0) {
+              setInvalid('Wartość nie może być ujemna')
+              return
+            }
             setInvalid(null)
             onChange(Math.round((v / scale) * 1e9) / 1e9)
           }}
         />
         {unit && <em>{unit}</em>}
       </span>
-      {invalid && <span className="nf-error">{invalid}</span>}
+      {shownError && <span className="nf-error">{shownError}</span>}
     </label>
   )
 }

@@ -6,7 +6,7 @@ import { computeCutting, DEFAULT_MIN_PIECE } from '../cutting'
 import { computeFacade, gableFacade, soffitArea } from '../facade'
 import { type ItemKind, type ItemSpec, type PackUnit, type Unit, UNIT_LABEL, need } from '../items'
 import { type Computed, ceilSafe, clean, fmt } from '../trace'
-import { type Builder, computed, gableSpanInterior, lumpItem, projectBase } from './common'
+import { type Builder, attempt, computed, gableSpanInterior, lumpItem, projectBase } from './common'
 import { roofOf } from './sszRoof'
 
 interface ConsumptionOpts {
@@ -93,7 +93,7 @@ export function finishItems(b: Builder, project: ProjectInput): ItemSpec[] {
     const pl = need(params, 'profileLength', missing)
     let quantity: Computed | null = null
     let joints: Computed | null = null
-    if (pl !== null) {
+    if (pl !== null) attempt(() => {
       const cut = computeCutting({
         material: 'profil CD60',
         sheetUnit: 'profili',
@@ -103,12 +103,13 @@ export function finishItems(b: Builder, project: ProjectInput): ItemSpec[] {
         minPieceLength: params.minPiece.value ?? 0,
         jointOverlap: 0,
       })
-      const v = cut.A!
+      const v = cut.A
+      if (!v) throw new Error('profil nie mieści się w wariancie cięcia')
       const mb = clean(ceil.cdSegments.reduce((a, s) => a + s.length, 0))
       const base = [...ceil.rooms.flatMap((r) => r.trace), { label: 'Profile CD60 — długość linii', formula: 'Σ (główne × L + nośne × B)', values: `${ceil.cdSegments.length} linii`, result: mb, unit: 'm' }]
       quantity = { value: v.sheets, unit: 'szt', trace: [...base, { label: 'Profile CD60', formula: 'cięcie z profili handlowych, resztki na kolejne linie', values: `${fmt(mb)} m z profili ${fmt(pl)} m`, result: v.sheets, unit: 'szt' }] }
       joints = { value: v.joints, unit: 'szt', trace: [...base, { label: 'Łączniki wzdłużne', formula: 'łączenia kawałków w liniach', values: `profil ${fmt(pl)} m`, result: v.joints, unit: 'szt' }] }
-    }
+    }, missing)
     out.push(b.item({ id, category: C1, kind: 'material', name: 'Profile CD60 (główne i nośne)', unit: 'szt', params, missing, quantity }))
     out.push(b.item({ id: 'ssz-sufit-laczniki-wzdluzne', category: C1, kind: 'material', name: 'Łączniki wzdłużne CD60', unit: 'szt', missing: pl === null ? [params.profileLength.label] : [], quantity: joints }))
   }
@@ -146,7 +147,7 @@ export function finishItems(b: Builder, project: ProjectInput): ItemSpec[] {
     const missing = [...roomsNote]
     const bl = need(params, 'boardLength', missing)
     let quantity: Computed | null = null
-    if (bl !== null) {
+    if (bl !== null) attempt(() => {
       const cut = computeCutting({
         material: 'płytę GK',
         sheetUnit: 'płyt',
@@ -156,7 +157,8 @@ export function finishItems(b: Builder, project: ProjectInput): ItemSpec[] {
         minPieceLength: params.minPiece.value ?? 0,
         jointOverlap: 0,
       })
-      const v = cut.A!
+      const v = cut.A
+      if (!v) throw new Error('pas płyty nie mieści się w płycie — sprawdź szerokość płyty GK')
       quantity = {
         value: v.sheets,
         unit: 'szt',
@@ -166,7 +168,7 @@ export function finishItems(b: Builder, project: ProjectInput): ItemSpec[] {
           { label: 'Kontrolnie z powierzchni', formula: 'A / pole płyty', values: `${fmt(ceil.area.value)} / ${fmt(rules.boardWidth * bl)}`, result: clean(ceil.area.value / (rules.boardWidth * bl)), unit: 'szt', note: 'ostatni rząd w pomieszczeniu docinany wzdłuż — reszta pasa to odpad' },
         ],
       }
-    }
+    }, missing)
     out.push(b.item({ id, category: C1, kind: 'material', name: 'Płyty GK 12,5 mm', unit: 'szt', params, missing, quantity, note: 'przykręcane tylko do profili nośnych CD60 — nigdy do UD27 (dylatacja na obwodzie)' }))
   }
   out.push(consumptionItem(b, 'ssz-sufit-wkrety-gk', C1, 'Wkręty do GK', ceil.area, roomsNote, { unit: 'szt', rate: { label: 'Wkrętów na m²', unit: 'szt/m²', value: null } }))

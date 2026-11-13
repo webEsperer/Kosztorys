@@ -43,7 +43,7 @@ export function DormersEditor({ project, update }: { project: ProjectInput; upda
               <NumField positive allowEmpty={false} label="b — szer. z okapami" unit="cm" scale={100} width={64} value={d.b} onChange={(v) => set(d.id, (x) => { x.b = v ?? 0 })} />
             </span>
             <span className="dim-field" data-dim="w">
-              <NumField allowEmpty={false} label="w — wysięg za okap" unit="cm" scale={100} width={64} value={d.w} onChange={(v) => set(d.id, (x) => { x.w = v ?? 0 })} />
+              <NumField nonNegative allowEmpty={false} label="w — wysięg za okap" unit="cm" scale={100} width={64} value={d.w} onChange={(v) => set(d.id, (x) => { x.w = v ?? 0 })} />
             </span>
             <span className="dim-field" data-dim="beta">
               <NumField positive allowEmpty={false} label="β — kąt" unit="°" width={48} value={d.betaDeg} onChange={(v) => set(d.id, (x) => { x.betaDeg = v ?? 0 })} />
@@ -61,7 +61,7 @@ export function DormersEditor({ project, update }: { project: ProjectInput; upda
               </span>
             </label>
             <span className="dim-field" data-dim="position">
-              <NumField allowEmpty={false} label="Położenie od początku okapu" unit="cm" scale={100} width={64} value={d.position} onChange={(v) => set(d.id, (x) => { x.position = v ?? 0 })} />
+              <NumField nonNegative allowEmpty={false} label="Położenie od początku okapu" unit="cm" scale={100} width={64} value={d.position} onChange={(v) => set(d.id, (x) => { x.position = v ?? 0 })} />
             </span>
             <label className="nf">
               <span className="nf-label">Szczyt daszku</span>

@@ -89,7 +89,7 @@ export function StageView({
                       <div className="r-qty">{qtyText(r)}</div>
                       <div className="r-pack muted">{packText(r)}</div>
                       <div className="r-price" onClick={(e) => e.stopPropagation()}>
-                        <NumField
+                        <NumField nonNegative
                           label=""
                           unit={s.priceBasis === 'lumpSum' ? 'zł' : s.priceBasis === 'perPack' ? `zł/${s.packaging?.packUnit}` : `zł/${r.chargedUnit}`}
                           width={78}

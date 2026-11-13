@@ -21,7 +21,7 @@ function PourFields({ title, pp, set }: { title: string; pp: ConcretePourParams;
     <div className="pour">
       <h3>{title}</h3>
       <TextField label="Klasa betonu" value={pp.concreteClass} onChange={(v) => set((x) => { x.concreteClass = v })} />
-      <NumField allowEmpty={false} label="Naddatek objętości" unit="%" value={pp.extraPercent} onChange={(v) => set((x) => { x.extraPercent = v ?? 0 })} />
+      <NumField nonNegative allowEmpty={false} label="Naddatek objętości" unit="%" value={pp.extraPercent} onChange={(v) => set((x) => { x.extraPercent = v ?? 0 })} />
       <Select
         label="Transport"
         value={pp.transport.mode}
@@ -73,7 +73,7 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
     <div className="form-grid">
       <Section title="Projekt">
         <TextField label="Nazwa projektu" value={project.name} onChange={(v) => update((p) => { p.name = v })} />
-        <NumField allowEmpty={false} label="Rezerwa na nieprzewidziane" unit="%" value={project.reservePercent} onChange={(v) => update((p) => { p.reservePercent = v ?? 0 })} />
+        <NumField nonNegative allowEmpty={false} label="Rezerwa na nieprzewidziane" unit="%" value={project.reservePercent} onChange={(v) => update((p) => { p.reservePercent = v ?? 0 })} />
         <Select
           label="VAT — podgląd netto (ceny wpisujesz brutto)"
           value={String(project.vatPercent ?? '')}
@@ -90,12 +90,12 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
         <NumField positive allowEmpty={false} label="Długość wewnętrzna" {...CM} required value={project.footprint.length} onChange={(v) => update((p) => { p.footprint.length = v ?? p.footprint.length })} />
         <NumField positive allowEmpty={false} label="Szerokość wewnętrzna" {...CM} required value={project.footprint.width} onChange={(v) => update((p) => { p.footprint.width = v ?? p.footprint.width })} />
         <NumField positive allowEmpty={false} label="Ściana nośna — grubość" {...CM} value={project.wallThickness} onChange={(v) => update((p) => { p.wallThickness = v ?? 0.24 })} />
-        <NumField allowEmpty={false} label="EPS elewacja (ściany; szczyty do linii okapu)" {...CM} value={project.facadeInsulation} onChange={(v) => update((p) => { p.facadeInsulation = v ?? 0 })} />
+        <NumField nonNegative allowEmpty={false} label="EPS elewacja (ściany; szczyty do linii okapu)" {...CM} value={project.facadeInsulation} onChange={(v) => update((p) => { p.facadeInsulation = v ?? 0 })} />
         <Check label="Szczyty nad okapem ocieplone wełną skalną (pod boazerią)" checked={project.gables.insulated} onChange={(v) => update((p) => { p.gables.insulated = v })} />
         {project.gables.insulated && (
           <NumField positive allowEmpty={false} label="Wełna na szczytach — grubość" {...CM} value={project.gables.woolThickness} onChange={(v) => update((p) => { p.gables.woolThickness = v ?? 0.2 })} />
         )}
-        <NumField allowEmpty={false} label="XPS fundament" {...CM} value={project.foundationInsulation} onChange={(v) => update((p) => { p.foundationInsulation = v ?? 0 })} />
+        <NumField nonNegative allowEmpty={false} label="XPS fundament" {...CM} value={project.foundationInsulation} onChange={(v) => update((p) => { p.foundationInsulation = v ?? 0 })} />
         {base ? (
           <p className="calc">
             Obwód w osi: <b>{fmtQty(base.pOs.value)} m</b>, pole wewn.: <b>{fmtQty(base.aWew.value)} m²</b>, wymiary zewn.:{' '}
@@ -120,22 +120,22 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
             {base.wallHeightMissing.length > 0 && project.wallHeight !== null && <span className="todo-inline"> — {base.wallHeightMissing.join(', ')}</span>}
           </p>
         )}
-        <NumField label="Izolacja na chudziaku" {...CM} required value={project.floorLayers.insulation} onChange={(v) => update((p) => { p.floorLayers.insulation = v })} />
-        <NumField label="Wylewka" {...CM} required value={project.floorLayers.screed} onChange={(v) => update((p) => { p.floorLayers.screed = v })} />
-        <NumField label="Płytka / panel" {...CM} required value={project.floorLayers.finish} onChange={(v) => update((p) => { p.floorLayers.finish = v })} />
+        <NumField nonNegative label="Izolacja na chudziaku" {...CM} required value={project.floorLayers.insulation} onChange={(v) => update((p) => { p.floorLayers.insulation = v })} />
+        <NumField nonNegative label="Wylewka" {...CM} required value={project.floorLayers.screed} onChange={(v) => update((p) => { p.floorLayers.screed = v })} />
+        <NumField nonNegative label="Płytka / panel" {...CM} required value={project.floorLayers.finish} onChange={(v) => update((p) => { p.floorLayers.finish = v })} />
         <NumField positive allowEmpty={false} label="Chudziak — grubość" {...CM} value={project.slabThickness} onChange={(v) => update((p) => { p.slabThickness = v ?? 0.1 })} />
-        <NumField allowEmpty={false} label="Sufit: płyta GK" {...CM} value={project.ceiling.board} onChange={(v) => update((p) => { p.ceiling.board = v ?? 0 })} />
-        <NumField allowEmpty={false} label="Sufit: stelaż (2 × profil)" {...CM} value={project.ceiling.grid} onChange={(v) => update((p) => { p.ceiling.grid = v ?? 0 })} />
-        <NumField allowEmpty={false} label="Sufit: pustka nad profilami" {...CM} value={project.ceiling.voidAbove} onChange={(v) => update((p) => { p.ceiling.voidAbove = v ?? 0 })} />
+        <NumField nonNegative allowEmpty={false} label="Sufit: płyta GK" {...CM} value={project.ceiling.board} onChange={(v) => update((p) => { p.ceiling.board = v ?? 0 })} />
+        <NumField nonNegative allowEmpty={false} label="Sufit: stelaż (2 × profil)" {...CM} value={project.ceiling.grid} onChange={(v) => update((p) => { p.ceiling.grid = v ?? 0 })} />
+        <NumField nonNegative allowEmpty={false} label="Sufit: pustka nad profilami" {...CM} value={project.ceiling.voidAbove} onChange={(v) => update((p) => { p.ceiling.voidAbove = v ?? 0 })} />
       </Section>
 
       <Section title="3. Ściany nośne">
         <NumField positive label="Bloczek — długość" {...CM} required value={project.wall.blockLength} onChange={(v) => update((p) => { p.wall.blockLength = v })} />
         <NumField positive label="Bloczek — wysokość" {...CM} required value={project.wall.blockHeight} onChange={(v) => update((p) => { p.wall.blockHeight = v })} />
-        <NumField allowEmpty={false} label="Spoina" {...CM} value={project.wall.jointThickness} onChange={(v) => update((p) => { p.wall.jointThickness = v ?? 0 })} />
-        <NumField allowEmpty={false} label="Warstwa wyrównawcza" {...CM} value={project.wall.levelingLayer} onChange={(v) => update((p) => { p.wall.levelingLayer = v ?? 0 })} />
+        <NumField nonNegative allowEmpty={false} label="Spoina" {...CM} value={project.wall.jointThickness} onChange={(v) => update((p) => { p.wall.jointThickness = v ?? 0 })} />
+        <NumField nonNegative allowEmpty={false} label="Warstwa wyrównawcza" {...CM} value={project.wall.levelingLayer} onChange={(v) => update((p) => { p.wall.levelingLayer = v ?? 0 })} />
         <NumField positive allowEmpty={false} label="Wieniec — wysokość minimalna" {...CM} value={project.wall.ringBeamMin} onChange={(v) => update((p) => { p.wall.ringBeamMin = v ?? 0.25 })} />
-        <NumField allowEmpty={false} label="Reszta dokładana do wieńca (maks.)" {...CM} value={project.wall.maxRingBeamExtension} onChange={(v) => update((p) => { p.wall.maxRingBeamExtension = v ?? 0 })} />
+        <NumField nonNegative allowEmpty={false} label="Reszta dokładana do wieńca (maks.)" {...CM} value={project.wall.maxRingBeamExtension} onChange={(v) => update((p) => { p.wall.maxRingBeamExtension = v ?? 0 })} />
         <div className="calc levels">
           {wl && base ? (
             <>
@@ -161,7 +161,7 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
 
       <Section title="4. Ściany działowe">
         <NumField positive label="Długość ścian działowych" unit="m" required value={project.partitions.length} onChange={(v) => update((p) => { p.partitions.length = v })} />
-        <NumField allowEmpty={false} label="Zapas ponad stelaż GK" {...CM} value={project.partitions.topMargin} onChange={(v) => update((p) => { p.partitions.topMargin = v ?? 0.02 })} />
+        <NumField nonNegative allowEmpty={false} label="Zapas ponad stelaż GK" {...CM} value={project.partitions.topMargin} onChange={(v) => update((p) => { p.partitions.topMargin = v ?? 0.02 })} />
         <NumField positive label="Wysokość od posadzki ręcznie (puste = sufit + GK + stelaż + zapas)" {...CM} value={project.partitions.heightAboveFloor} onChange={(v) => update((p) => { p.partitions.heightAboveFloor = v })} />
         <NumField positive label="Wysokość muru od chudziaka ręcznie (puste = liczona)" {...CM} value={project.partitions.height} onChange={(v) => update((p) => { p.partitions.height = v })} />
         {base && (
@@ -188,7 +188,7 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
         )}
         <NumField positive label="Bloczek — długość" {...CM} required value={project.partitionBlock.blockLength} onChange={(v) => update((p) => { p.partitionBlock.blockLength = v })} />
         <NumField positive label="Bloczek — wysokość" {...CM} required value={project.partitionBlock.blockHeight} onChange={(v) => update((p) => { p.partitionBlock.blockHeight = v })} />
-        <NumField allowEmpty={false} label="Spoina" {...CM} value={project.partitionBlock.jointThickness} onChange={(v) => update((p) => { p.partitionBlock.jointThickness = v ?? 0 })} />
+        <NumField nonNegative allowEmpty={false} label="Spoina" {...CM} value={project.partitionBlock.jointThickness} onChange={(v) => update((p) => { p.partitionBlock.jointThickness = v ?? 0 })} />
       </Section>
 
       <Section title="5. Fundament" note="Wymiary ławy i bloczka fundamentowego podajesz Ty.">
@@ -197,7 +197,7 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
         <NumField positive label="Bloczek fund. — długość" {...CM} required value={f.blockLength} onChange={(v) => update((p) => { p.foundation.blockLength = v })} />
         <NumField positive label="Bloczek fund. — szerokość (= grubość ściany i wieńca)" {...CM} required value={f.blockWidth} onChange={(v) => update((p) => { p.foundation.blockWidth = v })} />
         <NumField positive label="Bloczek fund. — wysokość" {...CM} required value={f.blockHeight} onChange={(v) => update((p) => { p.foundation.blockHeight = v })} />
-        <NumField label="Spoina" {...CM} required value={f.jointThickness} onChange={(v) => update((p) => { p.foundation.jointThickness = v })} />
+        <NumField nonNegative label="Spoina" {...CM} required value={f.jointThickness} onChange={(v) => update((p) => { p.foundation.jointThickness = v })} />
         <NumField positive label="Liczba warstw bloczków" unit="szt" required value={f.layers} onChange={(v) => update((p) => { p.foundation.layers = v === null ? null : Math.round(v) })} />
         <NumField positive allowEmpty={false} label="Wieniec fund. — wysokość" {...CM} value={f.ringBeamHeight} onChange={(v) => update((p) => { p.foundation.ringBeamHeight = v ?? 0.25 })} />
       </Section>
@@ -213,8 +213,8 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
         <h2>6. Dach</h2>
         <div className="fields roof-fields">
         <NumField positive label="Kąt nachylenia" unit="°" required value={project.roof.pitchDeg} onChange={(v) => update((p) => { p.roof.pitchDeg = v })} />
-        <NumField label="Okap boczny (od lica EPS)" {...CM} required value={project.roof.eaveOverhang} onChange={(v) => update((p) => { p.roof.eaveOverhang = v })} />
-        <NumField label="Okap szczytowy (od lica EPS)" {...CM} required value={project.roof.gableOverhang} onChange={(v) => update((p) => { p.roof.gableOverhang = v })} />
+        <NumField nonNegative label="Okap boczny (od lica EPS)" {...CM} required value={project.roof.eaveOverhang} onChange={(v) => update((p) => { p.roof.eaveOverhang = v })} />
+        <NumField nonNegative label="Okap szczytowy (od lica EPS)" {...CM} required value={project.roof.gableOverhang} onChange={(v) => update((p) => { p.roof.gableOverhang = v })} />
         <Check label="Kalenica równolegle do dłuższego boku" checked={project.roof.ridgeAlongLonger} onChange={(v) => update((p) => { p.roof.ridgeAlongLonger = v })} />
         <NumField positive allowEmpty={false} label="Rozstaw wiązarów" {...CM} value={project.roof.trussSpacing} onChange={(v) => update((p) => { p.roof.trussSpacing = v ?? 0.9 })} />
         <NumField positive label="Liczba wiązarów (puste = z rozstawu)" unit="szt" value={project.roof.trussCount} onChange={(v) => update((p) => { p.roof.trussCount = v })} />
@@ -249,11 +249,11 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
 
       <Section title="10. Sufit — rozmieszczenie profili" note="Profile główne wzdłuż dłuższego boku pomieszczenia, nośne krzyżowo; płyty prostopadle do nośnych.">
         <NumField positive allowEmpty={false} label="Profile główne — rozstaw" {...CM} value={project.ceilingRules.mainSpacing} onChange={(v) => update((p) => { p.ceilingRules.mainSpacing = v ?? 1 })} />
-        <NumField allowEmpty={false} label="Profile główne — skrajny od ściany" {...CM} value={project.ceilingRules.mainEdge} onChange={(v) => update((p) => { p.ceilingRules.mainEdge = v ?? 0.15 })} />
+        <NumField nonNegative allowEmpty={false} label="Profile główne — skrajny od ściany" {...CM} value={project.ceilingRules.mainEdge} onChange={(v) => update((p) => { p.ceilingRules.mainEdge = v ?? 0.15 })} />
         <NumField positive allowEmpty={false} label="Wieszaki — rozstaw (ciężkie płyty 75)" {...CM} value={project.ceilingRules.hangerSpacing} onChange={(v) => update((p) => { p.ceilingRules.hangerSpacing = v ?? 0.9 })} />
-        <NumField allowEmpty={false} label="Wieszaki — skrajny od ściany" {...CM} value={project.ceilingRules.hangerEdge} onChange={(v) => update((p) => { p.ceilingRules.hangerEdge = v ?? 0.4 })} />
+        <NumField nonNegative allowEmpty={false} label="Wieszaki — skrajny od ściany" {...CM} value={project.ceilingRules.hangerEdge} onChange={(v) => update((p) => { p.ceilingRules.hangerEdge = v ?? 0.4 })} />
         <NumField positive allowEmpty={false} label="Profile nośne — rozstaw" {...CM} value={project.ceilingRules.carrierSpacing} onChange={(v) => update((p) => { p.ceilingRules.carrierSpacing = v ?? 0.4 })} />
-        <NumField allowEmpty={false} label="Profile nośne — skrajny od ściany" {...CM} value={project.ceilingRules.carrierEdge} onChange={(v) => update((p) => { p.ceilingRules.carrierEdge = v ?? 0.1 })} />
+        <NumField nonNegative allowEmpty={false} label="Profile nośne — skrajny od ściany" {...CM} value={project.ceilingRules.carrierEdge} onChange={(v) => update((p) => { p.ceilingRules.carrierEdge = v ?? 0.1 })} />
         <NumField positive allowEmpty={false} label="Kołki UD27 — rozstaw" {...CM} value={project.ceilingRules.udAnchorSpacing} onChange={(v) => update((p) => { p.ceilingRules.udAnchorSpacing = v ?? 0.6 })} />
       </Section>
     </div>
