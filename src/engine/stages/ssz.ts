@@ -18,7 +18,7 @@ import {
 } from '../openings'
 import { computeRebarElement, defaultRingBeamRebar } from '../rebar'
 import { type Computed, type TraceStep, clean, fmt } from '../trace'
-import { type Builder, attempt, blocksPerM2, computed, feltRolls, gableSpanInterior, lumpItem, makeBuilder, pourItems, projectBase, rebarItems } from './common'
+import { type Builder, applyTimber, attempt, blocksPerM2, computed, feltRolls, gableSpanInterior, lumpItem, makeBuilder, pourItems, projectBase, rebarItems } from './common'
 import { buildSSO } from './sso'
 import { roofItems } from './sszRoof'
 import { finishItems } from './sszFinish'
@@ -349,5 +349,5 @@ export function buildSSZ(project: ProjectInput): { items: ItemSpec[] } {
   // ── Sufit, elewacja, podłoga, instalacje
   items.push(...finishItems(b, project))
 
-  return { items }
+  return { items: applyTimber(b, items) }
 }

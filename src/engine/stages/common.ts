@@ -4,7 +4,7 @@ import type { ProjectInput } from '../../model/project'
 import { type ConcretePourParams, computeConcretePour } from '../concrete'
 import { computeGeometry, type GeometryResult } from '../geometry'
 import { computeCutting, type CuttingInput } from '../cutting'
-import { type ItemCutting, type ItemKind, type ItemSpec, type Packaging, type Param, type PriceBasis, type Stage, type Unit, manualQuantity, need, param, validateParam } from '../items'
+import { type ItemCutting, type ItemKind, type ItemSpec, type Packaging, type Param, type PriceBasis, type Stage, type Unit, manualQuantity, need, param, validateParam, UNIT_LABEL } from '../items'
 import {
   computeLevels,
   computeWallLayers,
@@ -49,6 +49,7 @@ export interface ItemInit {
  * Pozostałe parametry mogą być 0 (zakłady, wysunięcia, przełączniki 0/1, odpad…), ale nigdy ujemne.
  */
 export const POSITIVE_PARAM_KEYS = new Set([
+  'stakeThickness', 'cleatWidth', 'cleatThickness', 'fasciaW', 'fasciaT',
   'bag', 'boardH', 'boardLength', 'boardThickness', 'boardWidth', 'bucket', 'cleatLength', 'coil', 'compaction', 'drum',
   'h', 'w', 'm2PerCan', 'm2PerRoll', 'perPack', 'profileLength', 'rollLength', 'rollWidth', 'sheetLength', 'sheetWidth',
   'spacing', 'sx', 'sy', 'stakeLength', 'stakeWidth', 'stripWidth', 'tile',
@@ -423,4 +424,113 @@ export function attempt<T>(fn: () => T, missing: string[]): T | null {
     missing.push(`popraw dane: ${e instanceof Error ? e.message : String(e)}`)
     return null
   }
+}
+
+// ─── Drewno: rozliczenie za szt / mb albo za m³ ──────────────────────────────
+
+interface TimberSection {
+  /** Parametry przekroju dodawane do pozycji tylko przy rozliczeniu za m³ (np. grubość palika). */
+  defs: { key: string; label: string; def: number | null }[]
+  /** Klucze parametrów (pozycji lub defs) potrzebnych do m³ na jednostkę. */
+  uses: string[]
+  formula: string
+}
+
+/** Przekroje pozycji z drewna (bez boazerii). m³ na jednostkę = iloczyn wymiarów z `uses`. */
+export const TIMBER_SECTIONS: Record<string, TimberSection> = {
+  'sso-lawy-deski': { defs: [], uses: ['boardLength', 'boardWidth', 'boardThickness'], formula: 'dł. × szer. × gr. deski' },
+  'sso-lawy-paliki': {
+    defs: [{ key: 'stakeThickness', label: 'Grubość palika', def: null }],
+    uses: ['stakeLength', 'stakeWidth', 'stakeThickness'],
+    formula: 'dł. × szer. × gr. palika',
+  },
+  'sso-lawy-deseczki': {
+    defs: [
+      { key: 'cleatWidth', label: 'Deska na deseczki — szerokość', def: 0.12 },
+      { key: 'cleatThickness', label: 'Deska na deseczki — grubość', def: 0.025 },
+    ],
+    uses: ['boardLength', 'cleatWidth', 'cleatThickness'],
+    formula: 'dł. × szer. × gr. deski',
+  },
+  'ssz-kontrlaty': { defs: [], uses: ['w', 'h'], formula: 'szer. × gr. kontrłaty (na mb)' },
+  'ssz-laty': { defs: [], uses: ['w', 'h'], formula: 'szer. × gr. łaty (na mb)' },
+  'ssz-deski-czolowe': {
+    defs: [
+      { key: 'fasciaW', label: 'Deska czołowa — szerokość (wysokość deski)', def: null },
+      { key: 'fasciaT', label: 'Deska czołowa — grubość', def: null },
+    ],
+    uses: ['fasciaW', 'fasciaT'],
+    formula: 'szer. × gr. deski (na mb)',
+  },
+  'ssz-szczyt-laty-pionowe': {
+    defs: [
+      { key: 'w', label: 'Łata — szerokość', def: null },
+      { key: 'h', label: 'Łata — grubość', def: null },
+    ],
+    uses: ['w', 'h'],
+    formula: 'szer. × gr. łaty (na mb)',
+  },
+  'ssz-szczyt-laty-poziome': {
+    defs: [
+      { key: 'w', label: 'Łata — szerokość', def: null },
+      { key: 'h', label: 'Łata — grubość', def: null },
+    ],
+    uses: ['w', 'h'],
+    formula: 'szer. × gr. łaty (na mb)',
+  },
+  'ssz-podbitka-ruszt': {
+    defs: [
+      { key: 'w', label: 'Łata rusztu — szerokość', def: null },
+      { key: 'h', label: 'Łata rusztu — grubość', def: null },
+    ],
+    uses: ['w', 'h'],
+    formula: 'szer. × gr. łaty (na mb)',
+  },
+}
+
+/**
+ * Pozycje z drewna: domyślnie za szt / mb; gdy użytkownik wybierze „za m³” (project.timberBilling[id]) —
+ * ilość w m³ = ilość × m³ na jednostkę (z wymiarów) albo m³ wpisane ręcznie (parametr `m3`).
+ */
+export function applyTimber(b: Builder, items: ItemSpec[]): ItemSpec[] {
+  return items.map((spec) => {
+    const sec = TIMBER_SECTIONS[spec.id]
+    if (!sec) return spec
+    const m3Mode = b.project.timberBilling?.[spec.id] === true
+    if (!m3Mode) return { ...spec, timber: { m3: false, baseUnit: spec.unit, fromDims: null, manual: null } }
+    const extra: Record<string, Param> = {}
+    for (const d of sec.defs) if (!(d.key in spec.params)) extra[d.key] = b.P(spec.id, d.key, d.label, d.def, 'm')
+    const manualP = b.P(spec.id, 'm3', 'Drewno — ilość wpisana ręcznie (puste = z wymiarów)', null, 'm³')
+    const params: Record<string, Param> = { ...spec.params, ...extra, m3: manualP }
+    const secMissing: string[] = []
+    const vals = sec.uses.map((k) => {
+      const p = params[k]
+      if (!p || p.value === null) secMissing.push(p ? (p.error ? `${p.label} — ${p.error}` : p.label) : k)
+      return p?.value ?? null
+    })
+    const perUnit = vals.every((v) => v !== null) ? clean((vals as number[]).reduce((a, v) => a * v, 1)) : null
+    const baseLabel = UNIT_LABEL[spec.unit]
+    const fromDims = spec.quantity && perUnit !== null ? clean(spec.quantity.value * perUnit) : null
+    let quantity: Computed | null = null
+    let missing: string[]
+    if (manualP.value !== null) {
+      quantity = { value: manualP.value, unit: 'm³', trace: [{ label: 'Drewno — ilość podana przez użytkownika', formula: 'wpisane ręcznie', values: fmt(manualP.value), result: manualP.value, unit: 'm³', ...(fromDims !== null ? { note: `z wymiarów wyszłoby ${fmt(fromDims, 4)} m³` } : {}) }] }
+      missing = []
+    } else {
+      missing = [...spec.missing, ...secMissing]
+      if (spec.quantity && perUnit !== null) {
+        quantity = {
+          value: fromDims!,
+          unit: 'm³',
+          trace: [
+            ...spec.quantity.trace,
+            { label: `Drewno — m³ na 1 ${baseLabel}`, formula: sec.formula, values: sec.uses.map((k) => fmt(params[k].value!)).join(' × '), result: perUnit, unit: `m³/${baseLabel}` },
+            { label: 'Drewno — ilość w m³', formula: `${baseLabel} × m³/${baseLabel}`, values: `${fmt(spec.quantity.value)} × ${fmt(perUnit, 6)}`, result: fromDims!, unit: 'm³' },
+          ],
+        }
+      }
+    }
+    const { packaging: _p, chargeFullPacks: _c, ...rest } = spec
+    return { ...rest, unit: 'm3' as Unit, quantity, params, missing, priceBasis: 'perUnit' as const, timber: { m3: true, baseUnit: spec.unit, fromDims, manual: manualP.value } }
+  })
 }

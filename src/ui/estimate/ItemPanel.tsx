@@ -105,6 +105,22 @@ export function ItemPanel({
         return ci ? <CustomItemFields item={ci} update={update} onDeleted={onClose} /> : null
       })()}
 
+      {s.timber && (
+        <div className="ip-row">
+          <Check
+            label={`Drewno rozliczane za m³ (zamiast za ${perUnitLabel(s.timber.baseUnit)})`}
+            checked={s.timber.m3}
+            onChange={(v) => update((p) => { p.timberBilling = { ...(p.timberBilling ?? {}), [s.id]: v } })}
+          />
+          {s.timber.m3 && (
+            <span className="muted small">
+              {' '}
+              {s.timber.fromDims !== null ? `z wymiarów: ${fmtQty(s.timber.fromDims, 3)} m³` : 'podaj wymiary przekroju albo wpisz m³'}
+              {s.timber.manual !== null ? ` · wpisane: ${fmtQty(s.timber.manual, 3)} m³` : ''}
+            </span>
+          )}
+        </div>
+      )}
       {s.manualQty?.allowLumpSum && (
         <div className="ip-row">
           <Check

@@ -36,6 +36,18 @@ export function perUnitLabel(u: Unit): string {
   return u === 'doba' ? 'dobę' : UNIT_LABEL[u]
 }
 
+/** Drewno (deski, łaty, paliki…) — można rozliczyć za m³ zamiast za szt / mb. */
+export interface TimberInfo {
+  /** true — rozliczenie za m³. */
+  m3: boolean
+  /** Jednostka pozycji przy rozliczeniu za sztukę / mb. */
+  baseUnit: Unit
+  /** m³ wyliczone z wymiarów (null — brak wymiarów); przy wpisaniu ręcznym — dla porównania. */
+  fromDims: number | null
+  /** m³ wpisane przez użytkownika (null — liczone z wymiarów). */
+  manual: number | null
+}
+
 export interface ManualQty {
   /** Klucz parametru z ilością. */
   key: string
@@ -120,6 +132,8 @@ export interface ItemSpec {
   cutting?: ItemCutting
   /** Ilość wpisywana ręcznie (pole w wierszu) i sposób rozliczenia. */
   manualQty?: ManualQty
+  /** Drewno: rozliczenie za jednostkę (szt / mb) albo za m³. */
+  timber?: TimberInfo
 }
 
 /** Pozycja z kosztem. */

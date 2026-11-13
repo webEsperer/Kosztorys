@@ -181,6 +181,10 @@ interface Item {
 
 Ilość do zakupu = `ceil(ilość × (1 + odpad) / perPack)` opakowań; koszt = opakowania × cena (lub ilość × cena).
 
+**Drewno** (deski szalunkowe, paliki, deseczki, kontrłaty, łaty, deski czołowe, łaty szczytów, ruszt podbitki — bez boazerii):
+wybór rozliczenia **za szt / mb albo za m³** (wg użytkownika). Za m³: ilość × przekrój (m³ na jednostkę z wymiarów;
+brakujące wymiary przekroju = uzupełnij) albo m³ wpisane ręcznie w wierszu (ma pierwszeństwo). `TIMBER_SECTIONS` w `stages/common.ts`.
+
 ## Śledzenie obliczeń (trace) — wymóg kluczowy
 
 Krok: `{ label, formula, values, result, unit }`. Kroki odwołujące się do wielkości pochodnych (obwód, poziomy,

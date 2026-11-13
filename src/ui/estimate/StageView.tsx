@@ -99,11 +99,34 @@ export function StageView({
                             onChange={(v) => update((p) => { p.itemParams[s.id] = { ...(p.itemParams[s.id] ?? {}), [s.manualQty!.key]: v } })}
                           />
                         </div>
+                      ) : s.timber?.m3 ? (
+                        <div className="r-qty r-qty-input" onClick={(e) => e.stopPropagation()} title="m³ wpisane ręcznie; puste = z wymiarów">
+                          <NumField
+                            nonNegative
+                            label=""
+                            unit="m³"
+                            width={60}
+                            placeholder={s.timber.fromDims !== null ? fmtQty(s.timber.fromDims, 3) : 'ile?'}
+                            value={s.timber.manual}
+                            onChange={(v) => update((p) => { p.itemParams[s.id] = { ...(p.itemParams[s.id] ?? {}), m3: v } })}
+                          />
+                        </div>
                       ) : (
                         <div className="r-qty">{qtyText(r)}</div>
                       )}
                       <div className="r-pack muted">{packText(r)}</div>
                       <div className="r-price" onClick={(e) => e.stopPropagation()}>
+                        {s.timber && (
+                          <select
+                            className="billing"
+                            title="Drewno: rozliczenie za sztukę / mb albo za m³"
+                            value={s.timber.m3 ? 'm3' : 'unit'}
+                            onChange={(e) => update((p) => { p.timberBilling = { ...(p.timberBilling ?? {}), [s.id]: e.target.value === 'm3' } })}
+                          >
+                            <option value="unit">za {perUnitLabel(s.timber.baseUnit)}</option>
+                            <option value="m3">za m³</option>
+                          </select>
+                        )}
                         {s.manualQty?.allowLumpSum && (
                           <select
                             className="billing"

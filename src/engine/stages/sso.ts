@@ -9,7 +9,7 @@ import { type ItemCutting, type ItemSpec, need } from '../items'
 import type { LevelsResult } from '../levels'
 import { computeRebarElement, defaultFootingRebar, defaultRingBeamRebar } from '../rebar'
 import { type Computed, ceilSafe, clean, fmt } from '../trace'
-import { attempt, computed, feltRolls, lumpItem, makeBuilder, manualItem, pourItems, projectBase, rebarItems } from './common'
+import { applyTimber, attempt, computed, feltRolls, lumpItem, makeBuilder, manualItem, pourItems, projectBase, rebarItems } from './common'
 
 // ─── SSO ────────────────────────────────────────────────────────────────────
 
@@ -467,5 +467,5 @@ export function buildSSO(project: ProjectInput): { items: ItemSpec[]; context: S
   }
   items.push(manualItem(b, 'sso-zlacza', C6, 'material', 'Złącza krzyżowe do bednarki', 'szt', 'Liczba złączy'))
 
-  return { items, context: { levels, levelsMissing } }
+  return { items: applyTimber(b, items), context: { levels, levelsMissing } }
 }
