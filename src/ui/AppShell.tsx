@@ -316,7 +316,7 @@ export function AppShell() {
           <ExportView estimate={estimate} project={project} />
         ) : (
           <Suspense fallback={<p className="loading">Ładowanie wizualizacji…</p>}>
-            <FoundationViewer />
+            <FoundationViewer project={project} update={update} />
           </Suspense>
         )}
         </ErrorBoundary>

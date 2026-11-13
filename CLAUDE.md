@@ -247,7 +247,9 @@ z sumy mb); masa = pręty × 6 m × kg/m. Masa: Ø6 = 0,222 kg/m, Ø8 = 0,395, �
 - Przykład 12 × 9 m (boki w osi 12,24 / 9,24), ława 60 × 40: Ø12 = 4 × 51,36 + 19,2 = 224,64 m → 38 prętów;
   strzemiona 220 szt × 1,74 m = 382,8 m → 64 pręty Ø6.
 
-**Wizualizacja (ui/foundation-view/):** przekrój pionowy fundamentu (wycinek 3D, R3F) i rzut rozłożenia zbrojenia
+**Wizualizacja (ui/foundation-view/, zakładka „Fundament 3D”):** wymiary **wspólne z danymi projektu** (ława, bloczek,
+warstwy, wieniec, obrys, ściana, warstwy podłogi) — edycja w obu miejscach zmienia projekt i kosztorys; przekrój pionowy
+fundamentu (wycinek 3D, R3F) i rzut rozłożenia zbrojenia
 (kawałki prętów, zakłady, zakotwienia, eLki, strzemiona) — dane z `engine/rebarLayout.ts` i
 `engine/foundationSection.ts`; etykiety jako nakładka DOM (nie drei `<Html>` — problemy z React 19).
 

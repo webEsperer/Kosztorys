@@ -1,6 +1,9 @@
-// Podgląd fundamentu: przekrój pionowy i rzut zbrojenia. Wszystkie liczby z engine/.
+// Podgląd fundamentu: przekrój pionowy i rzut zbrojenia. Wszystkie liczby z engine/, wymiary z danych projektu.
 
 import { useMemo, useState } from 'react'
+import type { ProjectInput } from '../../model/project'
+import type { Update } from '../project-form/ProjectForm'
+import { NumField } from '../common/fields'
 import { computeGeometry } from '../../engine/geometry'
 import { computeLevels, DEFAULT_LEVELS } from '../../engine/levels'
 import {
@@ -19,93 +22,94 @@ import { FormworkOsb } from '../cutting/FormworkOsb'
 import { pl } from './sceneUtils'
 import './foundation-view.css'
 
-interface FormCm {
-  lengthIn: number
-  widthIn: number
-  wall: number
-  footingWidth: number
-  footingHeight: number
-  fwThickness: number
-  blockHeight: number
-  joint: number
-  layers: number
-  ringBeamHeight: number
+/** Pole formularza powiązane z danymi projektu (wartości w metrach; w polu cm). */
+interface Field {
+  label: string
+  unit: 'cm' | 'szt'
+  get: (p: ProjectInput) => number | null
+  set: (p: ProjectInput, v: number | null) => void
+  /** Pole wymagane do rysunku (null = uzupełnij). */
+  required?: boolean
+  /** Puste pole niedozwolone (wartość zawsze jest). */
+  noEmpty?: boolean
+  step?: number
 }
 
-// Wymiary ławy i bloczka fundamentowego to dane PRZYKŁADOWE — w projekcie podaje je użytkownik.
-const INITIAL: FormCm = {
-  lengthIn: 1200,
-  widthIn: 900,
-  wall: 24,
-  footingWidth: 60,
-  footingHeight: 40,
-  fwThickness: 24,
-  blockHeight: 12,
-  joint: 1,
-  layers: 5,
-  ringBeamHeight: 25,
-}
-
-const FIELDS: { key: keyof FormCm; label: string; unit: string; step?: number }[] = [
-  { key: 'lengthIn', label: 'Długość wewn.', unit: 'cm' },
-  { key: 'widthIn', label: 'Szerokość wewn.', unit: 'cm' },
-  { key: 'wall', label: 'Ściana nośna', unit: 'cm' },
-  { key: 'footingWidth', label: 'Ława — szerokość', unit: 'cm' },
-  { key: 'footingHeight', label: 'Ława — wysokość', unit: 'cm' },
-  { key: 'fwThickness', label: 'Ściana fund. — grubość', unit: 'cm' },
-  { key: 'blockHeight', label: 'Bloczek fund. — wysokość', unit: 'cm', step: 0.5 },
-  { key: 'joint', label: 'Spoina', unit: 'cm', step: 0.1 },
-  { key: 'layers', label: 'Warstwy bloczków', unit: 'szt' },
-  { key: 'ringBeamHeight', label: 'Wieniec fund. — wysokość', unit: 'cm' },
+// Wspólne z „Danymi projektu” — zmiana tutaj zmienia projekt i kosztorys (i odwrotnie).
+const FIELDS: Field[] = [
+  { label: 'Długość wewn.', unit: 'cm', get: (p) => p.footprint.length, set: (p, v) => { p.footprint.length = v ?? p.footprint.length }, noEmpty: true },
+  { label: 'Szerokość wewn.', unit: 'cm', get: (p) => p.footprint.width, set: (p, v) => { p.footprint.width = v ?? p.footprint.width }, noEmpty: true },
+  { label: 'Ściana nośna', unit: 'cm', get: (p) => p.wallThickness, set: (p, v) => { p.wallThickness = v ?? p.wallThickness }, noEmpty: true },
+  { label: 'Ława — szerokość', unit: 'cm', get: (p) => p.foundation.footingWidth, set: (p, v) => { p.foundation.footingWidth = v }, required: true },
+  { label: 'Ława — wysokość', unit: 'cm', get: (p) => p.foundation.footingHeight, set: (p, v) => { p.foundation.footingHeight = v }, required: true },
+  { label: 'Ściana fund. — grubość (szer. bloczka)', unit: 'cm', get: (p) => p.foundation.blockWidth, set: (p, v) => { p.foundation.blockWidth = v }, required: true },
+  { label: 'Bloczek fund. — wysokość', unit: 'cm', get: (p) => p.foundation.blockHeight, set: (p, v) => { p.foundation.blockHeight = v }, required: true, step: 0.5 },
+  { label: 'Spoina', unit: 'cm', get: (p) => p.foundation.jointThickness, set: (p, v) => { p.foundation.jointThickness = v }, required: true, step: 0.1 },
+  { label: 'Warstwy bloczków', unit: 'szt', get: (p) => p.foundation.layers, set: (p, v) => { p.foundation.layers = v === null ? null : Math.round(v) }, required: true },
+  { label: 'Wieniec fund. — wysokość', unit: 'cm', get: (p) => p.foundation.ringBeamHeight, set: (p, v) => { p.foundation.ringBeamHeight = v ?? p.foundation.ringBeamHeight }, noEmpty: true },
 ]
 
 type Tab = 'przekroj' | 'rzut' | 'osb'
 
-export function FoundationViewer() {
-  const [form, setForm] = useState<FormCm>(INITIAL)
+export function FoundationViewer({ project, update }: { project: ProjectInput; update: Update }) {
   const [tab, setTab] = useState<Tab>('przekroj')
 
   const model = useMemo(() => {
+    const f = project.foundation
+    const fl = project.floorLayers
+    const missing: string[] = []
+    if (f.footingWidth === null) missing.push('szerokość ławy')
+    if (f.footingHeight === null) missing.push('wysokość ławy')
+    if (f.blockWidth === null) missing.push('grubość ściany fundamentowej (szerokość bloczka)')
+    if (f.blockHeight === null) missing.push('wysokość bloczka fundamentowego')
+    if (f.jointThickness === null) missing.push('spoina bloczków fundamentowych')
+    if (f.layers === null) missing.push('liczba warstw bloczków')
+    if (fl.insulation === null || fl.screed === null || fl.finish === null) missing.push('warstwy podłogi (Dane projektu → 2. Wysokości)')
+    if (missing.length) return { ok: false as const, error: `Uzupełnij: ${missing.join(', ')}` }
     try {
-      const m = (x: number) => x / 100
-      const t = m(form.wall)
+      const t = project.wallThickness
+      const fw = f.blockWidth!
       const geo = computeGeometry({
-        footprint: { kind: 'rect', length: m(form.lengthIn), width: m(form.widthIn) },
+        footprint: { kind: 'rect', length: project.footprint.length, width: project.footprint.width },
         wallThickness: t,
-        facadeInsulation: 0.2,
+        facadeInsulation: project.facadeInsulation,
       })
+      const floorLayers = { insulation: fl.insulation!, screed: fl.screed!, finish: fl.finish! }
       const lv = computeLevels({
         ...DEFAULT_LEVELS,
+        clearHeight: project.clearHeight,
+        floorLayers,
+        slabThickness: project.slabThickness,
         foundation: {
-          ...DEFAULT_LEVELS.foundation,
-          blockHeight: m(form.blockHeight),
-          jointThickness: m(form.joint),
-          layers: Math.round(form.layers),
-          ringBeamHeight: m(form.ringBeamHeight),
-          footingHeight: m(form.footingHeight),
+          blockHeight: f.blockHeight!,
+          jointThickness: f.jointThickness!,
+          layers: f.layers!,
+          ringBeamHeight: f.ringBeamHeight,
+          footingFormworkHeight: f.footingFormworkHeight,
+          footingHeight: f.footingHeight,
         },
       })
-      const axis: AxisRect = { length: m(form.lengthIn) + t, width: m(form.widthIn) + t }
+      const axis: AxisRect = { length: project.footprint.length + t, width: project.footprint.width + t }
       const pOs = geo.axisPerimeter.value
-      const footP = defaultFootingRebar(m(form.footingWidth), m(form.footingHeight))
-      const ringP = defaultRingBeamRebar(m(form.fwThickness), m(form.ringBeamHeight))
+      const footP = defaultFootingRebar(f.footingWidth!, f.footingHeight!)
+      const ringP = defaultRingBeamRebar(fw, f.ringBeamHeight)
       const sides = rectSides(axis)
       const footR = computeRebarElement('Ławy', sides, footP)
       const ringR = computeRebarElement('Wieniec fundamentowy', sides, ringP)
       const section = buildFoundationSection({
         wallThickness: t,
-        facadeInsulation: 0.2,
-        foundationInsulation: 0.1,
-        foundationWallThickness: m(form.fwThickness),
-        blockHeight: m(form.blockHeight),
-        jointThickness: m(form.joint),
-        layers: Math.round(form.layers),
-        footingWidth: m(form.footingWidth),
-        footingHeight: m(form.footingHeight),
-        ringBeamWidth: m(form.fwThickness),
-        ringBeamHeight: m(form.ringBeamHeight),
-        slabThickness: DEFAULT_LEVELS.slabThickness,
-        floorLayers: DEFAULT_LEVELS.floorLayers,
+        facadeInsulation: project.facadeInsulation,
+        foundationInsulation: project.foundationInsulation,
+        foundationWallThickness: fw,
+        blockHeight: f.blockHeight!,
+        jointThickness: f.jointThickness!,
+        layers: f.layers!,
+        footingWidth: f.footingWidth!,
+        footingHeight: f.footingHeight!,
+        ringBeamWidth: fw,
+        ringBeamHeight: f.ringBeamHeight,
+        slabThickness: project.slabThickness,
+        floorLayers,
         slabTop: lv.slabTop.value,
         foundation: lv.foundation.value,
         footingRebar: footP,
@@ -116,12 +120,12 @@ export function FoundationViewer() {
         { key: 'lawa', name: 'Ława', layout: layoutRebarPlan(axis, footP, footR) },
         { key: 'wieniec', name: 'Wieniec fund.', layout: layoutRebarPlan(axis, ringP, ringR) },
       ]
-      const ringBeam = { width: m(form.fwThickness), height: m(form.ringBeamHeight) }
+      const ringBeam = { width: fw, height: f.ringBeamHeight }
       return { ok: true as const, pOs, axis, ringBeam, section, elements, results: [footR, ringR], summary: summarizeRebar([footR, ringR]) }
     } catch (e) {
       return { ok: false as const, error: e instanceof Error ? e.message : String(e) }
     }
-  }, [form])
+  }, [project])
 
   return (
     <div className="fv">
@@ -133,22 +137,21 @@ export function FoundationViewer() {
       <div className="fv-body">
         <aside className="fv-side">
           <h2>Parametry</h2>
-          <p className="fv-note">Wymiary ławy i bloczka fundamentowego są przykładowe — wpisz swoje.</p>
+          <p className="fv-note">Wymiary wspólne z „Danymi projektu” — zmiana tutaj zmienia też projekt i kosztorys.</p>
           <div className="fv-form">
-            {FIELDS.map((f) => (
-              <label key={f.key}>
-                <span>{f.label}</span>
-                <span className="fv-input">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step={f.step ?? 1}
-                    value={form[f.key]}
-                    onChange={(e) => setForm({ ...form, [f.key]: Number(e.target.value) })}
-                  />
-                  <em>{f.unit}</em>
-                </span>
-              </label>
+            {FIELDS.map((fd) => (
+              <NumField
+                key={fd.label}
+                label={fd.label}
+                unit={fd.unit}
+                scale={fd.unit === 'cm' ? 100 : 1}
+                positive={fd.unit === 'cm' && fd.label !== 'Spoina'}
+                nonNegative
+                required={fd.required}
+                allowEmpty={!fd.noEmpty}
+                value={fd.get(project)}
+                onChange={(v) => update((p) => fd.set(p, v))}
+              />
             ))}
           </div>
 
