@@ -399,7 +399,7 @@ export function computeFoundationLevels(
 
 /**
  * Ściany działowe kończą się ponad górną krawędzią stelaża sufitu GK (wg użytkownika), ale nie wyżej niż wieniec:
- *   h_dz_p = h_światło + GK + stelaż + zapas (domyślnie 2 cm; 1–2 cm)
+ *   h_dz_p = h_światło + GK + stelaż + 3 cm ponad górną krawędź profili (wg użytkownika)
  */
 export function partitionHeightAboveFloor(clearHeight: number, c: CeilingBuildUp, margin: number, wallRingBeamTop: number | null): Computed {
   const value = clean(clearHeight + c.board + c.grid + margin)
@@ -410,13 +410,13 @@ export function partitionHeightAboveFloor(clearHeight: number, c: CeilingBuildUp
     trace: [
       {
         label: 'Ściany działowe — wysokość od gotowej posadzki',
-        formula: 'h_światło + GK + stelaż + zapas',
+        formula: 'h_światło + GK + stelaż + ponad profile',
         values: `${fmt(clearHeight)} + ${fmt(c.board)} + ${fmt(c.grid)} + ${fmt(margin)}`,
         result: value,
         unit: 'm',
         note: over
           ? `UWAGA: wyżej niż góra wieńca ścian nośnych (${fmt(wallRingBeamTop!)} m)`
-          : 'ponad górną krawędź stelaża GK' + (wallRingBeamTop !== null ? `, poniżej góry wieńca (${fmt(wallRingBeamTop)} m)` : ''),
+          : 'ponad górną krawędź profili GK' + (wallRingBeamTop !== null ? `, poniżej góry wieńca (${fmt(wallRingBeamTop)} m)` : ''),
       },
     ],
   }

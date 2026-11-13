@@ -146,7 +146,7 @@ describe('SSZ — ściany działowe i drzwi', () => {
     const q = buildSSZ({ ...p, partitions: { ...p.partitions, heightAboveFloor: null }, itemParams: { 'ssz-dz-bloczki': { lintelHeight: 0.24 } } }).items
     expect(byId(q, 'ssz-dz-bloczki').quantity?.value).toBeCloseTo((30 * 3.022 - 11.178 - 1.86) * 7.062147, 4)
     const t = renderTrace(byId(q, 'ssz-dz-bloczki').quantity!.trace)
-    expect(t).toContain('ponad górną krawędź stelaża GK')
+    expect(t).toContain('ponad górną krawędź profili GK')
     const r = buildSSZ({ ...p, partitions: { ...p.partitions, heightAboveFloor: null, topMargin: 0.01 }, itemParams: { 'ssz-dz-bloczki': { lintelHeight: 0.24 } } }).items
     expect(byId(r, 'ssz-dz-bloczki').quantity?.value).toBeCloseTo((30 * 3.012 - 11.178 - 1.86) * 7.062147, 4)
   })

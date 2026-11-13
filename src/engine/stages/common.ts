@@ -355,7 +355,7 @@ export function projectBase(project: ProjectInput): ProjectBase {
   const partitionAbove: Computed =
     pp.heightAboveFloor !== null && pp.heightAboveFloor !== undefined
       ? computed('Ściany działowe — wysokość od gotowej posadzki', 'podana ręcznie', fmt(pp.heightAboveFloor), pp.heightAboveFloor, 'm')
-      : partitionHeightAboveFloor(project.clearHeight, project.ceiling, pp.topMargin ?? 0.02, wallHeightMissing.length ? null : ringTop.value)
+      : partitionHeightAboveFloor(project.clearHeight, project.ceiling, pp.topMargin ?? 0.03, wallHeightMissing.length ? null : ringTop.value)
   const partitionHeight: Computed | null = floorBuild
     ? (() => {
         const h = partitionWallHeight(partitionAbove.value, floorBuild)

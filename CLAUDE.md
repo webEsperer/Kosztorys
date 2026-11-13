@@ -94,7 +94,7 @@ Zasady:
 | Góra chudziaka = góra wieńca fundamentowego | − suma warstw podłogi (np. −23 cm) |
 | Sufit podwieszany: płyta GK 1,2 + stelaż krzyżowy 2 × 3 cm + pustka 15 cm (dojście wkrętarką do wieszaków) | 22,2 cm |
 | **Wysokość ścian nośnych: gotowa posadzka → góra wieńca** (konstrukcja dachu na wieńcu, sufit pod nią) | **podaje użytkownik** (podpowiedź: w świetle + warstwy sufitu, np. 270 + 22,2 = +292,2 cm; ostrzeżenie, gdy nad sufitem mniej miejsca niż GK + stelaż + pustka) |
-| Ściany działowe od gotowej posadzki (pierwsza warstwa na chudziaku): ponad stelaż GK, nie wyżej niż wieniec | w świetle + GK + stelaż + zapas 2 cm = 279,2 cm (+ warstwy podłogi) |
+| Ściany działowe od gotowej posadzki (pierwsza warstwa na chudziaku): ponad stelaż GK, nie wyżej niż wieniec | w świetle + GK + stelaż + 3 cm = 280,2 cm (+ warstwy podłogi) |
 | Wieniec ścian minimalny | 25 cm |
 | Grubość chudziaka | 10 cm |
 | Kąt nachylenia dachu | podaje użytkownik |
@@ -200,7 +200,7 @@ Bloczki H+H Gold 24 — ściany nośne
 ## Betonowania (wspólny moduł concrete.ts)
 
 Każde betonowanie (ławy, wieniec fundamentowy, chudziak, wieniec ścian) ma osobno:
-- objętość m³ + **zapas** (wg użytkownika: **ławy w gruncie 10%, wieńce 5%**, chudziak 3%), potem **zamówienie
+- objętość m³ + **zapas** (wg użytkownika: **ławy w gruncie 10%, chudziak 10%, wieńce 5%**), potem **zamówienie
   zaokrąglone w górę do 0,5 m³** (parametr); gdy pełne m³ w dół nadal ≥ objętość bez zapasu — pokazywana druga możliwość.
   Przykłady: ławy 9,2 + 10% = 10,12 → zamawiasz 10,5 m³ lub 10 m³; wieniec 9,2 + 5% = 9,66 → zamawiasz 10 m³.
   Koszt betonu, transportu (kursy) i pompy za m³ liczony od objętości zamówionej. Klasa betonu (opis), cena betonu za m³,
@@ -385,8 +385,8 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
 
 ### Ściany działowe
 - Dane: mb ścian; pierwsza warstwa stoi na chudziaku. **Wysokość od gotowej posadzki (wg użytkownika): ponad górną
-  krawędź stelaża GK, ale nie wyżej niż wieniec** — `h_światło + GK + stelaż + zapas` (zapas 1–2 cm, domyślnie 2 cm):
-  270 + 1,2 + 6 + 2 = 279,2 cm; mur od chudziaka = to + warstwy podłogi (np. 302,2 cm). Ostrzeżenie, gdy wyżej niż
+  krawędź stelaża GK, ale nie wyżej niż wieniec** — `h_światło + GK + stelaż + 3 cm ponad górną krawędź profili` (wg użytkownika):
+  270 + 1,2 + 6 + 3 = 280,2 cm; mur od chudziaka = to + warstwy podłogi (np. + 24 = 304,2 cm). Ostrzeżenie, gdy wyżej niż
   góra wieńca. Wysokość od posadzki lub cały mur można podać ręcznie; otwory drzwiowe.
 - Bloczki (np. **H+H Gold 590 × 120 × 240 mm**; wymiary od użytkownika → szt/m²) [licz] (netto po odjęciu
   otworów i nadproży).
@@ -635,7 +635,7 @@ Układ: profile główne wzdłuż dłuższego boku pomieszczenia, nośne krzyżo
    zapamiętuje z bieżącego projektu bloczek fundamentowy, warstwy podłogi, sufit, kąt dachu i okapy; „Nowy” je wpisuje.
    Szablon wbudowany = **dom użytkownika** (`builtInTemplate`): bloczek fund. 38 × 24 × 12, nośny 59 × 24 (ściana 24),
    działowy 59 × 24 (ściana 12), spoina fund. 1,5 cm, ława 50 × 40 cm, 6 warstw bloczków fund., wieniec fund. 25 cm, chudziak 10 cm (góra = góra wieńca), podłoga EPS 3 × 5 = 15 cm + wylewka 7 cm + płytka z klejem 2 cm = 24 cm,
-   ściany nośne 2,80 m od gotowej posadzki, działowe 47 mb (wysokość ponad stelaż GK + 2 cm), dach 30°, okapy 60 cm
+   ściany nośne 2,80 m od gotowej posadzki, działowe 47 mb (wysokość 3 cm ponad profile GK), dach 30°, okapy 60 cm
    (poziomo od lica elewacji), otwory: 9 okien, 3 drzwi zewn., 7 drzwi wewn. (`USER_OPENINGS`).
    „Wczytaj domyślne” wpisuje szablon do bieżącego projektu. Wartości w projekcie zawsze edytowalne.
 

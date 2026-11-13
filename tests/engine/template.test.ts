@@ -19,7 +19,7 @@ describe('szablon nowego projektu — dane domu użytkownika', () => {
 
   it('ściany nośne 2,80 od posadzki, działowe 47 mb, dach 30°, okapy 60 cm', () => {
     expect(p.wallHeight).toBe(2.8)
-    expect(p.partitions).toMatchObject({ length: 47, heightAboveFloor: null, topMargin: 0.02 })
+    expect(p.partitions).toMatchObject({ length: 47, heightAboveFloor: null, topMargin: 0.03 })
     expect(p.roof).toMatchObject({ pitchDeg: 30, eaveOverhang: 0.6, gableOverhang: 0.6 })
   })
 
@@ -95,5 +95,14 @@ describe('dom użytkownika — poziomy fundamentu', () => {
     expect(L.footingTop).toBeCloseTo(-1.3, 9)
     expect(L.excavationBottom).toBeCloseTo(-1.42, 9)
     expect(L.footingBottom).toBeCloseTo(-1.7, 9)
+  })
+})
+
+describe('dom użytkownika — ściany działowe 3 cm ponad profile GK', () => {
+  it('270 + 1,2 + 6 + 3 = 280,2 cm od posadzki; + podłoga 24 = 304,2 cm muru od chudziaka', async () => {
+    const { projectBase } = await import('../../src/engine/stages/common')
+    const b = projectBase(applyTemplate(newProject(), builtInTemplate(newProject())))
+    expect(b.partitionAbove.value).toBeCloseTo(2.802, 9)
+    expect(b.partitionHeight!.value).toBeCloseTo(3.042, 9)
   })
 })

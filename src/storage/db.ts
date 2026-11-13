@@ -61,15 +61,14 @@ export function upgradeProject(data: Partial<ProjectInput>): ProjectInput {
   merged.ceilingRules = { ...base.ceilingRules, ...(data.ceilingRules ?? {}) }
   merged.planRules = { ...base.planRules, ...(data.planRules ?? {}) }
   merged.gables = { ...base.gables, ...(data.gables ?? {}) }
-  // Nowe zasady betonu (2026-11-13): zapas ławy 10%, wieńce 5%, zamówienie w górę do 0,5 m³.
-  // Stare zapisy (bez kroku zamówienia) z dawnym domyślnym naddatkiem 3% → nowe wartości domyślne.
+  // Zasady betonu (2026-11-13): zapas ławy 10%, chudziak 10%, wieńce 5%, zamówienie w górę do 0,5 m³.
+  // Dawny domyślny naddatek 3% → nowe wartości domyślne; brak kroku zamówienia → 0,5 m³.
   for (const k of ['footing', 'foundationRingBeam', 'slab', 'wallRingBeam'] as const) {
     const c = merged.concrete[k]
-    if (c.orderStep === undefined) {
-      const extraPercent = c.extraPercent === 3 && k !== 'slab' ? base.concrete[k].extraPercent : c.extraPercent
-      merged.concrete[k] = { ...c, extraPercent, orderStep: 0.5 }
-    }
+    merged.concrete[k] = { ...c, extraPercent: c.extraPercent === 3 ? base.concrete[k].extraPercent : c.extraPercent, orderStep: c.orderStep ?? 0.5 }
   }
+  // Ściany działowe: 3 cm ponad profile GK (wcześniej domyślnie 2 cm).
+  if (merged.partitions.topMargin === undefined || merged.partitions.topMargin === 0.02) merged.partitions.topMargin = 0.03
   // 2,80 m było stałą domyślną (2026-11-12); teraz wysokość działowych liczona z sufitu GK + zapas.
   if (data.partitions?.heightAboveFloor === 2.8) merged.partitions.heightAboveFloor = null
   // Starsze zapisy: szczyt daszku „boazeria” oznaczał wełnę + boazerię.

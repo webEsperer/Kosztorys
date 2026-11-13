@@ -1,7 +1,7 @@
 // Dane projektu (wejście kreatora + nadpisania użytkownika). Wymiary w metrach, kwoty w groszach.
 
 import type { ConcretePourParams } from '../engine/concrete'
-import { defaultPourParams, FOOTING_EXTRA_PERCENT, RING_BEAM_EXTRA_PERCENT } from '../engine/concrete'
+import { defaultPourParams, FOOTING_EXTRA_PERCENT, RING_BEAM_EXTRA_PERCENT, SLAB_EXTRA_PERCENT } from '../engine/concrete'
 import type { Grosze } from '../engine/money'
 import type { Stage } from '../engine/items'
 import type { CustomItem } from '../engine/stages/custom'
@@ -115,7 +115,7 @@ export interface ProjectInput {
   ceilingRules: CeilingRules
   /**
    * Ściany działowe: suma mb; pierwsza warstwa na chudziaku. Wysokość od gotowej posadzki (wg użytkownika):
-   * ponad górną krawędź stelaża GK = h_światło + GK + stelaż + `topMargin` (1–2 cm), nie wyżej niż wieniec.
+   * ponad górną krawędź profili GK = h_światło + GK + stelaż + `topMargin` (3 cm), nie wyżej niż wieniec.
    * `heightAboveFloor` — ręcznie (null = liczona); `height` — ręcznie cała wysokość muru od chudziaka (null = liczona).
    */
   partitions: { length: number | null; height: number | null; heightAboveFloor: number | null; topMargin: number }
@@ -175,7 +175,7 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
     concrete: {
       footing: defaultPourParams('C20/25', FOOTING_EXTRA_PERCENT),
       foundationRingBeam: defaultPourParams('C20/25', RING_BEAM_EXTRA_PERCENT),
-      slab: { ...defaultPourParams('C12/15 z włóknami'), fibers: { enabled: false, kgPerM3: null, pricePerKgGrosze: null } },
+      slab: { ...defaultPourParams('C12/15 z włóknami', SLAB_EXTRA_PERCENT), fibers: { enabled: false, kgPerM3: null, pricePerKgGrosze: null } },
       wallRingBeam: defaultPourParams('C20/25', RING_BEAM_EXTRA_PERCENT),
     },
     openings: [],
@@ -185,7 +185,7 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
     planRules: { minPier: 0.25 },
     rooms: [],
     ceilingRules: DEFAULT_CEILING_RULES,
-    partitions: { length: null, height: null, heightAboveFloor: null, topMargin: 0.02 },
+    partitions: { length: null, height: null, heightAboveFloor: null, topMargin: 0.03 },
     choices: { foundationRingBeamOsbVariant: null, wallRingBeamOsbVariant: null, foundationFeltVariant: null, wallFeltVariant: null },
     itemParams: {},
     prices: {},

@@ -30,8 +30,9 @@ describe('SSO — nowy projekt bez danych fundamentu', () => {
     expect(byId(items, 'sso-sf-bloczki').missing).toContain('długość bloczka fundamentowego')
   })
 
-  it('chudziak liczy się od razu: 108 × 0,10 = 10,8 + 3% = 11,124 → zamawiasz 11,5 m³, 2 kursy', () => {
-    expect(byId(items, 'sso-chudziak-beton').quantity?.value).toBe(11.5)
+  it('chudziak liczy się od razu: 108 × 0,10 = 10,8 + 10% = 11,88 → zamawiasz 12 m³ lub 11 m³, 2 kursy', () => {
+    expect(byId(items, 'sso-chudziak-beton').quantity?.value).toBe(12)
+    expect(byId(items, 'sso-chudziak-beton').note).toBe('10,8 m³ + 10% = 11,88 m³ → zamawiasz 12 m³ lub 11 m³')
     expect(byId(items, 'sso-chudziak-transport').quantity?.value).toBe(2)
   })
 

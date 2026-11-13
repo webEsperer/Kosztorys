@@ -86,7 +86,7 @@ export interface ConcreteFibers {
 }
 
 export interface ConcretePourParams {
-  /** Zapas objętości [%] — wg użytkownika: ławy w gruncie 10%, wieńce 5%. */
+  /** Zapas objętości [%] — wg użytkownika: ławy w gruncie 10%, chudziak 10%, wieńce 5%. */
   extraPercent: number
   /** Zaokrąglenie zamówienia w górę do wielokrotności [m³] (domyślnie 0,5; brak = 0,5). */
   orderStep?: number
@@ -101,8 +101,9 @@ export interface ConcretePourParams {
 
 export const DEFAULT_TRUCK_CAPACITY_M3 = 8
 export const DEFAULT_CONCRETE_EXTRA_PERCENT = 3
-/** Zapas betonu wg użytkownika: ławy w gruncie 10%, wieńce 5%. */
+/** Zapas betonu wg użytkownika: ławy w gruncie 10%, chudziak 10%, wieńce 5%. */
 export const FOOTING_EXTRA_PERCENT = 10
+export const SLAB_EXTRA_PERCENT = 10
 export const RING_BEAM_EXTRA_PERCENT = 5
 export const DEFAULT_ORDER_STEP_M3 = 0.5
 

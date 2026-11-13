@@ -162,31 +162,8 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
 
       <Section title="4. Ściany działowe">
         <NumField positive label="Długość ścian działowych" unit="m" required value={project.partitions.length} onChange={(v) => update((p) => { p.partitions.length = v })} />
-        <NumField nonNegative allowEmpty={false} label="Zapas ponad stelaż GK" {...CM} value={project.partitions.topMargin} onChange={(v) => update((p) => { p.partitions.topMargin = v ?? 0.02 })} />
-        <NumField positive label="Wysokość od posadzki ręcznie (puste = sufit + GK + stelaż + zapas)" {...CM} value={project.partitions.heightAboveFloor} onChange={(v) => update((p) => { p.partitions.heightAboveFloor = v })} />
-        <NumField positive label="Wysokość muru od chudziaka ręcznie (puste = liczona)" {...CM} value={project.partitions.height} onChange={(v) => update((p) => { p.partitions.height = v })} />
-        {base && (
-          <p className="calc">
-            {project.partitions.heightAboveFloor === null ? (
-              <>
-                Od posadzki: {fmtQty(project.clearHeight * 100, 1)} + GK {fmtQty(project.ceiling.board * 100, 1)} + stelaż {fmtQty(project.ceiling.grid * 100, 1)} + zapas{' '}
-                {fmtQty(project.partitions.topMargin * 100, 1)} = <b>{fmtQty(base.partitionAbove.value * 100, 1)} cm</b>
-              </>
-            ) : (
-              <>Od posadzki (ręcznie): <b>{fmtQty(base.partitionAbove.value * 100, 1)} cm</b></>
-            )}
-            {base.wallHeightMissing.length === 0 && base.partitionAbove.value > base.ringTop.value + 1e-9 && (
-              <span className="todo-inline"> — wyżej niż góra wieńca (+{fmtQty(base.ringTop.value * 100, 1)} cm)!</span>
-            )}
-            {project.partitions.height !== null ? (
-              <>; mur podany ręcznie: <b>{fmtQty(project.partitions.height * 100, 1)} cm</b></>
-            ) : base.partitionHeight ? (
-              <>; mur od chudziaka: + podłoga {fmtQty(base.floorBuild!.value * 100, 1)} = <b>{fmtQty(base.partitionHeight.value * 100, 1)} cm</b></>
-            ) : (
-              <span className="todo-inline">; mur od chudziaka: uzupełnij warstwy podłogi</span>
-            )}
-          </p>
-        )}
+        <NumField nonNegative allowEmpty={false} label="Ściana wyżej niż górna krawędź profili GK o" {...CM} value={project.partitions.topMargin} onChange={(v) => update((p) => { p.partitions.topMargin = v ?? 0.03 })} />
+        {base && <PartitionHeightBreakdown project={project} base={base} update={update} />}
         <NumField positive label="Bloczek — długość" {...CM} required value={project.partitionBlock.blockLength} onChange={(v) => update((p) => { p.partitionBlock.blockLength = v })} />
         <NumField positive label="Bloczek — wysokość" {...CM} required value={project.partitionBlock.blockHeight} onChange={(v) => update((p) => { p.partitionBlock.blockHeight = v })} />
         <NumField nonNegative allowEmpty={false} label="Spoina" {...CM} value={project.partitionBlock.jointThickness} onChange={(v) => update((p) => { p.partitionBlock.jointThickness = v ?? 0 })} />
@@ -257,6 +234,55 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
         <NumField nonNegative allowEmpty={false} label="Profile nośne — skrajny od ściany" {...CM} value={project.ceilingRules.carrierEdge} onChange={(v) => update((p) => { p.ceilingRules.carrierEdge = v ?? 0.1 })} />
         <NumField positive allowEmpty={false} label="Kołki UD27 — rozstaw" {...CM} value={project.ceilingRules.udAnchorSpacing} onChange={(v) => update((p) => { p.ceilingRules.udAnchorSpacing = v ?? 0.6 })} />
       </Section>
+    </div>
+  )
+}
+
+/** Rozpisanie wysokości ścian działowych krok po kroku (wg użytkownika: 3 cm ponad górną krawędź profili GK). */
+function PartitionHeightBreakdown({ project, base, update }: { project: ProjectInput; base: ReturnType<typeof projectBase>; update: Update }) {
+  const cm = (m: number) => fmtQty(m * 100, 1)
+  const pp = project.partitions
+  const manual = pp.heightAboveFloor !== null || pp.height !== null
+  const fl = project.floorLayers
+  const over = base.wallHeightMissing.length === 0 && base.partitionAbove.value > base.ringTop.value + 1e-9
+  return (
+    <div className="calc partition-breakdown">
+      {manual ? (
+        <p>
+          Wysokość wpisana wcześniej ręcznie:{' '}
+          <b>{pp.height !== null ? `${cm(pp.height)} cm muru od chudziaka` : `${cm(pp.heightAboveFloor!)} cm od posadzki`}</b>{' '}
+          <button className="btn" onClick={() => update((p) => { p.partitions.heightAboveFloor = null; p.partitions.height = null })}>
+            Licz automatycznie
+          </button>
+        </p>
+      ) : (
+        <table className="sum-table">
+          <tbody>
+            <tr><th>Gotowa posadzka → gotowy sufit (w świetle)</th><td>{cm(project.clearHeight)} cm</td></tr>
+            <tr><th>+ płyta GK</th><td>{cm(project.ceiling.board)} cm</td></tr>
+            <tr><th>+ stelaż (do górnej krawędzi profili)</th><td>{cm(project.ceiling.grid)} cm</td></tr>
+            <tr><th>+ ściana wyżej niż profile o</th><td>{cm(pp.topMargin)} cm</td></tr>
+            <tr><th><b>= wysokość od gotowej posadzki</b></th><td><b>{cm(base.partitionAbove.value)} cm</b></td></tr>
+            {base.floorBuild && base.partitionHeight ? (
+              <>
+                <tr>
+                  <th>+ warstwy pod posadzką do chudziaka (izolacja {cm(fl.insulation ?? 0)} + wylewka {cm(fl.screed ?? 0)} + wykończenie {cm(fl.finish ?? 0)})</th>
+                  <td>{cm(base.floorBuild.value)} cm</td>
+                </tr>
+                <tr><th><b>= wysokość muru od chudziaka</b> (pierwsza warstwa na chudziaku)</th><td><b>{cm(base.partitionHeight.value)} cm</b></td></tr>
+              </>
+            ) : (
+              <tr><th className="todo-inline">Wysokość muru od chudziaka: uzupełnij warstwy podłogi</th><td /></tr>
+            )}
+          </tbody>
+        </table>
+      )}
+      {over && (
+        <p className="todo-inline">
+          Uwaga: ściana działowa ({cm(base.partitionAbove.value)} cm) wychodzi ponad górę wieńca ścian nośnych ({cm(base.ringTop.value)} cm od posadzki) o{' '}
+          {cm(base.partitionAbove.value - base.ringTop.value)} cm.
+        </p>
+      )}
     </div>
   )
 }
