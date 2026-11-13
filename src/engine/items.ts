@@ -151,6 +151,8 @@ export function priceKey(spec: Pick<ItemSpec, 'id' | 'netPrice'>): string {
 /** Pozycja z kosztem. */
 export interface ItemResult {
   spec: ItemSpec
+  /** Pozycja w sekcji (kategorii / etapie) wyłączonej z liczenia — koszt policzony, ale nie wchodzi do sum. */
+  excluded?: boolean
   /** Ilość z odpadem (w jednostce pozycji). */
   quantityWithWaste: number | null
   /** Liczba opakowań (gdy pozycja ma opakowanie). */
@@ -329,7 +331,7 @@ export function sumItems(results: ItemResult[]): { totalGrosze: Grosze; complete
   let total = 0
   let missingCount = 0
   for (const r of results) {
-    if (!r.spec.enabled) continue
+    if (!r.spec.enabled || r.excluded) continue
     if (r.costGrosze !== null) total += r.costGrosze
     if (r.missing.length > 0 || r.costGrosze === null) missingCount++
   }

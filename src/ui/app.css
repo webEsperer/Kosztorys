@@ -18,10 +18,8 @@
 }
 
 /* ── Pasek górny ───────────────────────────────── */
+/* Górny pasek (projekt, Nowy, Ustaw jako domyślne…) — zwykły nagłówek, odjeżdża przy przewijaniu (wg użytkownika) */
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -117,6 +115,10 @@
 
 /* ── Zakładki ──────────────────────────────────── */
 .tabs {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  transition: transform 0.22s ease;
   display: flex;
   gap: 2px;
   padding: 0 12px;
@@ -139,6 +141,65 @@
   color: var(--muted);
   font: inherit;
   cursor: pointer;
+}
+
+.tabs.tabs-hidden {
+  transform: translateY(-100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabs {
+    transition: none;
+  }
+}
+
+/* ── Sekcje zwijane (karty danych projektu, kategorie etapów, podsumowanie, eksport) ── */
+.fold-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fold-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.fold-aside {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.chev {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  margin: 0 4px 3px 2px;
+  transition: transform 0.15s ease;
+}
+
+.folded .chev {
+  transform: rotate(-45deg);
+  margin-bottom: 0;
+}
+
+.card.folded > h2 {
+  margin-bottom: 0;
+}
+
+.cat.folded > h3 {
+  border-bottom: none;
 }
 
 .tabs button.on {
@@ -445,6 +506,95 @@
   font-size: 1.15rem;
 }
 
+.stage-head {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.stage-head .stage-total {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px 8px;
+}
+
+.excluded-note {
+  font-weight: 400;
+  text-decoration: line-through;
+}
+
+/* Przełącznik „liczona / nie liczona” sekcji */
+.sec-switch {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.sec-switch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sec-switch-track {
+  position: relative;
+  width: 30px;
+  height: 17px;
+  border-radius: 9px;
+  background: var(--border);
+  transition: background 0.15s ease;
+}
+
+.sec-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease;
+}
+
+.sec-switch.on .sec-switch-track {
+  background: var(--accent);
+}
+
+.sec-switch.on .sec-switch-thumb {
+  transform: translateX(13px);
+}
+
+.sec-switch.on .sec-switch-label {
+  color: var(--text);
+}
+
+.sec-switch-label {
+  min-width: 5.6em;
+}
+
+.cat h3 {
+  align-items: center;
+}
+
+.cat-excluded .rows {
+  opacity: 0.5;
+}
+
+.cat-excluded > h3 .fold-title {
+  color: var(--muted);
+}
+
 .stage-total {
   font-size: 1.15rem;
   font-weight: 700;
@@ -743,17 +893,11 @@
 
 @media (max-width: 600px) {
   .topbar {
-    position: static;
     padding: 8px 10px;
   }
   .top-actions .btn {
     padding: 4px 8px;
     font-size: 0.8rem;
-  }
-  .tabs {
-    position: sticky;
-    top: 0;
-    z-index: 10;
   }
 }
 

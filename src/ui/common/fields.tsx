@@ -160,11 +160,9 @@ export function Select<T extends string>({ label, value, options, onChange }: { 
 
 export function Section({ title, children, note }: { title: string; children: ReactNode; note?: ReactNode }) {
   return (
-    <section className="card">
-      <h2>{title}</h2>
-      {note && <p className="muted small">{note}</p>}
+    <Card title={title} foldKey={`dane:${title}`} note={note}>
       <div className="fields">{children}</div>
-    </section>
+    </Card>
   )
 }
 
@@ -179,5 +177,64 @@ export function FoldRow({ summary, children, defaultOpen = false, className = ''
       <summary>{summary}</summary>
       {open && <div className="fold-body">{children}</div>}
     </details>
+  )
+}
+
+/** Stan zwinięcia sekcji zapamiętany w przeglądarce (wygoda — brak pamięci nie psuje działania). */
+export function useFoldState(key: string, defaultOpen = true): [boolean, () => void] {
+  const storageKey = `fold:${key}`
+  const [open, setOpen] = useState<boolean>(() => {
+    try {
+      const v = localStorage.getItem(storageKey)
+      return v === null ? defaultOpen : v === '1'
+    } catch {
+      return defaultOpen
+    }
+  })
+  const toggle = () =>
+    setOpen((o) => {
+      try {
+        localStorage.setItem(storageKey, o ? '0' : '1')
+      } catch {
+        /* brak dostępu do pamięci przeglądarki */
+      }
+      return !o
+    })
+  return [open, toggle]
+}
+
+/** Karta sekcji zwijana kliknięciem w nagłówek (wg użytkownika: każda sekcja rozwijana i zwijana). */
+export function Card({
+  title,
+  foldKey,
+  className = '',
+  note,
+  aside,
+  children,
+}: {
+  title: ReactNode
+  foldKey: string
+  className?: string
+  note?: ReactNode
+  aside?: ReactNode
+  children: ReactNode
+}) {
+  const [open, toggle] = useFoldState(foldKey)
+  return (
+    <section className={`card foldable${open ? '' : ' folded'} ${className}`}>
+      <h2>
+        <button type="button" className="fold-head" aria-expanded={open} onClick={toggle}>
+          <span className="chev" aria-hidden="true" />
+          <span className="fold-title">{title}</span>
+          {aside && <span className="fold-aside">{aside}</span>}
+        </button>
+      </h2>
+      {open && (
+        <>
+          {note && <p className="muted small">{note}</p>}
+          {children}
+        </>
+      )}
+    </section>
   )
 }

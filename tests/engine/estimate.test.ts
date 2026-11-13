@@ -85,3 +85,34 @@ describe('Kosztorys całości', () => {
     expect(computeEstimate(p).todo.some((t) => t.itemId === 'og-ogrodzenie')).toBe(false)
   })
 })
+
+describe('Sekcje wyłączone z liczenia (wg użytkownika)', () => {
+  const priced = (): ProjectInput => {
+    const p = newProject()
+    const lumps = buildGeneral(p).items.filter((i) => i.enabled && i.priceBasis === 'lumpSum')
+    for (const i of lumps.slice(0, 3)) p.prices[i.id] = 100_000
+    return p
+  }
+  it('wyłączona kategoria nie wchodzi do sumy etapu, ale jej koszt jest pokazany osobno', () => {
+    const p = priced()
+    const base = computeEstimate(p)
+    const og = base.stages.find((s) => s.stage === 'OGOLNE')!
+    const cat = base.items.find((r) => r.spec.stage === 'OGOLNE' && r.costGrosze)!.spec.category
+    const catSum = base.items.filter((r) => r.spec.stage === 'OGOLNE' && r.spec.category === cat && r.spec.enabled).reduce((a, r) => a + (r.costGrosze ?? 0), 0)
+    expect(catSum).toBeGreaterThan(0)
+    const ex = computeEstimate({ ...p, excludedSections: { [`OGOLNE|${cat}`]: true } })
+    const og2 = ex.stages.find((s) => s.stage === 'OGOLNE')!
+    expect(og2.totalGrosze).toBe(og.totalGrosze - catSum)
+    expect(og2.excludedGrosze).toBe(catSum)
+    expect(ex.todo.some((t) => t.stage === 'OGOLNE' && t.category === cat)).toBe(false)
+    expect(ex.items.filter((r) => r.spec.category === cat && r.spec.stage === 'OGOLNE').every((r) => r.excluded)).toBe(true)
+  })
+  it('wyłączony cały etap: suma 0, brak braków z tego etapu, pozostałe etapy bez zmian', () => {
+    const p = priced()
+    const base = computeEstimate(p)
+    const ex = computeEstimate({ ...p, excludedSections: { 'OGOLNE|*': true } })
+    expect(ex.stages.find((s) => s.stage === 'OGOLNE')!.totalGrosze).toBe(0)
+    expect(ex.todo.some((t) => t.stage === 'OGOLNE')).toBe(false)
+    expect(ex.stages.find((s) => s.stage === 'SSO')!.totalGrosze).toBe(base.stages.find((s) => s.stage === 'SSO')!.totalGrosze)
+  })
+})

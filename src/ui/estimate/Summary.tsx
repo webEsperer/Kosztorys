@@ -3,13 +3,12 @@
 import { KIND_LABEL, STAGE_LABEL, type Estimate } from '../../engine/estimate'
 import type { ItemKind, Stage } from '../../engine/items'
 import { formatPLN, netFromGross } from '../../engine/money'
-import { fmtQty } from '../common/fields'
+import { Card, fmtQty } from '../common/fields'
 
 export function Summary({ estimate, onOpen, vatPercent }: { estimate: Estimate; onOpen: (stage: Stage) => void; vatPercent: number | null }) {
   return (
     <div className="summary">
-      <section className="card">
-        <h2>Podsumowanie budowy</h2>
+      <Card title="Podsumowanie budowy" foldKey="podsum:budowa">
         <table className="sum-table">
           <thead>
             <tr>
@@ -23,7 +22,14 @@ export function Summary({ estimate, onOpen, vatPercent }: { estimate: Estimate; 
             {estimate.stages.map((s) => (
               <tr key={s.stage} onClick={() => onOpen(s.stage)} className="clickable">
                 <th>{STAGE_LABEL[s.stage]}</th>
-                <td>{formatPLN(s.totalGrosze)}</td>
+                <td>
+                  {formatPLN(s.totalGrosze)}
+                  {s.excludedGrosze > 0 && (
+                    <div className="muted small" title="Sekcje wyłączone z liczenia — tyle by kosztowały">
+                      nie liczone: <s>{formatPLN(s.excludedGrosze)}</s>
+                    </div>
+                  )}
+                </td>
                 <td>{fmtQty(estimate.shares[s.stage], 1)}%</td>
                 <td>{s.missingCount ? <span className="badge warn">{s.missingCount}</span> : <span className="badge ok">komplet</span>}</td>
               </tr>
@@ -62,11 +68,21 @@ export function Summary({ estimate, onOpen, vatPercent }: { estimate: Estimate; 
             )}
           </tfoot>
         </table>
+        {(() => {
+          const ex = estimate.stages.reduce((a, s) => a + s.excludedGrosze, 0)
+          if (ex <= 0) return null
+          const full = estimate.subtotalGrosze + ex
+          const fullTotal = full + Math.round((full * estimate.reservePercent) / 100)
+          return (
+            <p className="muted small">
+              Sekcje wyłączone z liczenia kosztowałyby {formatPLN(ex)} (z rezerwą {formatPLN(fullTotal - estimate.totalGrosze)}) — razem z nimi budowa: {formatPLN(fullTotal)}.
+            </p>
+          )
+        })()}
         {!estimate.complete && <p className="warn-text">Kosztorys niepełny — {estimate.todo.length} pozycji bez ceny lub danych (poniżej).</p>}
-      </section>
+      </Card>
 
-      <section className="card">
-        <h2>Podział na rodzaje</h2>
+      <Card title="Podział na rodzaje" foldKey="podsum:rodzaje">
         <table className="sum-table">
           <thead>
             <tr>
@@ -87,7 +103,7 @@ export function Summary({ estimate, onOpen, vatPercent }: { estimate: Estimate; 
             ))}
           </tbody>
         </table>
-      </section>
+      </Card>
     </div>
   )
 }
@@ -98,10 +114,7 @@ export function TodoList({ estimate, onOpenItem }: { estimate: Estimate; onOpenI
   return (
     <div className="todo">
       {stages.map((st) => (
-        <section key={st} className="card">
-          <h2>
-            {STAGE_LABEL[st]} <span className="badge warn">{estimate.todo.filter((t) => t.stage === st).length}</span>
-          </h2>
+        <Card key={st} title={<>{STAGE_LABEL[st]} <span className="badge warn">{estimate.todo.filter((t) => t.stage === st).length}</span></>} foldKey={`braki:${st}`}>
           <ul>
             {estimate.todo
               .filter((t) => t.stage === st)
@@ -114,7 +127,7 @@ export function TodoList({ estimate, onOpenItem }: { estimate: Estimate; onOpenI
                 </li>
               ))}
           </ul>
-        </section>
+        </Card>
       ))}
     </div>
   )

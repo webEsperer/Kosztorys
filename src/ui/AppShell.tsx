@@ -57,6 +57,20 @@ export function AppShell() {
   const fileRef = useRef<HTMLInputElement>(null)
   // Poprzednia wersja projektu — do „Cofnij ostatnią zmianę”, gdy widok się wywróci
   const undoRef = useRef<ProjectInput | null>(null)
+  // Pasek zakładek przyklejony do góry: chowa się przy przewijaniu w dół, wraca przy przewijaniu w górę (wg użytkownika).
+  const [tabsHidden, setTabsHidden] = useState(false)
+  useEffect(() => {
+    let last = window.scrollY
+    const onScroll = () => {
+      const y = window.scrollY
+      const dy = y - last
+      if (Math.abs(dy) < 6) return
+      setTabsHidden(dy > 0 && y > 120)
+      last = y
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   const refresh = useCallback(async () => setProjects(await listProjects()), [])
 
@@ -230,7 +244,7 @@ export function AppShell() {
         </p>
       )}
 
-      <nav className="tabs" role="tablist">
+      <nav className={`tabs${tabsHidden ? ' tabs-hidden' : ''}`} role="tablist" onFocusCapture={() => setTabsHidden(false)}>
         {(['dane', 'rzut', ...STAGES, 'podsumowanie', 'braki', 'dach', 'dom3d', 'eksport', 'fundament'] as Tab[]).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => { setTab(t); setSelected(null); setRoofHighlight(null) }}>
             {TAB_LABEL[t]}

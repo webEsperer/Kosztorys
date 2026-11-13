@@ -6,7 +6,7 @@ import { STAGE_LABEL, STAGES, type Estimate } from '../../engine/estimate'
 import { estimateCsv, OPENING_COLUMNS, openingSchedule, openingsCsv } from '../../engine/exportData'
 import { formatPLN } from '../../engine/money'
 import type { ProjectInput } from '../../model/project'
-import { Check, fmtQty } from '../common/fields'
+import { Card, Check, fmtQty } from '../common/fields'
 import { itemQtyText } from '../common/itemText'
 
 function download(name: string, text: string, type = 'text/csv;charset=utf-8') {
@@ -42,8 +42,7 @@ export function ExportView({ estimate, project }: { estimate: Estimate; project:
 
   return (
     <div className="form-grid">
-      <section className="card">
-        <h2>Kosztorys</h2>
+      <Card title="Kosztorys" foldKey="eksport:Kosztorys">
         <p className="muted small">CSV otwiera się w Excelu (separator „;”, przecinek dziesiętny). Wydruk: w oknie drukowania wybierz „Zapisz jako PDF”.</p>
         <div className="row-actions">
           <button className="btn" onClick={() => download(`${safe(project.name)} — kosztorys.csv`, estimateCsv(estimate, project))}>
@@ -54,10 +53,9 @@ export function ExportView({ estimate, project }: { estimate: Estimate; project:
           </button>
         </div>
         <Check label="Dołącz „Jak to policzono” do wydruku" checked={withTrace} onChange={setWithTrace} />
-      </section>
+      </Card>
 
-      <section className="card">
-        <h2>Zestawienie otworów dla producenta</h2>
+      <Card title="Zestawienie otworów dla producenta" foldKey="eksport:Zestawienie otworów dla producenta">
         <p className="muted small">Wymiary otworów w murze. Kolumny „Typ otwierania”, „Kolor”, „Uwagi” — do uzupełnienia u producenta.</p>
         <Check label="Dołącz drzwi wewnętrzne" checked={interior} onChange={setInterior} />
         <div className="row-actions">
@@ -69,12 +67,11 @@ export function ExportView({ estimate, project }: { estimate: Estimate; project:
           </button>
         </div>
         {!rows.length && <p className="todo-inline small">Brak otworów — dodaj je w „Dane projektu → Otwory”.</p>}
-      </section>
+      </Card>
 
-      <section className="card">
-        <h2>Projekt (kopia zapasowa)</h2>
+      <Card title="Projekt (kopia zapasowa)" foldKey="eksport:Projekt (kopia zapasowa)">
         <p className="muted small">Pełne dane projektu do przeniesienia na inne urządzenie — przycisk „Eksport JSON” na górze.</p>
-      </section>
+      </Card>
 
       {printing &&
         createPortal(
@@ -148,7 +145,7 @@ function PrintEstimate({ estimate, project, date, withTrace }: { estimate: Estim
         </tbody>
       </table>
       {STAGES.map((st) => {
-        const items = estimate.items.filter((r) => r.spec.stage === st && r.spec.enabled)
+        const items = estimate.items.filter((r) => r.spec.stage === st && r.spec.enabled && !r.excluded)
         return (
           <section key={st} className="print-stage">
             <h2>{STAGE_LABEL[st]}</h2>

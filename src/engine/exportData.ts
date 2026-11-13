@@ -29,7 +29,7 @@ export function estimateCsv(e: Estimate, project: ProjectInput): string {
     ['Etap', 'Kategoria', 'Pozycja', 'Ilość', 'Jedn.', 'Opakowania', 'Jedn. opak.', 'Ilość do zapłaty', 'Jedn. zapłaty', 'Cena [zł]', 'Wartość [zł]', 'Uwagi / braki'],
   ]
   for (const st of STAGES) {
-    for (const r of e.items.filter((x) => x.spec.stage === st && x.spec.enabled)) {
+    for (const r of e.items.filter((x) => x.spec.stage === st && x.spec.enabled && !x.excluded)) {
       const s = r.spec
       rows.push([
         STAGE_LABEL[st],

@@ -142,6 +142,13 @@ export interface ProjectInput {
   timberBilling: Record<string, boolean>
   /** Materiał sypki (piasek) zamawiany w tonach zamiast w m³ wg id pozycji. */
   tonnesBilling?: Record<string, boolean>
+  /**
+   * Sekcje wyłączone z liczenia (wg użytkownika: „co, jeśli tego nie zrobię”): klucz `ETAP|kategoria`,
+   * `ETAP|*` = cały etap. Pozycje zachowują swoje ceny i włączenie — po ponownym włączeniu sekcji wracają.
+   */
+  excludedSections?: Record<string, boolean>
+  /** Wykonane przekształcenia starszych zapisów (upgradeProject), np. `pexPerMb`. */
+  migrations?: Record<string, boolean>
   /** Przeniesienie pozycji do innego etapu wg id. */
   stageOverride: Record<string, Stage>
   /** Rezerwa na nieprzewidziane wydatki: % od sumy etapów (domyślnie 10). */
@@ -201,6 +208,7 @@ export function newProject(name = 'Nowy projekt'): ProjectInput {
     timberBilling: {},
     tonnesBilling: {},
     reservePercent: 10,
+    migrations: { pexPerMb: true },
     customItems: [],
     vatPercent: null,
   }

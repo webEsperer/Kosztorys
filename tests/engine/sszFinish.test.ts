@@ -149,14 +149,37 @@ describe('SSZ — sufit, elewacja, podłoga (przykład)', () => {
     expect(byId(items, 'ssz-podbitka').quantity?.value).toBeCloseTo(exp, 4)
   })
 
-  it('EPS podłogowy 3 × 108 = 324 m²; PEX domyślnie 800 m = 4 zwoje; YDYp 600 m = 6 bębnów', () => {
+  it('EPS podłogowy 3 × 108 = 324 m²; PEX — ilość od użytkownika, za mb; YDYp 600 m = 6 bębnów', () => {
     expect(byId(items, 'ssz-eps-podlogowy').quantity?.value).toBe(324)
-    expect(computeItem(byId(items, 'ssz-pex'), null).packs).toBe(4)
+    expect(byId(items, 'ssz-pex').quantity).toBeNull()
+    expect(byId(items, 'ssz-pex').manualQty?.key).toBe('mb')
     expect(computeItem(byId(items, 'ssz-ydyp-25'), null).packs).toBe(6)
     expect(byId(items, 'ssz-zlaczki-podlogowki').quantity?.value).toBe(22)
   })
 
   it('unikalne id w całym SSZ', () => {
     expect(new Set(items.map((i) => i.id)).size).toBe(items.length)
+  })
+})
+
+describe('Rura PEX — ilość i cena za mb (wg użytkownika)', () => {
+  it('600 mb × 4,50 zł = 2700 zł, bez zwojów', async () => {
+    const { buildSSZ } = await import('../../src/engine/stages/ssz')
+    const { newProject } = await import('../../src/model/project')
+    const p = newProject()
+    p.itemParams['ssz-pex'] = { mb: 600 }
+    const spec = buildSSZ(p).items.find((i) => i.id === 'ssz-pex')!
+    const r = computeItem(spec, 450)
+    expect(r.packs).toBeNull()
+    expect(r.costGrosze).toBe(270_000)
+  })
+  it('stary zapis: cena za zwój 200 m → zł/mb, dawne 800 m zostaje', async () => {
+    const { upgradeProject } = await import('../../src/storage/db')
+    const { newProject } = await import('../../src/model/project')
+    const { migrations: _m, ...old } = newProject()
+    const up = upgradeProject({ ...old, prices: { 'ssz-pex': 90_000 }, itemParams: { 'ssz-pex': { coil: 200 } } })
+    expect(up.prices['ssz-pex']).toBe(450)
+    expect(up.itemParams['ssz-pex']).toEqual({ mb: 800 })
+    expect(upgradeProject(up).prices['ssz-pex']).toBe(450)
   })
 })

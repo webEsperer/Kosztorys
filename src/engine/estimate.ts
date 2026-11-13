@@ -32,6 +32,8 @@ export interface StageSummary {
   missingCount: number
   byCategory: { category: string; totalGrosze: Grosze }[]
   byKind: Record<ItemKind, Grosze>
+  /** Ile kosztowałyby sekcje wyłączone z liczenia (pozycje z ceną) — do porównania „bez tego”. */
+  excludedGrosze: Grosze
 }
 
 export interface TodoEntry {
@@ -65,15 +67,34 @@ export function buildAllItems(project: ProjectInput): ItemSpec[] {
   return all.map((i) => (project.stageOverride[i.id] ? { ...i, stage: project.stageOverride[i.id] } : i))
 }
 
+/** Klucz sekcji wyłączanej z liczenia: `ETAP|kategoria`; `ETAP|*` = cały etap. */
+export function sectionKey(stage: Stage, category: string | '*'): string {
+  return `${stage}|${category}`
+}
+
+/** Czy sekcja (kategoria w etapie) albo cały etap są wyłączone z liczenia. */
+export function isSectionExcluded(project: ProjectInput, stage: Stage, category: string): boolean {
+  const ex = project.excludedSections ?? {}
+  return !!(ex[sectionKey(stage, '*')] || ex[sectionKey(stage, category)])
+}
+
 export function computeEstimate(project: ProjectInput): Estimate {
-  const items = buildAllItems(project).map((s) => computeItem(s, project.prices[priceKey(s)] ?? null))
+  const items = buildAllItems(project).map((s) => {
+    const r = computeItem(s, project.prices[priceKey(s)] ?? null)
+    return isSectionExcluded(project, s.stage, s.category) ? { ...r, excluded: true } : r
+  })
   const stages: StageSummary[] = STAGES.map((stage) => {
     const rs = items.filter((r) => r.spec.stage === stage)
     const s = sumItems(rs)
     const cats = new Map<string, Grosze>()
     const byKind: Record<ItemKind, Grosze> = { material: 0, service: 0, equipment: 0, lumpSum: 0 }
+    let excludedGrosze = 0
     for (const r of rs) {
       if (!r.spec.enabled) continue
+      if (r.excluded) {
+        excludedGrosze += r.costGrosze ?? 0
+        continue
+      }
       const c = r.costGrosze ?? 0
       cats.set(r.spec.category, (cats.get(r.spec.category) ?? 0) + c)
       byKind[r.spec.kind] += c
@@ -85,6 +106,7 @@ export function computeEstimate(project: ProjectInput): Estimate {
       missingCount: s.missingCount,
       byCategory: [...cats.entries()].map(([category, totalGrosze]) => ({ category, totalGrosze })),
       byKind,
+      excludedGrosze,
     }
   })
   const subtotal = stages.reduce((a, s) => a + s.totalGrosze, 0)
@@ -93,7 +115,7 @@ export function computeEstimate(project: ProjectInput): Estimate {
   const shares = Object.fromEntries(stages.map((s) => [s.stage, subtotal > 0 ? (s.totalGrosze / subtotal) * 100 : 0])) as Record<Stage, number>
   const area = projectBase(project).aWew.value
   const todo: TodoEntry[] = items
-    .filter((r) => r.spec.enabled && (r.missing.length > 0 || r.costGrosze === null))
+    .filter((r) => r.spec.enabled && !r.excluded && (r.missing.length > 0 || r.costGrosze === null))
     .map((r) => ({ itemId: r.spec.id, stage: r.spec.stage, category: r.spec.category, name: r.spec.name, missing: r.missing.length ? r.missing : ['cena'] }))
   return {
     items,

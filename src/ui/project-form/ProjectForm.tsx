@@ -5,7 +5,7 @@ import type { ConcretePourParams } from '../../engine/concrete'
 import { gableSpanInterior, projectBase } from '../../engine/stages/common'
 import { roofOf } from '../../engine/stages/sszRoof'
 import { gableWallsGross } from '../../engine/facade'
-import { Check, NumField, Section, Select, TextField, fmtQty } from '../common/fields'
+import { Card, Check, NumField, Section, Select, TextField, fmtQty } from '../common/fields'
 import { OpeningsEditor } from './OpeningsEditor'
 import { ErrorBoundary } from '../common/ErrorBoundary'
 import { RoomsEditor } from './RoomsEditor'
@@ -159,15 +159,13 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
         <NumField positive allowEmpty={false} label="Wieniec fund. — wysokość" {...CM} value={f.ringBeamHeight} onChange={(v) => update((p) => { p.foundation.ringBeamHeight = v ?? 0.25 })} />
       </Section>
 
-      <section className="card span2">
-        <h2>Schemat poziomów (kontrola danych)</h2>
+      <Card className="span2" title="Schemat poziomów (kontrola danych)" foldKey="dane:poziomy">
         <ErrorBoundary inline resetKey={project}>
           <LevelsDiagram project={project} />
         </ErrorBoundary>
-      </section>
+      </Card>
 
-      <section className="card wide">
-        <h2>6. Dach</h2>
+      <Card className="wide" title="6. Dach" foldKey="dane:dach">
         <div className="fields roof-fields">
         <NumField positive label="Kąt nachylenia" unit="°" required value={project.roof.pitchDeg} onChange={(v) => update((p) => { p.roof.pitchDeg = v })} />
         <NumField nonNegative label="Okap boczny (od lica EPS)" {...CM} required value={project.roof.eaveOverhang} onChange={(v) => update((p) => { p.roof.eaveOverhang = v })} />
@@ -185,7 +183,7 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
         <ErrorBoundary inline resetKey={project}>
           <DormersEditor project={project} update={update} />
         </ErrorBoundary>
-      </section>
+      </Card>
 
       <Section title="7. Betonowania">
         <PourFields title="Ławy" pp={project.concrete.footing} set={(fn) => update((p) => fn(p.concrete.footing))} />
@@ -194,15 +192,13 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
         <PourFields title="Wieniec ścian" pp={project.concrete.wallRingBeam} set={(fn) => update((p) => fn(p.concrete.wallRingBeam))} />
       </Section>
 
-      <section className="card wide">
-        <h2>8. Otwory</h2>
+      <Card className="wide" title="8. Otwory" foldKey="dane:otwory">
         <OpeningsEditor project={project} update={update} />
-      </section>
+      </Card>
 
-      <section className="card wide">
-        <h2>9. Pomieszczenia</h2>
+      <Card className="wide" title="9. Pomieszczenia" foldKey="dane:pomieszczenia">
         <RoomsEditor project={project} update={update} />
-      </section>
+      </Card>
 
       <Section title="10. Sufit — rozmieszczenie profili" note="Profile główne wzdłuż dłuższego boku pomieszczenia, nośne krzyżowo; płyty prostopadle do nośnych.">
         <NumField positive allowEmpty={false} label="Profile główne — rozstaw" {...CM} value={project.ceilingRules.mainSpacing} onChange={(v) => update((p) => { p.ceilingRules.mainSpacing = v ?? 1 })} />

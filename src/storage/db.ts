@@ -81,6 +81,17 @@ export function upgradeProject(data: Partial<ProjectInput>): ProjectInput {
     const auto = Math.round((merged.clearHeight + c.board + c.grid + c.voidAbove) * 1e6) / 1e6
     if (merged.wallHeight === undefined || merged.wallHeight === 2.8 || (merged.wallHeight !== null && Math.abs(merged.wallHeight - auto) < 1e-6)) merged.wallHeight = null
   }
+  // Rura PEX (2026-11-13, wg użytkownika): cena za mb zamiast za zwój, ilość wpisywana przez użytkownika.
+  // Starsza cena za zwój → przeliczona na zł/mb (cena / metrów w zwoju); dawny domyślny 800 m zostaje wpisany.
+  if (!data.migrations?.pexPerMb) {
+    const pex = merged.itemParams['ssz-pex'] ?? {}
+    const coil = pex.coil ?? 200
+    const old = merged.prices['ssz-pex']
+    merged.prices = { ...merged.prices, ...(old != null && coil > 0 ? { 'ssz-pex': Math.round(old / coil) } : {}) }
+    const { coil: _c, ...rest } = pex
+    merged.itemParams = { ...merged.itemParams, 'ssz-pex': { mb: 800, ...rest } }
+    merged.migrations = { ...(merged.migrations ?? {}), pexPerMb: true }
+  }
   return merged
 }
 

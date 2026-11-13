@@ -332,24 +332,22 @@ export function finishItems(b: Builder, project: ProjectInput): ItemSpec[] {
   const C5 = 'Instalacje'
   {
     const id = 'ssz-pex'
-    const params = { mb: b.P(id, 'mb', 'Rura PEX 16 — długość', 800, 'm', `kontrolnie A_wew × 6,7 = ${fmt(clean(aWew.value * 6.7))} m (rozstaw 15 cm)`) }
+    // Wg użytkownika: ilość rury (mb) wpisuje użytkownik w wierszu, cena za mb (bez zwojów).
+    const params = { mb: b.P(id, 'mb', 'Rura PEX 16 — ile metrów', null, 'mb', `kontrolnie A_wew × 6,7 = ${fmt(clean(aWew.value * 6.7))} m (rozstaw 15 cm)`) }
     const missing: string[] = []
     const v = need(params, 'mb', missing)
-    const pack = b.P(id, 'coil', 'Metrów w zwoju', 200, 'm')
-    out.push(
-      b.item({
-        id,
-        category: C5,
-        kind: 'material',
-        name: 'Rura PEX 16 do podłogówki',
-        unit: 'mb',
-        params: { ...params, coil: pack },
-        missing,
-        quantity: v !== null ? { value: v, unit: 'm', trace: [{ label: 'Rura PEX', formula: 'podaje użytkownik', values: fmt(v), result: v, unit: 'm' }, { label: 'Kontrolnie', formula: 'A_wew × 6,7 mb/m²', values: `${fmt(aWew.value)} × 6,7`, result: clean(aWew.value * 6.7), unit: 'm' }] } : null,
-        packaging: { packUnit: 'szt', perPack: pack.value, packLabel: `zwój ${fmt(pack.value ?? 0)} m` },
-        priceBasis: 'perPack',
-      }),
-    )
+    const spec = b.item({
+      id,
+      category: C5,
+      kind: 'material',
+      name: 'Rura PEX 16 do podłogówki',
+      unit: 'mb',
+      params,
+      missing,
+      quantity: v !== null ? { value: v, unit: 'm', trace: [{ label: 'Rura PEX', formula: 'podaje użytkownik', values: fmt(v), result: v, unit: 'm' }, { label: 'Kontrolnie (rozstaw 15 cm)', formula: 'A_wew × 6,7 mb/m²', values: `${fmt(aWew.value)} × 6,7`, result: clean(aWew.value * 6.7), unit: 'm' }] } : null,
+      note: `Wpisz, ile metrów rury potrzebujesz (z projektu instalacji), i cenę za mb. Kontrolnie: ${fmt(clean(aWew.value * 6.7))} m przy rozstawie 15 cm.`,
+    })
+    out.push({ ...spec, manualQty: { key: 'mb', allowLumpSum: false, lumpSum: false } })
     const pexBase = v !== null ? computed('Rura PEX', 'podaje użytkownik', fmt(v), v, 'm') : null
     out.push(consumptionItem(b, 'ssz-spinki', C5, 'Spinki do rur', pexBase, missing, { unit: 'szt', rate: { label: 'Spinek na mb rury', unit: 'szt/mb', value: null } }))
   }

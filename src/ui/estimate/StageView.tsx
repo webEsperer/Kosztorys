@@ -2,11 +2,65 @@
 
 import { useEffect, useRef } from 'react'
 import type { Estimate } from '../../engine/estimate'
-import { STAGE_LABEL } from '../../engine/estimate'
+import { STAGE_LABEL, isSectionExcluded, sectionKey } from '../../engine/estimate'
 import { type ItemResult, type Stage, UNIT_LABEL, perUnitLabel, priceKey } from '../../engine/items'
 import { formatPLN } from '../../engine/money'
 import type { ProjectInput } from '../../model/project'
-import { NumField, fmtQty } from '../common/fields'
+import { NumField, fmtQty, useFoldState } from '../common/fields'
+import type { ReactNode } from 'react'
+
+/** Przełącznik „liczona / nie liczona” sekcji (wg użytkownika: zobaczyć kwotę bez danego zakresu prac). */
+function SectionSwitch({ on, disabled, title, onClick }: { on: boolean; disabled?: boolean; title?: string; onClick: () => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} disabled={disabled} className={`sec-switch${on ? ' on' : ''}`} title={title ?? (on ? 'Wyłącz z liczenia' : 'Włącz do liczenia')} onClick={onClick}>
+      <span className="sec-switch-track" aria-hidden="true">
+        <span className="sec-switch-thumb" />
+      </span>
+      <span className="sec-switch-label">{on ? 'liczona' : 'nie liczona'}</span>
+    </button>
+  )
+}
+
+/** Kategoria pozycji — zwijana kliknięciem w nagłówek (suma widoczna także po zwinięciu). */
+function Category({
+  foldKey,
+  title,
+  sum,
+  count,
+  excluded,
+  stageExcluded,
+  onToggleExcluded,
+  children,
+}: {
+  foldKey: string
+  title: string
+  sum: string
+  count: number
+  excluded: boolean
+  stageExcluded: boolean
+  onToggleExcluded: () => void
+  children: ReactNode
+}) {
+  const [open, toggle] = useFoldState(foldKey)
+  return (
+    <section className={`cat${open ? '' : ' folded'}${excluded ? ' cat-excluded' : ''}`}>
+      <h3>
+        <button type="button" className="fold-head" aria-expanded={open} onClick={toggle}>
+          <span className="chev" aria-hidden="true" />
+          <span className="fold-title">
+            {title}
+            {!open && <span className="muted small"> · {count} poz.</span>}
+          </span>
+          <span className="fold-aside" title={excluded ? 'Sekcja nie wchodzi do sumy — tyle by kosztowała' : undefined}>
+            {excluded ? <s>{sum}</s> : sum}
+          </span>
+        </button>
+        <SectionSwitch on={!excluded} disabled={stageExcluded} title={stageExcluded ? 'Cały etap jest wyłączony z liczenia' : undefined} onClick={onToggleExcluded} />
+      </h3>
+      {open && children}
+    </section>
+  )
+}
 import type { Update } from '../project-form/ProjectForm'
 import { ItemPanel } from './ItemPanel'
 import { newCustomItem } from '../../engine/stages/custom'
@@ -48,6 +102,15 @@ export function StageView({
   const cats: string[] = []
   for (const r of rows) if (!cats.includes(r.spec.category)) cats.push(r.spec.category)
   const sel = rows.find((r) => r.spec.id === selected) ?? null
+  const stageExcluded = !!project.excludedSections?.[sectionKey(stage, '*')]
+  const toggleSection = (category: string) =>
+    update((p) => {
+      const key = sectionKey(stage, category)
+      const ex = { ...(p.excludedSections ?? {}) }
+      if (ex[key]) delete ex[key]
+      else ex[key] = true
+      p.excludedSections = ex
+    })
   // Szczegóły pozycji w okienku (pop-up) — strona pod spodem nie przewija się i nie skacze (wg użytkownika).
   const open = sel !== null
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -74,20 +137,30 @@ export function StageView({
       <div className="stage-list">
         <div className="stage-head">
           <h2>{STAGE_LABEL[stage]}</h2>
+          <SectionSwitch on={!stageExcluded} title={stageExcluded ? 'Włącz cały etap do liczenia' : 'Wyłącz cały etap z liczenia'} onClick={() => toggleSection('*')} />
           <div className="stage-total">
             {formatPLN(summary.totalGrosze)}
             {!summary.complete && <span className="badge warn">{summary.missingCount} do uzupełnienia</span>}
+            {summary.excludedGrosze > 0 && (
+              <span className="muted small excluded-note">sekcje nie liczone: {formatPLN(summary.excludedGrosze)}</span>
+            )}
           </div>
         </div>
         {cats.map((c) => {
           const items = rows.filter((r) => r.spec.category === c)
           const sum = items.reduce((a, r) => a + (r.spec.enabled ? (r.costGrosze ?? 0) : 0), 0)
+          const excluded = isSectionExcluded(project, stage, c)
           return (
-            <section key={c} className="cat">
-              <h3>
-                <span>{c}</span>
-                <span>{formatPLN(sum)}</span>
-              </h3>
+            <Category
+              key={c}
+              foldKey={`etap:${stage}:${c}`}
+              title={c}
+              sum={formatPLN(sum)}
+              count={items.length}
+              excluded={excluded}
+              stageExcluded={stageExcluded}
+              onToggleExcluded={() => toggleSection(c)}
+            >
               <div className="rows">
                 {items.map((r) => {
                   const s = r.spec
@@ -139,8 +212,8 @@ export function StageView({
                             value={s.timber.m3 ? 'm3' : 'unit'}
                             onChange={(e) => update((p) => { p.timberBilling = { ...(p.timberBilling ?? {}), [s.id]: e.target.value === 'm3' } })}
                           >
-                            <option value="unit">za {perUnitLabel(s.timber.baseUnit)}</option>
-                            <option value="m3">za m³</option>
+                            <option value="unit">zł/{perUnitLabel(s.timber.baseUnit)}</option>
+                            <option value="m3">zł/m³</option>
                           </select>
                         )}
                         {s.bulk && (
@@ -174,12 +247,14 @@ export function StageView({
                           onChange={(v) => update((p) => { p.prices[priceKey(s)] = v === null ? null : Math.round(v * 100) })}
                         />
                       </div>
-                      <div className="r-cost">{s.enabled ? (r.costGrosze === null ? '—' : formatPLN(r.costGrosze)) : 'wyłączona'}</div>
+                      <div className="r-cost">
+                        {!s.enabled ? 'wyłączona' : r.costGrosze === null ? '—' : r.excluded ? <s title="Sekcja nie liczona">{formatPLN(r.costGrosze)}</s> : formatPLN(r.costGrosze)}
+                      </div>
                     </div>
                   )
                 })}
               </div>
-            </section>
+            </Category>
           )
         })}
         <div className="row-actions">

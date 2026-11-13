@@ -42,6 +42,12 @@ wzór, podstawione dane, kroki pośrednie, naddatek, zaokrąglenie, koszt.
 - Rysunki pomocnicze (plan cięcia płyt OSB i pasów papy, schemat poziomów): SVG generowane w aplikacji.
 - Układ: etapy jako zakładki, pozycje w tabeli; kliknięcie pozycji otwiera **okienko (pop-up) „Jak to policzono”**
   — strona pod spodem zablokowana, bez przewijania i skakania (wg użytkownika; zamyka ✕, Esc, kliknięcie obok).
+- **Każda sekcja zwijana** kliknięciem w nagłówek (`Card` / `useFoldState` w `ui/common/fields.tsx`): karty danych
+  projektu, kategorie pozycji w etapach (suma widoczna po zwinięciu), podsumowanie, braki, eksport; stan zapamiętany
+  w przeglądarce (wg użytkownika).
+- Górny pasek (projekt, Nowy, Ustaw jako domyślne…) — zwykły nagłówek na górze strony, odjeżdża przy przewijaniu;
+  **pasek zakładek** (Dane projektu, SSO, SSZ…) przyklejony do góry ekranu: chowa się przy przewijaniu w dół,
+  wraca przy przewijaniu w górę (wg użytkownika).
 - Listy w danych projektu (otwory, pomieszczenia, daszki, zestawienie otworów) — **zwijane wiersze** (`FoldRow`):
   zwinięty pokazuje jedną linię podsumowania, rozwinięty — pola do edycji; nowo dodany wiersz otwarty (wg użytkownika).
 
@@ -445,7 +451,8 @@ Oznaczenia: **[licz]** — ilość liczy aplikacja; **[ręcznie]** — użytkown
   - gwoździe/wkręty nierdzewne [licz]: szt na płytkę (parametr, domyślnie 2);
   - trace pokazuje rzędy, sztuki na mb i całość.
 - Rynny `2 × R` mb, haki co 60 cm, rury spustowe (liczba × wysokość), narożniki/lejki/zaślepki [licz/ręcznie].
-- Obróbki blacharskie [ręcznie: liczba × cena za obróbkę], w tym obróbki kominów.
+- Obróbki kominów [ręcznie: kwota]. **Inne obróbki blacharskie** (przejścia przez dach, styk ze ścianą itp.)
+  [ręcznie: kwota, domyślnie wyłączona] — wg użytkownika; pasy, wiatrownice i kosze liczone osobno.
 - Ławy kominiarskie (podesty) i stopnie kominiarskie [ręcznie: liczba szt × cena].
 - Opcjonalnie (wyłączone): wkręty/klamry do dachówek, okna dachowe.
 
@@ -602,8 +609,9 @@ Układ: profile główne wzdłuż dłuższego boku pomieszczenia, nośne krzyżo
 - EPS podłogowy 3 × 5 cm [licz]: `3 × A_wew` m² → paczki.
 - Mata/folia systemowa do podłogówki [licz]: `A_wew × 1,05` → rolki.
 - Taśma dylatacyjna przyścienna [licz]: obwody pomieszczeń.
-- Rura PEX 16 [ręcznie, domyślnie 800 m] → zwoje (np. 200 m); kontrolnie aplikacja pokazuje szacunek
-  `A_wew × 6,7 mb/m²` (rozstaw 15 cm).
+- Rura PEX 16 [ręcznie] — **użytkownik wpisuje w wierszu, ile mb rury potrzebuje, cena za mb** (wg użytkownika;
+  bez zwojów; starsze zapisy: cena za zwój przeliczona na zł/mb, dawne 800 m zachowane); kontrolnie aplikacja
+  pokazuje szacunek `A_wew × 6,7 mb/m²` (rozstaw 15 cm).
 - Spinki do rur [licz]: mb PEX × szt/mb (parametr).
 - Rozdzielacz podłogówki 11 obwodów + szafka + złączki (2 na obwód) [licz/ręcznie].
 - Rozdzielacz wody użytkowej [ręcznie] + rury i kształtki wod-kan [ręcznie].
@@ -648,6 +656,10 @@ Układ: profile główne wzdłuż dłuższego boku pomieszczenia, nośne krzyżo
    lub ilość ręczna, liczba sztuk, opakowanie, cena — ilość z wymiarów zależnie od jednostki
    (mb → dł., m² → dł. × szer., m³ → dł. × szer. × wys.), z trace jak dla pozycji domyślnych.
 4. Edycja/wyłączanie/usuwanie pozycji, edycja współczynników, przenoszenie między etapami.
+   **Wyłączanie z liczenia całej sekcji (kategorii) lub całego etapu** (wg użytkownika — „ile wyjdzie, jeśli tego
+   nie zrobię”): przełącznik „liczona / nie liczona” przy nagłówku; `project.excludedSections` (`ETAP|kategoria`,
+   `ETAP|*`), wynik `ItemResult.excluded`; koszt wyłączonych pokazany przekreślony obok sumy i w podsumowaniu
+   (`StageSummary.excludedGrosze`); nie wchodzą do sum, braków ani eksportu; ceny i stan pozycji zostają.
 5. Lista „do uzupełnienia”: wszystkie pozycje bez ceny lub ze zużyciem `null`.
 6. Podsumowanie każdego etapu (suma, podział na kategorie: materiały / usługi / sprzęt)
    i całości (suma etapów, udział %, koszt na m² powierzchni użytkowej, rezerwa).

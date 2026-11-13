@@ -304,7 +304,8 @@ export function roofItems(b: Builder, project: ProjectInput): ItemSpec[] {
 
   // Obróbki i daszki
   const C5 = 'Dach — obróbki'
-  out.push(lumpItem(b, 'ssz-obrobki', C5, 'Obróbki blacharskie (liczba × cena)'))
+  // Wg użytkownika: pozycja zbiorcza na obróbki nieliczone osobno (pasy, wiatrownice, kosze, kominy są wyżej) — domyślnie wyłączona.
+  out.push(lumpItem(b, 'ssz-obrobki', C5, 'Inne obróbki blacharskie (przejścia, styk ze ścianą itp.)', false, 'Obróbki, których nie ma w osobnych pozycjach: przejścia przez dach (kominki wentylacyjne, wywiewka, maszt), styk dachu ze ścianą itp. Pas nadrynnowy/podrynnowy, wiatrownice, kosze i obróbki kominów liczone są osobno.'))
   out.push(lumpItem(b, 'ssz-obrobki-kominow', C5, 'Obróbki kominów'))
   if (nD > 0 && roof) {
     const vq2 = q('Kosze', 'Σ kosze daszków', fmt(roof.valleysLength), roof.valleysLength, 'm')

@@ -107,11 +107,18 @@ export function ItemPanel({
 
       {s.timber && (
         <div className="ip-row">
-          <Check
-            label={`Drewno rozliczane za m³ (zamiast za ${perUnitLabel(s.timber.baseUnit)})`}
-            checked={s.timber.m3}
-            onChange={(v) => update((p) => { p.timberBilling = { ...(p.timberBilling ?? {}), [s.id]: v } })}
-          />
+          <span>Cena drewna:</span>
+          {([false, true] as const).map((m3) => (
+            <button
+              key={String(m3)}
+              type="button"
+              className={`btn${s.timber!.m3 === m3 ? ' on' : ''}`}
+              aria-pressed={s.timber!.m3 === m3}
+              onClick={() => update((p) => { p.timberBilling = { ...(p.timberBilling ?? {}), [s.id]: m3 } })}
+            >
+              {m3 ? 'zł/m³' : `zł/${perUnitLabel(s.timber!.baseUnit)}`}
+            </button>
+          ))}
           {s.timber.m3 && (
             <span className="muted small">
               {' '}
