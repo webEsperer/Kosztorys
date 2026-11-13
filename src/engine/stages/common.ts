@@ -302,8 +302,7 @@ export interface ProjectBase {
   floorBuild: Computed | null
   slabTop: number | null
   /**
-   * Rzędna góry wieńca ścian = wysokość ścian nośnych podana przez użytkownika.
-   * Gdy jej brak (wallHeightMissing) — podpowiedź z sufitu, tylko do rysunków; pozycje są „uzupełnij”.
+   * Rzędna góry wieńca ścian = w świetle + GK + stelaż + pustka (liczona); wysokość ręczna (legacy) — nadpisanie.
    */
   ringTop: Computed
   /** Podpowiedź: wysokość w świetle + GK + stelaż + pustka. */
@@ -347,10 +346,10 @@ export function projectBase(project: ProjectInput): ProjectBase {
 
   const ringTopHint = wallRingBeamTopFromCeiling(project.clearHeight, project.ceiling)
   const wallHeightMissing: string[] = []
-  const wh = project.wallHeight
-  if (wh === null || wh === undefined) wallHeightMissing.push('wysokość ścian nośnych (posadzka → góra wieńca)')
-  else if (!(wh > project.clearHeight)) wallHeightMissing.push('wysokość ścian nośnych większa niż wysokość w świetle')
-  const ringTop = wallHeightMissing.length ? ringTopHint : wallRingBeamTopFromInput(wh!, project.clearHeight, project.ceiling)
+  // Góra wieńca ścian = w świetle + GK + stelaż + pustka (wg użytkownika); wartość ręczna — tylko nadpisanie.
+  const wh = project.wallHeight ?? null
+  if (wh !== null && !(wh > project.clearHeight)) wallHeightMissing.push('wysokość ścian nośnych (ręczna) większa niż wysokość w świetle')
+  const ringTop = wh === null || wallHeightMissing.length ? ringTopHint : wallRingBeamTopFromInput(wh, project.clearHeight, project.ceiling)
   const pp = project.partitions
   const partitionAbove: Computed =
     pp.heightAboveFloor !== null && pp.heightAboveFloor !== undefined

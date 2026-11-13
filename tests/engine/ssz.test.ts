@@ -69,7 +69,7 @@ describe('SSZ — ściany nośne', () => {
 
   it('bez warstw podłogi lub wymiarów bloczka → uzupełnij', () => {
     const q = buildSSZ(newProject()).items
-    expect(byId(q, 'ssz-hh-bloczki').missing).toEqual(expect.arrayContaining(['wysokość ścian nośnych (posadzka → góra wieńca)', 'kąt nachylenia dachu (ściany szczytowe)', 'grubość izolacji na chudziaku', 'grubość wylewki', 'grubość wykończenia podłogi (płytka / panel)', 'długość bloczka', 'wysokość bloczka']))
+    expect(byId(q, 'ssz-hh-bloczki').missing).toEqual(expect.arrayContaining(['kąt nachylenia dachu (ściany szczytowe)', 'grubość izolacji na chudziaku', 'grubość wylewki', 'grubość wykończenia podłogi (płytka / panel)', 'długość bloczka', 'wysokość bloczka']))
     expect(byId(q, 'ssz-ws-beton').quantity).toBeNull()
   })
 

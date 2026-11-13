@@ -17,8 +17,8 @@ describe('szablon nowego projektu — dane domu użytkownika', () => {
     expect(p.floorLayers).toEqual({ insulation: 0.15, screed: 0.07, finish: 0.02 })
   })
 
-  it('ściany nośne 2,80 od posadzki, działowe 47 mb, dach 30°, okapy 60 cm', () => {
-    expect(p.wallHeight).toBe(2.8)
+  it('ściany nośne liczone z sufitu, działowe 47 mb, dach 30°, okapy 60 cm', () => {
+    expect(p.wallHeight).toBeNull()
     expect(p.partitions).toMatchObject({ length: 47, heightAboveFloor: null, topMargin: 0.03 })
     expect(p.roof).toMatchObject({ pitchDeg: 30, eaveOverhang: 0.6, gableOverhang: 0.6 })
   })
@@ -104,5 +104,21 @@ describe('dom użytkownika — ściany działowe 3 cm ponad profile GK', () => {
     const b = projectBase(applyTemplate(newProject(), builtInTemplate(newProject())))
     expect(b.partitionAbove.value).toBeCloseTo(2.802, 9)
     expect(b.partitionHeight!.value).toBeCloseTo(3.042, 9)
+  })
+})
+
+describe('dom użytkownika — ściany nośne z sufitu', () => {
+  it('góra wieńca 270 + 1,2 + 6 + 15 = 292,2; od chudziaka 316,2 = 12 × 24 + reszta 3,2 ≤ 4 → wieniec 28,2 cm, bez docinki', async () => {
+    const { projectBase } = await import('../../src/engine/stages/common')
+    const b = projectBase(applyTemplate(newProject(), builtInTemplate(newProject())))
+    expect(b.ringTop.value).toBeCloseTo(2.922, 9)
+    expect(b.wallMissing).toEqual([])
+    const wl = b.wallLayers!.value
+    expect(wl.height).toBeCloseTo(3.162, 9)
+    expect(wl.fullLayers).toBe(12)
+    expect(wl.cutLayerHeight).toBe(0)
+    expect(wl.ringBeamHeight).toBeCloseTo(0.282, 9)
+    expect(wl.ringBeamBottom).toBeCloseTo(2.64, 9) // mur do +264 cm od posadzki
+    expect(b.partitionAbove.value).toBeLessThan(b.ringTop.value) // działowe 280,2 < 292,2
   })
 })

@@ -124,7 +124,7 @@ export function wallRingBeamTopFromInput(wallHeight: number, clearHeight: number
 }
 
 /**
- * Podpowiedź: góra wieńca ścian nośnych = gotowy sufit + GK + stelaż + pustka.
+ * Góra wieńca ścian nośnych = gotowy sufit + GK + stelaż + pustka (wg użytkownika: 270 + 1,2 + 6 + 15 = 292,2 cm).
  * (Wiązary/konstrukcja dachu opiera się na wieńcu, sufit wisi pod nią.)
  */
 export function wallRingBeamTopFromCeiling(clearHeight: number, c: CeilingBuildUp): Computed {

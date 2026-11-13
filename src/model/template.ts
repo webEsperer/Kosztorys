@@ -62,7 +62,7 @@ export function builtInTemplate(base: ProjectInput): ProjectTemplate {
     foundation: { footingWidth: 0.5, footingHeight: 0.4, layers: 6, ringBeamHeight: 0.25, slabThickness: 0.1 },
     wallBlock: { blockLength: 0.59, blockHeight: 0.24, jointThickness: base.wall.jointThickness },
     partitionBlock: { blockLength: 0.59, blockHeight: 0.24, jointThickness: base.partitionBlock.jointThickness },
-    wallHeight: 2.8,
+    wallHeight: null, // liczona: 270 + 1,2 + 6 + 15 = 292,2 cm
     partitions: { length: 47, heightAboveFloor: null, topMargin: base.partitions.topMargin },
     // podłoga: EPS 3 × 5 cm = 15 cm, wylewka 7 cm, płytka z klejem 2 cm
     floorLayers: { insulation: 0.15, screed: 0.07, finish: 0.02 },
@@ -102,7 +102,7 @@ export function mergeTemplate(builtIn: ProjectTemplate, saved: Partial<ProjectTe
     foundation: m(builtIn.foundation, saved.foundation),
     wallBlock: m(builtIn.wallBlock, saved.wallBlock),
     partitionBlock: m(builtIn.partitionBlock, saved.partitionBlock),
-    wallHeight: saved.wallHeight ?? builtIn.wallHeight,
+    wallHeight: saved.wallHeight ?? null,
     partitions: m(builtIn.partitions, saved.partitions),
     floorLayers: m(builtIn.floorLayers, saved.floorLayers),
     ceiling: m(builtIn.ceiling, saved.ceiling),
@@ -140,7 +140,7 @@ export function describeTemplate(t: ProjectTemplate): string[] {
     `bloczek fundamentowy ${cm(b.blockLength)} × ${cm(b.blockWidth)} × ${cm(b.blockHeight)} cm, spoina ${cm(b.jointThickness)} cm`,
     `ława ${cm(t.foundation.footingWidth)} × ${cm(t.foundation.footingHeight)} cm, ${t.foundation.layers ?? '—'} warstw bloczków fund., wieniec fund. ${cm(t.foundation.ringBeamHeight)} cm, chudziak ${cm(t.foundation.slabThickness)} cm`,
     `bloczek nośny dł. ${cm(t.wallBlock.blockLength)} × wys. ${cm(t.wallBlock.blockHeight)} cm, działowy dł. ${cm(t.partitionBlock.blockLength)} × wys. ${cm(t.partitionBlock.blockHeight)} cm`,
-    `ściany nośne ${cm(t.wallHeight)} cm od posadzki; działowe ${t.partitions.length === null ? '—' : String(t.partitions.length).replace('.', ',')} mb, wysokość ${t.partitions.heightAboveFloor === null ? `ponad stelaż GK + ${cm(t.partitions.topMargin)} cm` : `${cm(t.partitions.heightAboveFloor)} cm`}`,
+    `ściany nośne ${t.wallHeight === null ? 'z sufitu (w świetle + GK + stelaż + pustka)' : `${cm(t.wallHeight)} cm od posadzki`}; działowe ${t.partitions.length === null ? '—' : String(t.partitions.length).replace('.', ',')} mb, wysokość ${t.partitions.heightAboveFloor === null ? `ponad stelaż GK + ${cm(t.partitions.topMargin)} cm` : `${cm(t.partitions.heightAboveFloor)} cm`}`,
     `warstwy podłogi: izolacja ${cm(fl.insulation)} + wylewka ${cm(fl.screed)} + wykończenie ${cm(fl.finish)} cm`,
     `sufit: GK ${cm(c.board)} + stelaż ${cm(c.grid)} + pustka ${cm(c.voidAbove)} cm`,
     `dach: kąt ${t.roof.pitchDeg === null ? '—' : String(t.roof.pitchDeg).replace('.', ',')}°, okap boczny ${cm(t.roof.eaveOverhang)} cm, okap szczytowy ${cm(t.roof.gableOverhang)} cm`,

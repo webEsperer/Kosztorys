@@ -93,7 +93,7 @@ Zasady:
 | Warstwy podłogi na chudziaku: izolacja + wylewka + płytka/panel | **podaje użytkownik** (np. 15 + 6,5 + 1,5 = 23 cm) |
 | Góra chudziaka = góra wieńca fundamentowego | − suma warstw podłogi (np. −23 cm) |
 | Sufit podwieszany: płyta GK 1,2 + stelaż krzyżowy 2 × 3 cm + pustka 15 cm (dojście wkrętarką do wieszaków) | 22,2 cm |
-| **Wysokość ścian nośnych: gotowa posadzka → góra wieńca** (konstrukcja dachu na wieńcu, sufit pod nią) | **podaje użytkownik** (podpowiedź: w świetle + warstwy sufitu, np. 270 + 22,2 = +292,2 cm; ostrzeżenie, gdy nad sufitem mniej miejsca niż GK + stelaż + pustka) |
+| Góra wieńca ścian nośnych = gotowy sufit + GK + stelaż + pustka (konstrukcja dachu na wieńcu, sufit pod nią) — **liczona** (wg użytkownika) | 270 + 1,2 + 6 + 15 = +292,2 cm |
 | Ściany działowe od gotowej posadzki (pierwsza warstwa na chudziaku): ponad stelaż GK, nie wyżej niż wieniec | w świetle + GK + stelaż + 3 cm = 280,2 cm (+ warstwy podłogi) |
 | Wieniec ścian minimalny | 25 cm |
 | Grubość chudziaka | 10 cm |
@@ -273,7 +273,7 @@ Jedna funkcja dla OSB, papy itp.: dane `arkusz/rolka (szer × dł)`, `szerokoś�
 Góra ławy = −23 cm − h_ściany_fund. Dno wykopu = góra ławy − 12 cm (górne 12 cm ławy w szalunku z desek).
 
 **Ściany nośne:** liczone od dołu (wg użytkownika): góra chudziaka = −(izolacja + wylewka + wykończenie);
-góra wieńca ścian = wysokość ścian nośnych podana przez użytkownika (od gotowej posadzki).
+góra wieńca ścian = wysokość w świetle + GK 1,2 + stelaż 2 × 3 + pustka 15 cm (liczona — wg użytkownika).
 Przykład: od −23 do +292,2 = 315,2 cm.
 - `H = (góra wieńca − góra chudziaka) − warstwa wyrównawcza pierwszej warstwy (parametr, domyślnie 0)`
 - `n = floor((H − wieniec_min) / h_warstwy)`, gdzie `h_warstwy` = wys. bloczka (+ spoina), `wieniec_min` = 25 cm
@@ -635,7 +635,7 @@ Układ: profile główne wzdłuż dłuższego boku pomieszczenia, nośne krzyżo
    zapamiętuje z bieżącego projektu bloczek fundamentowy, warstwy podłogi, sufit, kąt dachu i okapy; „Nowy” je wpisuje.
    Szablon wbudowany = **dom użytkownika** (`builtInTemplate`): bloczek fund. 38 × 24 × 12, nośny 59 × 24 (ściana 24),
    działowy 59 × 24 (ściana 12), spoina fund. 1,5 cm, ława 50 × 40 cm, 6 warstw bloczków fund., wieniec fund. 25 cm, chudziak 10 cm (góra = góra wieńca), podłoga EPS 3 × 5 = 15 cm + wylewka 7 cm + płytka z klejem 2 cm = 24 cm,
-   ściany nośne 2,80 m od gotowej posadzki, działowe 47 mb (wysokość 3 cm ponad profile GK), dach 30°, okapy 60 cm
+   ściany nośne liczone z sufitu (góra wieńca +292,2 cm), działowe 47 mb (wysokość 3 cm ponad profile GK), dach 30°, okapy 60 cm
    (poziomo od lica elewacji), otwory: 9 okien, 3 drzwi zewn., 7 drzwi wewn. (`USER_OPENINGS`).
    „Wczytaj domyślne” wpisuje szablon do bieżącego projektu. Wartości w projekcie zawsze edytowalne.
 

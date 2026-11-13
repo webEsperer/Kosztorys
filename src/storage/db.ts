@@ -74,9 +74,12 @@ export function upgradeProject(data: Partial<ProjectInput>): ProjectInput {
   // Starsze zapisy: szczyt daszku „boazeria” oznaczał wełnę + boazerię.
   merged.roof.dormers = merged.roof.dormers.map((d) => (d.gableInsulation === undefined && d.gableFinish === 'boazeria' ? { ...d, gableInsulation: true } : d))
   // Starsze zapisy liczyły górę wieńca z wysokości w świetle + warstw sufitu — zachowaj tę wartość.
-  if (data.wallHeight === undefined) {
+  // Wysokość ścian nośnych liczona z sufitu (wg użytkownika, 2026-11-13): wartości z dawnej wersji
+  // (2,80 z szablonu albo równe wyliczonej) → null = automatycznie.
+  {
     const c = merged.ceiling
-    merged.wallHeight = Math.round((merged.clearHeight + c.board + c.grid + c.voidAbove) * 1e6) / 1e6
+    const auto = Math.round((merged.clearHeight + c.board + c.grid + c.voidAbove) * 1e6) / 1e6
+    if (merged.wallHeight === undefined || merged.wallHeight === 2.8 || (merged.wallHeight !== null && Math.abs(merged.wallHeight - auto) < 1e-6)) merged.wallHeight = null
   }
   return merged
 }

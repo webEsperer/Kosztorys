@@ -73,11 +73,11 @@ export interface ProjectInput {
   clearHeight: number
   floorLayers: FloorLayersInput
   /**
-   * Wysokość ścian nośnych: gotowa posadzka (±0) → góra wieńca ścian [m] — podaje użytkownik
-   * (null = uzupełnij; podpowiedź: wysokość w świetle + warstwy sufitu). Mur stoi na chudziaku.
+   * Ręczne nadpisanie góry wieńca ścian nośnych od gotowej posadzki [m]. null (domyślnie) = liczona:
+   * w świetle + GK + stelaż + pustka. Mur stoi na chudziaku; warstwy i wieniec wg levels.ts.
    */
   wallHeight: number | null
-  /** Sufit podwieszany: GK + stelaż + pustka — podpowiedź wysokości ścian i kontrola miejsca nad sufitem. */
+  /** Sufit podwieszany: GK + stelaż + pustka — wyznacza górę wieńca ścian nośnych. */
   ceiling: CeilingBuildUp
   slabThickness: number
   wall: WallInput

@@ -63,7 +63,6 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
     calcError = e instanceof Error ? e.message : String(e)
   }
   const roof = base ? roofOf(project).roof : null
-  const wl = base?.wallLayers?.value
   const f = project.foundation
   const gableSpan = gableSpanInterior(project)
   const gables = project.roof.pitchDeg !== null && project.roof.pitchDeg > 0 && project.roof.pitchDeg < 90 ? gableWallsGross(gableSpan, project.wallThickness, project.roof.pitchDeg) : null
@@ -109,18 +108,8 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
         )}
       </Section>
 
-      <Section title="2. Wysokości (±0 = gotowa posadzka)" note="Wysokość ścian nośnych i warstwy podłogi podajesz Ty — mur ścian stoi na chudziaku.">
+      <Section title="2. Wysokości (±0 = gotowa posadzka)" note="Warstwy podłogi i sufitu podajesz Ty — z nich program liczy wysokość ścian (mur stoi na chudziaku).">
         <NumField positive allowEmpty={false} label="Wysokość w świetle (posadzka → sufit)" {...CM} value={project.clearHeight} onChange={(v) => update((p) => { p.clearHeight = v ?? 2.7 })} />
-        <NumField positive label="Wysokość ścian nośnych (posadzka → góra wieńca)" {...CM} required value={project.wallHeight} onChange={(v) => update((p) => { p.wallHeight = v })} />
-        {base && (
-          <p className="calc">
-            Podpowiedź z sufitu podwieszanego: w świetle + GK + stelaż + pustka = <b>{fmtQty(base.ringTopHint.value * 100, 1)} cm</b>
-            {project.wallHeight !== null && project.wallHeight + 1e-9 < base.ringTopHint.value && project.wallHeight > project.clearHeight && (
-              <span className="todo-inline"> — za mało miejsca nad sufitem ({fmtQty((project.wallHeight - project.clearHeight) * 100, 1)} cm)</span>
-            )}
-            {base.wallHeightMissing.length > 0 && project.wallHeight !== null && <span className="todo-inline"> — {base.wallHeightMissing.join(', ')}</span>}
-          </p>
-        )}
         <NumField nonNegative label="Izolacja na chudziaku" {...CM} required value={project.floorLayers.insulation} onChange={(v) => update((p) => { p.floorLayers.insulation = v })} />
         <NumField nonNegative label="Wylewka" {...CM} required value={project.floorLayers.screed} onChange={(v) => update((p) => { p.floorLayers.screed = v })} />
         <NumField nonNegative label="Płytka / panel" {...CM} required value={project.floorLayers.finish} onChange={(v) => update((p) => { p.floorLayers.finish = v })} />
@@ -137,17 +126,7 @@ export function ProjectForm({ project, update }: { project: ProjectInput; update
         <NumField nonNegative allowEmpty={false} label="Warstwa wyrównawcza" {...CM} value={project.wall.levelingLayer} onChange={(v) => update((p) => { p.wall.levelingLayer = v ?? 0 })} />
         <NumField positive allowEmpty={false} label="Wieniec — wysokość minimalna" {...CM} value={project.wall.ringBeamMin} onChange={(v) => update((p) => { p.wall.ringBeamMin = v ?? 0.25 })} />
         <NumField nonNegative allowEmpty={false} label="Reszta dokładana do wieńca (maks.)" {...CM} value={project.wall.maxRingBeamExtension} onChange={(v) => update((p) => { p.wall.maxRingBeamExtension = v ?? 0 })} />
-        <div className="calc levels">
-          {wl && base ? (
-            <>
-              Góra wieńca ścian: <b>+{fmtQty(base.ringTop.value * 100, 1)} cm</b>; warstw pełnych: <b>{wl.fullLayers}</b>
-              {wl.cutLayerHeight > 0 && <>, warstwa docinana: <b>{fmtQty(wl.cutLayerHeight * 100, 1)} cm</b></>}; wieniec:{' '}
-              <b>{fmtQty(wl.ringBeamHeight * 100, 1)} cm</b>
-            </>
-          ) : (
-            <span className="todo-inline">{base ? `Uzupełnij: ${base.wallMissing.join(', ')}` : calcError}</span>
-          )}
-        </div>
+        {base && <WallHeightBreakdown project={project} base={base} update={update} calcError={calcError} />}
         <div className="calc">
           {gables ? (
             <>
@@ -283,6 +262,60 @@ function PartitionHeightBreakdown({ project, base, update }: { project: ProjectI
           {cm(base.partitionAbove.value - base.ringTop.value)} cm.
         </p>
       )}
+    </div>
+  )
+}
+
+/** Wysokość ścian nośnych krok po kroku: sufit → góra wieńca → od chudziaka → warstwy bloczków i wieniec. */
+function WallHeightBreakdown({ project, base, update, calcError }: { project: ProjectInput; base: ReturnType<typeof projectBase>; update: Update; calcError: string | null }) {
+  const cm = (m: number) => fmtQty(m * 100, 1)
+  const wl = base.wallLayers?.value
+  const c = project.ceiling
+  const w = project.wall
+  return (
+    <div className="calc wall-breakdown">
+      {project.wallHeight !== null ? (
+        <p>
+          Góra wieńca wpisana wcześniej ręcznie: <b>+{cm(project.wallHeight)} cm</b> (z sufitu wyszłoby +{cm(base.ringTopHint.value)} cm){' '}
+          <button className="btn" onClick={() => update((p) => { p.wallHeight = null })}>
+            Licz automatycznie
+          </button>
+        </p>
+      ) : null}
+      <table className="sum-table">
+        <tbody>
+          {project.wallHeight === null && (
+            <>
+              <tr><th>Gotowa posadzka → gotowy sufit (w świetle)</th><td>{cm(project.clearHeight)} cm</td></tr>
+              <tr><th>+ płyta GK + stelaż + pustka nad profilami</th><td>{cm(c.board)} + {cm(c.grid)} + {cm(c.voidAbove)} cm</td></tr>
+            </>
+          )}
+          <tr><th><b>= góra wieńca ścian nośnych</b> (od gotowej posadzki)</th><td><b>+{cm(base.ringTop.value)} cm</b></td></tr>
+          {wl && base.floorBuild ? (
+            <>
+              <tr><th>+ warstwy pod posadzką do chudziaka (pierwsza warstwa bloczków stoi na chudziaku)</th><td>{cm(base.floorBuild.value)} cm</td></tr>
+              <tr><th><b>= od chudziaka do góry wieńca</b>{w.levelingLayer > 0 ? ` (− warstwa wyrównawcza ${cm(w.levelingLayer)} cm)` : ''}</th><td><b>{cm(wl.height)} cm</b></td></tr>
+              <tr><th>Pełne warstwy bloczków: {wl.fullLayers} × {cm(wl.layerHeight)} cm</th><td>{cm(wl.fullLayers * wl.layerHeight)} cm</td></tr>
+              <tr>
+                <th>
+                  Reszta ponad warstwy i wieniec {cm(w.ringBeamMin)} cm{' '}
+                  {wl.cutLayerHeight > 0
+                    ? `— więcej niż ${cm(w.maxRingBeamExtension)} cm → warstwa bloczków docinana`
+                    : wl.remainder > 0
+                      ? `— do ${cm(w.maxRingBeamExtension)} cm → dokładana do wieńca`
+                      : '— brak'}
+                </th>
+                <td>{cm(wl.remainder)} cm</td>
+              </tr>
+              {wl.cutLayerHeight > 0 && <tr><th>Warstwa docinana</th><td>{cm(wl.cutLayerHeight)} cm</td></tr>}
+              <tr><th><b>Mur z bloczków</b> (od chudziaka; od posadzki do +{cm(wl.ringBeamBottom)} cm)</th><td><b>{cm(wl.masonryHeight)} cm</b></td></tr>
+              <tr><th><b>Wieniec</b> (min. {cm(w.ringBeamMin)}, maks. {cm(w.ringBeamMin + w.maxRingBeamExtension)} cm)</th><td><b>{cm(wl.ringBeamHeight)} cm</b></td></tr>
+            </>
+          ) : (
+            <tr><th className="todo-inline">{calcError ?? `Uzupełnij: ${base.wallMissing.join(', ')}`}</th><td /></tr>
+          )}
+        </tbody>
+      </table>
     </div>
   )
 }
